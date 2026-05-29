@@ -12,8 +12,16 @@ import {
 } from 'react-native';
 
 type StepKey = 'intro' | 'nickname' | 'book' | 'mood' | 'done';
-type ScreenKey = 'onboarding' | 'home';
+type ScreenKey =
+  | 'onboarding'
+  | 'home'
+  | 'quote-method'
+  | 'camera-capture'
+  | 'gallery-picker'
+  | 'ocr-preview'
+  | 'quote-form';
 type HomeTabKey = 'all' | 'library' | 'insight';
+type RegisterType = 'camera' | 'gallery' | 'manual';
 
 const TOTAL_STEPS = 5;
 
@@ -26,6 +34,7 @@ export default function App() {
   const [selectedRecordOption, setSelectedRecordOption] = useState<string>('now');
   const [selectedMood, setSelectedMood] = useState<string>('cozy');
   const [homeTab, setHomeTab] = useState<HomeTabKey>('all');
+  const [registerType, setRegisterType] = useState<RegisterType>('manual');
 
   const stepKey = useMemo<StepKey>(() => {
     if (step === 0) return 'intro';
@@ -49,7 +58,63 @@ export default function App() {
     (stepKey === 'book' && selectedRecordOption === 'now' && (!bookTitle.trim() || !author.trim()));
 
   if (screen === 'home') {
-    return <HomeScreen nickname={nickname} tab={homeTab} onChangeTab={setHomeTab} />;
+    return (
+      <HomeScreen
+        nickname={nickname}
+        tab={homeTab}
+        onChangeTab={setHomeTab}
+        onPressRegister={() => setScreen('quote-method')}
+      />
+    );
+  }
+
+  if (screen === 'quote-method') {
+    return (
+      <QuoteMethodScreen
+        nickname={nickname}
+        tab={homeTab}
+        onChangeTab={setHomeTab}
+        onClose={() => setScreen('home')}
+        onSelect={(type) => {
+          setRegisterType(type);
+          if (type === 'camera') setScreen('camera-capture');
+          if (type === 'gallery') setScreen('gallery-picker');
+          if (type === 'manual') setScreen('quote-form');
+        }}
+      />
+    );
+  }
+
+  if (screen === 'camera-capture') {
+    return (
+      <CameraCaptureScreen
+        onBack={() => setScreen('quote-method')}
+        onCapture={() => setScreen('ocr-preview')}
+      />
+    );
+  }
+
+  if (screen === 'gallery-picker') {
+    return <GalleryPickerScreen onBack={() => setScreen('quote-method')} onPick={() => setScreen('ocr-preview')} />;
+  }
+
+  if (screen === 'ocr-preview') {
+    return (
+      <OcrPreviewScreen
+        onBack={() => setScreen(registerType === 'camera' ? 'camera-capture' : 'gallery-picker')}
+        onNext={() => setScreen('quote-form')}
+      />
+    );
+  }
+
+  if (screen === 'quote-form') {
+    return (
+      <QuoteFormScreen
+        onBack={() => setScreen('home')}
+        initialMethod={registerType}
+        ocrFilled={registerType === 'camera' || registerType === 'gallery'}
+      />
+    );
   }
 
   return (
@@ -225,9 +290,10 @@ type HomeScreenProps = {
   nickname: string;
   tab: HomeTabKey;
   onChangeTab: (tab: HomeTabKey) => void;
+  onPressRegister: () => void;
 };
 
-function HomeScreen({ nickname, tab, onChangeTab }: HomeScreenProps) {
+function HomeScreen({ nickname, tab, onChangeTab, onPressRegister }: HomeScreenProps) {
   const allNotes = [
     {
       id: '1',
@@ -314,7 +380,7 @@ function HomeScreen({ nickname, tab, onChangeTab }: HomeScreenProps) {
           </View>
         )}
 
-        <Pressable style={styles.floatingButton}>
+        <Pressable style={styles.floatingButton} onPress={onPressRegister}>
           <Text style={styles.floatingButtonText}>＋</Text>
         </Pressable>
 
@@ -329,6 +395,181 @@ function HomeScreen({ nickname, tab, onChangeTab }: HomeScreenProps) {
           </View>
         </View>
       </View>
+    </SafeAreaView>
+  );
+}
+
+type QuoteMethodScreenProps = {
+  nickname: string;
+  tab: HomeTabKey;
+  onChangeTab: (tab: HomeTabKey) => void;
+  onClose: () => void;
+  onSelect: (type: RegisterType) => void;
+};
+
+function QuoteMethodScreen({ nickname, tab, onChangeTab, onClose, onSelect }: QuoteMethodScreenProps) {
+  return (
+    <View style={styles.methodOverlay}>
+      <HomeScreen nickname={nickname} tab={tab} onChangeTab={onChangeTab} onPressRegister={() => {}} />
+      <Pressable style={styles.overlayDim} onPress={onClose} />
+      <View style={styles.methodSheet}>
+        <Text style={styles.methodTitle}>문장 등록 방식 선택</Text>
+        <TouchableOpacity style={styles.methodItem} onPress={() => onSelect('camera')}>
+          <Text style={styles.methodItemIcon}>📷</Text>
+          <View>
+            <Text style={styles.methodItemTitle}>사진 촬영</Text>
+            <Text style={styles.methodItemSub}>책 페이지를 촬영하여 자동 인식</Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.methodItem} onPress={() => onSelect('gallery')}>
+          <Text style={styles.methodItemIcon}>🖼️</Text>
+          <View>
+            <Text style={styles.methodItemTitle}>이미지 첨부</Text>
+            <Text style={styles.methodItemSub}>갤러리에서 사진 선택</Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.methodItem} onPress={() => onSelect('manual')}>
+          <Text style={styles.methodItemIcon}>✍️</Text>
+          <View>
+            <Text style={styles.methodItemTitle}>직접 입력</Text>
+            <Text style={styles.methodItemSub}>문장을 직접 입력</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+type CameraCaptureScreenProps = {
+  onBack: () => void;
+  onCapture: () => void;
+};
+
+function CameraCaptureScreen({ onBack, onCapture }: CameraCaptureScreenProps) {
+  return (
+    <SafeAreaView style={styles.captureSafeArea}>
+      <View style={styles.captureTopBar}>
+        <TouchableOpacity onPress={onBack}>
+          <Text style={styles.backText}>←</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.cameraFrame}>
+        <Text style={styles.cameraMockText}>카메라 프리뷰 (Mock)</Text>
+        <View style={styles.scanGuide}>
+          <Text style={styles.scanGuideText}>인식할 문장 영역에 맞춰 촬영하세요</Text>
+        </View>
+      </View>
+      <View style={styles.captureBottomBar}>
+        <TouchableOpacity style={styles.shutterButton} onPress={onCapture}>
+          <Text style={styles.shutterIcon}>◉</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+type GalleryPickerScreenProps = {
+  onBack: () => void;
+  onPick: () => void;
+};
+
+function GalleryPickerScreen({ onBack, onPick }: GalleryPickerScreenProps) {
+  return (
+    <SafeAreaView style={styles.gallerySafeArea}>
+      <View style={styles.galleryTopBar}>
+        <TouchableOpacity onPress={onBack}>
+          <Text style={styles.galleryTopText}>Cancel</Text>
+        </TouchableOpacity>
+        <Text style={styles.galleryTopText}>Photos</Text>
+        <Text style={styles.galleryTopText}>Albums</Text>
+      </View>
+      <View style={styles.galleryGrid}>
+        {[...Array(15)].map((_, index) => (
+          <TouchableOpacity key={index} style={styles.galleryCell} onPress={onPick}>
+            <Text style={styles.galleryCellText}>IMG {index + 1}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </SafeAreaView>
+  );
+}
+
+type OcrPreviewScreenProps = {
+  onBack: () => void;
+  onNext: () => void;
+};
+
+function OcrPreviewScreen({ onBack, onNext }: OcrPreviewScreenProps) {
+  return (
+    <SafeAreaView style={styles.formSafeArea}>
+      <View style={styles.formHeader}>
+        <TouchableOpacity onPress={onBack}>
+          <Text style={styles.backText}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.formHeaderTitle}>기록할 문장을 드래그해서 선택해주세요</Text>
+        <View style={styles.formHeaderRight} />
+      </View>
+      <View style={styles.ocrCard}>
+        <Text style={styles.ocrTextMuted}>모든 것이 흔들리던 밤이었다. 때리는 그리움 또한 흔들림 앞이었고, 한</Text>
+        <Text style={styles.ocrTextHighlight}>우리는 말을 하면서 사유할 수 있다. 말은 생각을 반복시키고 선명하게 만든다.</Text>
+        <Text style={styles.ocrTextMuted}>하지만 혼자서, 비유의 영역과 논리에만 갇힌 여전히 그 둘의 연결 고리로...</Text>
+      </View>
+      <TouchableOpacity style={styles.ocrNextButton} onPress={onNext}>
+        <Text style={styles.ocrNextText}>다음</Text>
+      </TouchableOpacity>
+    </SafeAreaView>
+  );
+}
+
+type QuoteFormScreenProps = {
+  onBack: () => void;
+  initialMethod: RegisterType;
+  ocrFilled: boolean;
+};
+
+function QuoteFormScreen({ onBack, initialMethod, ocrFilled }: QuoteFormScreenProps) {
+  const [book, setBook] = useState('책 제목을 입력하세요');
+  const [page, setPage] = useState('23');
+  const [quote, setQuote] = useState(
+    ocrFilled ? '우리는 말을 하면서 사유할 수 있다. 말은 생각을 반복시킨다.' : '인상 깊은 문장을 입력하세요',
+  );
+  const [memo, setMemo] = useState('이 문장이 만든 생각을 자유롭게 적어보세요');
+  const methodLabel = initialMethod === 'manual' ? '직접입력' : initialMethod === 'camera' ? '사진찍기' : '갤러리';
+
+  return (
+    <SafeAreaView style={styles.formSafeArea}>
+      <View style={styles.formHeader}>
+        <TouchableOpacity onPress={onBack}>
+          <Text style={styles.backText}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.formHeaderTitle}>문장 저장하기</Text>
+        <View style={styles.formHeaderRight} />
+      </View>
+      <ScrollView contentContainerStyle={styles.formBody} showsVerticalScrollIndicator={false}>
+        <Text style={styles.formLabel}>책 제목</Text>
+        <TextInput style={styles.formInput} value={book} onChangeText={setBook} />
+        <Text style={styles.formLabel}>페이지</Text>
+        <TextInput style={styles.formInput} value={page} onChangeText={setPage} keyboardType="number-pad" />
+        <Text style={styles.formLabel}>수집 문장</Text>
+        <TextInput style={styles.formTextArea} value={quote} onChangeText={setQuote} multiline />
+        <Text style={styles.formLabel}>내 코멘트 (선택)</Text>
+        <TextInput style={styles.formTextArea} value={memo} onChangeText={setMemo} multiline />
+        <Text style={styles.formLabel}>붙인 상태</Text>
+        <View style={styles.tagRow}>
+          <View style={styles.tagChipActive}>
+            <Text style={styles.tagChipTextActive}>{methodLabel}</Text>
+          </View>
+          <View style={styles.tagChip}>
+            <Text style={styles.tagChipText}>나중에 보기</Text>
+          </View>
+          <View style={styles.tagChip}>
+            <Text style={styles.tagChipText}>사유중</Text>
+          </View>
+        </View>
+      </ScrollView>
+      <TouchableOpacity style={styles.submitButton}>
+        <Text style={styles.submitButtonText}>문장 저장하기</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -786,6 +1027,286 @@ const styles = StyleSheet.create({
   bottomLabelActive: {
     fontSize: 10,
     color: '#8d7353',
+    fontWeight: '700',
+  },
+  methodOverlay: {
+    flex: 1,
+    backgroundColor: '#f6f3ee',
+  },
+  overlayDim: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+  },
+  methodSheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#f7f2ea',
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 24,
+    gap: 8,
+  },
+  methodTitle: {
+    fontSize: 14,
+    color: '#4d4439',
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  methodItem: {
+    borderWidth: 1,
+    borderColor: '#e8dfd2',
+    backgroundColor: '#f9f5ee',
+    borderRadius: 10,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  methodItemIcon: {
+    fontSize: 15,
+  },
+  methodItemTitle: {
+    fontSize: 13,
+    color: '#312c25',
+    fontWeight: '600',
+  },
+  methodItemSub: {
+    fontSize: 11,
+    color: '#8a8074',
+    marginTop: 2,
+  },
+  captureSafeArea: {
+    flex: 1,
+    backgroundColor: '#f5f2eb',
+  },
+  captureTopBar: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  backText: {
+    fontSize: 18,
+    color: '#453d33',
+  },
+  cameraFrame: {
+    flex: 1,
+    marginHorizontal: 12,
+    borderRadius: 18,
+    backgroundColor: '#d8d2c8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  cameraMockText: {
+    fontSize: 13,
+    color: '#7a7062',
+    marginBottom: 10,
+  },
+  scanGuide: {
+    width: '84%',
+    borderRadius: 8,
+    backgroundColor: 'rgba(126, 183, 108, 0.5)',
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+  },
+  scanGuideText: {
+    textAlign: 'center',
+    color: '#22301d',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  captureBottomBar: {
+    height: 96,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shutterButton: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 2,
+    borderColor: '#8d7353',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shutterIcon: {
+    fontSize: 26,
+    color: '#8d7353',
+  },
+  gallerySafeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  galleryTopBar: {
+    height: 44,
+    borderBottomWidth: 1,
+    borderColor: '#ececec',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+  },
+  galleryTopText: {
+    color: '#2f6fe0',
+    fontSize: 13,
+  },
+  galleryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  galleryCell: {
+    width: '25%',
+    aspectRatio: 1,
+    borderWidth: 0.5,
+    borderColor: '#eaeaea',
+    backgroundColor: '#ddd6ca',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  galleryCellText: {
+    fontSize: 10,
+    color: '#675f55',
+  },
+  formSafeArea: {
+    flex: 1,
+    backgroundColor: '#f6f3ee',
+  },
+  formHeader: {
+    height: 48,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  formHeaderTitle: {
+    fontSize: 14,
+    color: '#3a3228',
+    fontWeight: '600',
+  },
+  formHeaderRight: {
+    width: 18,
+  },
+  ocrCard: {
+    flex: 1,
+    marginHorizontal: 14,
+    marginTop: 8,
+    backgroundColor: '#fbf8f2',
+    borderWidth: 1,
+    borderColor: '#e9dfd0',
+    borderRadius: 12,
+    padding: 14,
+    gap: 12,
+  },
+  ocrTextMuted: {
+    fontSize: 12,
+    color: '#72695e',
+    lineHeight: 18,
+  },
+  ocrTextHighlight: {
+    fontSize: 12,
+    color: '#3f3a30',
+    lineHeight: 18,
+    backgroundColor: 'rgba(163, 216, 146, 0.55)',
+    paddingVertical: 3,
+  },
+  ocrNextButton: {
+    height: 44,
+    marginHorizontal: 14,
+    marginBottom: 12,
+    borderRadius: 9,
+    backgroundColor: '#8d7353',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ocrNextText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  formBody: {
+    paddingHorizontal: 14,
+    paddingBottom: 16,
+  },
+  formLabel: {
+    marginTop: 10,
+    marginBottom: 6,
+    fontSize: 11,
+    color: '#746b5f',
+    fontWeight: '600',
+  },
+  formInput: {
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: '#f1ede5',
+    borderWidth: 1,
+    borderColor: '#e4dbcd',
+    paddingHorizontal: 10,
+    color: '#3e352b',
+    fontSize: 12,
+  },
+  formTextArea: {
+    minHeight: 76,
+    borderRadius: 8,
+    backgroundColor: '#f1ede5',
+    borderWidth: 1,
+    borderColor: '#e4dbcd',
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    color: '#3e352b',
+    fontSize: 12,
+    textAlignVertical: 'top',
+  },
+  tagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  tagChip: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e1d7c9',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    backgroundColor: '#f8f5ee',
+  },
+  tagChipActive: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#8d7353',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    backgroundColor: '#8d7353',
+  },
+  tagChipText: {
+    fontSize: 10,
+    color: '#7f766a',
+  },
+  tagChipTextActive: {
+    fontSize: 10,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  submitButton: {
+    height: 44,
+    marginHorizontal: 14,
+    marginBottom: 12,
+    borderRadius: 9,
+    backgroundColor: '#8d7353',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '700',
   },
 });
