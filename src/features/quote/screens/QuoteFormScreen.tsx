@@ -9,12 +9,10 @@ type Props = {
 };
 
 export function QuoteFormScreen({ onBack, initialMethod, ocrFilled }: Props) {
-  const [book, setBook] = useState('책 제목을 입력하세요');
-  const [page, setPage] = useState('23');
-  const [quote, setQuote] = useState(
-    ocrFilled ? '우리는 말을 하면서 사유할 수 있다. 말은 생각을 반복시킨다.' : '인상 깊은 문장을 입력하세요',
-  );
-  const [memo, setMemo] = useState('이 문장이 만든 생각을 자유롭게 적어보세요');
+  const [book, setBook] = useState('');
+  const [page, setPage] = useState('');
+  const [quote, setQuote] = useState(ocrFilled ? '우리는 말을 하면서 사유할 수 있다. 말은 생각을 반복시킨다.' : '');
+  const [memo, setMemo] = useState('');
   const methodLabel = initialMethod === 'manual' ? '직접입력' : initialMethod === 'camera' ? '사진찍기' : '갤러리';
 
   return (
@@ -28,13 +26,31 @@ export function QuoteFormScreen({ onBack, initialMethod, ocrFilled }: Props) {
       </View>
       <ScrollView contentContainerStyle={styles.formBody} showsVerticalScrollIndicator={false}>
         <Text style={styles.formLabel}>책 제목</Text>
-        <TextInput style={styles.formInput} value={book} onChangeText={setBook} />
+        <TextInput style={styles.formInput} value={book} onChangeText={setBook} placeholder="책 제목을 입력하세요" />
         <Text style={styles.formLabel}>페이지</Text>
-        <TextInput style={styles.formInput} value={page} onChangeText={setPage} keyboardType="number-pad" />
+        <TextInput
+          style={styles.formInput}
+          value={page}
+          onChangeText={setPage}
+          keyboardType="number-pad"
+          placeholder="페이지 번호"
+        />
         <Text style={styles.formLabel}>수집 문장</Text>
-        <TextInput style={styles.formTextArea} value={quote} onChangeText={setQuote} multiline />
+        <TextInput
+          style={styles.formTextArea}
+          value={quote}
+          onChangeText={setQuote}
+          multiline
+          placeholder="인상 깊은 문장을 입력하세요"
+        />
         <Text style={styles.formLabel}>내 코멘트 (선택)</Text>
-        <TextInput style={styles.formTextArea} value={memo} onChangeText={setMemo} multiline />
+        <TextInput
+          style={styles.formTextArea}
+          value={memo}
+          onChangeText={setMemo}
+          multiline
+          placeholder="이 문장이 만든 생각을 자유롭게 적어보세요"
+        />
         <Text style={styles.formLabel}>붙인 상태</Text>
         <View style={styles.tagRow}>
           <View style={styles.tagChipActive}>

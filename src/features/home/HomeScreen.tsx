@@ -29,7 +29,7 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister }: Prop
       <StatusBar barStyle="dark-content" />
       <View style={styles.homeContainer}>
         <View style={styles.homeHeader}>
-          <Text style={styles.homeUsername}>{displayName} r...</Text>
+          <Text style={styles.homeUsername}>{displayName}</Text>
         </View>
 
         <View style={styles.homeSearchRow}>
