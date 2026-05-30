@@ -7,6 +7,7 @@ type Props = {
   tab: HomeTabKey;
   onChangeTab: (tab: HomeTabKey) => void;
   onPressRegister: () => void;
+  onPressCommunity: () => void;
 };
 
 const allNotes = [
@@ -20,7 +21,7 @@ const insightNotes = [
   { id: '5', quote: '성장은 불편함과 함께 온다.', book: '아주 작은 습관의 힘', author: '제임스 클리어' },
 ];
 
-export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister }: Props) {
+export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPressCommunity }: Props) {
   const list = tab === 'all' ? allNotes : tab === 'insight' ? insightNotes : [];
   const displayName = nickname.trim() ? nickname : 'User';
 
@@ -78,10 +79,10 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister }: Prop
             <Text style={styles.bottomIcon}>⌂</Text>
             <Text style={styles.bottomLabelActive}>홈으로</Text>
           </View>
-          <View style={styles.bottomItem}>
+          <TouchableOpacity style={styles.bottomItem} onPress={onPressCommunity}>
             <Text style={styles.bottomIcon}>◌</Text>
-            <Text style={styles.bottomLabel}>채팅</Text>
-          </View>
+            <Text style={styles.bottomLabel}>커뮤니티</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>
