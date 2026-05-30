@@ -15,7 +15,13 @@ type Props = {
 export function QuoteMethodScreen({ nickname, tab, onChangeTab, onClose, onSelect }: Props) {
   return (
     <View style={styles.container}>
-      <HomeScreen nickname={nickname} tab={tab} onChangeTab={onChangeTab} onPressRegister={() => {}} />
+      <HomeScreen
+        nickname={nickname}
+        tab={tab}
+        onChangeTab={onChangeTab}
+        onPressRegister={() => {}}
+        onPressCommunity={() => {}}
+      />
       <MethodSheet onClose={onClose} onSelect={onSelect} />
     </View>
   );

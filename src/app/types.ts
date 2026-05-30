@@ -3,6 +3,7 @@ export type StepKey = 'intro' | 'nickname' | 'book' | 'mood' | 'done';
 export type ScreenKey =
   | 'onboarding'
   | 'home'
+  | 'community'
   | 'quote-method'
   | 'camera-capture'
   | 'gallery-picker'
