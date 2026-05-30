@@ -6,6 +6,7 @@ type CommunityViewMode = 'feed' | 'vote' | 'result';
 type Props = {
   nickname: string;
   onPressHome: () => void;
+  onPressAiChat: () => void;
 };
 
 const posts = [
@@ -14,7 +15,7 @@ const posts = [
   { id: '3', title: '독서할 때 메모 습관 공유해요.', meta: '21 · 3 · 1' },
 ];
 
-export function CommunityScreen({ nickname, onPressHome }: Props) {
+export function CommunityScreen({ nickname, onPressHome, onPressAiChat }: Props) {
   const [mode, setMode] = useState<CommunityViewMode>('feed');
   const displayName = nickname.trim() ? nickname : 'User';
 
@@ -88,12 +89,16 @@ export function CommunityScreen({ nickname, onPressHome }: Props) {
         <View style={styles.bottomNav}>
           <TouchableOpacity style={styles.bottomItem} onPress={onPressHome}>
             <Text style={styles.bottomIcon}>⌂</Text>
-            <Text style={styles.bottomLabel}>홈으로</Text>
+            <Text style={styles.bottomLabel}>홈</Text>
           </TouchableOpacity>
           <View style={styles.bottomItem}>
             <Text style={styles.bottomIcon}>◌</Text>
             <Text style={styles.bottomLabelActive}>커뮤니티</Text>
           </View>
+          <TouchableOpacity style={styles.bottomItem} onPress={onPressAiChat}>
+            <Text style={styles.bottomIcon}>◔</Text>
+            <Text style={styles.bottomLabel}>AI 채팅</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>
