@@ -21,6 +21,7 @@ export function QuoteMethodScreen({ nickname, tab, onChangeTab, onClose, onSelec
         onChangeTab={onChangeTab}
         onPressRegister={() => {}}
         onPressCommunity={() => {}}
+        onPressAiChat={() => {}}
       />
       <MethodSheet onClose={onClose} onSelect={onSelect} />
     </View>

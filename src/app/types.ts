@@ -4,6 +4,7 @@ export type ScreenKey =
   | 'onboarding'
   | 'home'
   | 'community'
+  | 'ai-chat'
   | 'quote-method'
   | 'camera-capture'
   | 'gallery-picker'

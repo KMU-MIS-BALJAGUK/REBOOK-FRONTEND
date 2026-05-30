@@ -3,6 +3,7 @@ import { useAppFlow } from './useAppFlow';
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
 import { HomeScreen } from '../features/home/HomeScreen';
 import { CommunityScreen } from '../features/community/CommunityScreen';
+import { AiChatScreen } from '../features/ai-chat/AiChatScreen';
 import { QuoteMethodScreen } from '../features/quote/screens/QuoteMethodScreen';
 import { CameraCaptureScreen } from '../features/quote/screens/CameraCaptureScreen';
 import { GalleryPickerScreen } from '../features/quote/screens/GalleryPickerScreen';
@@ -20,12 +21,29 @@ export default function AppRoot() {
         onChangeTab={actions.setHomeTab}
         onPressRegister={() => actions.setScreen('quote-method')}
         onPressCommunity={() => actions.setScreen('community')}
+        onPressAiChat={() => actions.setScreen('ai-chat')}
+      />
+    );
+  }
+
+  if (state.screen === 'ai-chat') {
+    return (
+      <AiChatScreen
+        nickname={state.nickname}
+        onPressHome={() => actions.setScreen('home')}
+        onPressCommunity={() => actions.setScreen('community')}
       />
     );
   }
 
   if (state.screen === 'community') {
-    return <CommunityScreen nickname={state.nickname} onPressHome={() => actions.setScreen('home')} />;
+    return (
+      <CommunityScreen
+        nickname={state.nickname}
+        onPressHome={() => actions.setScreen('home')}
+        onPressAiChat={() => actions.setScreen('ai-chat')}
+      />
+    );
   }
 
   if (state.screen === 'quote-method') {
