@@ -5,6 +5,7 @@ export type ScreenKey =
   | 'home'
   | 'community'
   | 'ai-chat'
+  | 'mypage'
   | 'quote-method'
   | 'camera-capture'
   | 'gallery-picker'
