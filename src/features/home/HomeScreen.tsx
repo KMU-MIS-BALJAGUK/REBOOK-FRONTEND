@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Modal,
   Pressable,
   SafeAreaView,
@@ -18,6 +19,9 @@ import { useHomeCardsFilter } from './hooks/useHomeCardsFilter';
 import { useHomeCardDetail } from './hooks/useHomeCardDetail';
 import { useReactionEmojis } from './hooks/useReactionEmojis';
 import { useCardReaction } from './hooks/useCardReaction';
+import { useHomeFolders } from './hooks/useHomeFolders';
+import { useHomeCreateFolder } from './hooks/useHomeCreateFolder';
+import { useHomeDeleteFolder } from './hooks/useHomeDeleteFolder';
 import { HomeCardEmojiType, HomeCardItem, HomeCardSort, HomeCardView } from './model/home.types';
 import { toUserMessage } from '../../shared/utils/apiError';
 
@@ -36,6 +40,9 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
   const [selectedEmojiType, setSelectedEmojiType] = useState<HomeCardEmojiType | undefined>(undefined);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [reactionPickerCardId, setReactionPickerCardId] = useState<number | null>(null);
+  const [isFolderManageVisible, setIsFolderManageVisible] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [folderFormError, setFolderFormError] = useState<string | null>(null);
 
   const viewMode: HomeCardView = useMemo(() => {
     if (tab === 'folder') return 'grid';
@@ -72,6 +79,9 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
   const homeCardDetailQuery = useHomeCardDetail(selectedCardId);
   const reactionEmojisQuery = useReactionEmojis(tab === 'emotion' || selectedCardId !== null || reactionPickerCardId !== null);
   const cardReactionMutation = useCardReaction();
+  const homeFoldersQuery = useHomeFolders({ includeQuoteCount: true }, tab === 'folder' || isFolderManageVisible);
+  const homeCreateFolderMutation = useHomeCreateFolder();
+  const homeDeleteFolderMutation = useHomeDeleteFolder();
 
   const activeQuery = isSearchMode ? homeSearchQuery : tab === 'all' ? homeCardsQuery : homeFilterQuery;
 
@@ -87,6 +97,41 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
           if (selectedCardId === cardId) {
             void homeCardDetailQuery.refetch();
           }
+        },
+      },
+    );
+  };
+
+  const handleCreateFolder = () => {
+    const trimmed = newFolderName.trim();
+    if (!trimmed) {
+      setFolderFormError('폴더 이름을 입력해주세요.');
+      return;
+    }
+    if (trimmed.length > 20) {
+      setFolderFormError('폴더 이름은 20자 이하로 입력해주세요.');
+      return;
+    }
+
+    setFolderFormError(null);
+    homeCreateFolderMutation.mutate(
+      { folderName: trimmed },
+      {
+        onSuccess: () => {
+          setNewFolderName('');
+          void homeFoldersQuery.refetch();
+        },
+      },
+    );
+  };
+
+  const handleDeleteFolder = (folderId: number) => {
+    setFolderFormError(null);
+    homeDeleteFolderMutation.mutate(
+      { folderId },
+      {
+        onSuccess: () => {
+          void homeFoldersQuery.refetch();
         },
       },
     );
@@ -122,6 +167,13 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
           <HomeTabButton label="폴더별" active={tab === 'folder'} onPress={() => onChangeTab('folder')} />
           <HomeTabButton label="감정별" active={tab === 'emotion'} onPress={() => onChangeTab('emotion')} />
         </View>
+        {tab === 'folder' ? (
+          <View style={styles.folderManageRow}>
+            <TouchableOpacity style={styles.folderManageButton} onPress={() => setIsFolderManageVisible(true)}>
+              <Text style={styles.folderManageButtonText}>폴더 관리</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         {tab === 'emotion' ? (
           <>
@@ -292,6 +344,78 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
           </View>
         </Modal>
 
+        <Modal visible={isFolderManageVisible} transparent animationType="fade" onRequestClose={() => setIsFolderManageVisible(false)}>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <Text style={styles.detailTitle}>폴더 관리</Text>
+              <View style={styles.folderCreateRow}>
+                <TextInput
+                  style={styles.folderCreateInput}
+                  value={newFolderName}
+                  onChangeText={setNewFolderName}
+                  placeholder="새 폴더 이름 (최대 20자)"
+                  placeholderTextColor="#9f968a"
+                  maxLength={20}
+                />
+                <TouchableOpacity
+                  style={styles.folderCreateButton}
+                  onPress={handleCreateFolder}
+                  disabled={homeCreateFolderMutation.isPending}
+                >
+                  {homeCreateFolderMutation.isPending ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.folderCreateButtonText}>생성</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+              {folderFormError ? <Text style={styles.inlineErrorText}>{folderFormError}</Text> : null}
+              {homeCreateFolderMutation.isError ? (
+                <Text style={styles.inlineErrorText}>{toUserMessage(homeCreateFolderMutation.error)}</Text>
+              ) : null}
+              {homeDeleteFolderMutation.isError ? (
+                <Text style={styles.inlineErrorText}>{toUserMessage(homeDeleteFolderMutation.error)}</Text>
+              ) : null}
+
+              {homeFoldersQuery.isLoading ? <Text style={styles.inlineInfoText}>폴더를 불러오는 중...</Text> : null}
+              {homeFoldersQuery.isError ? (
+                <View style={styles.inlineRow}>
+                  <Text style={styles.inlineErrorText}>폴더를 불러오지 못했어요.</Text>
+                  <TouchableOpacity style={styles.inlineRetryButton} onPress={() => void homeFoldersQuery.refetch()}>
+                    <Text style={styles.inlineRetryText}>재시도</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+              {!homeFoldersQuery.isLoading && !homeFoldersQuery.isError && (homeFoldersQuery.data ?? []).length === 0 ? (
+                <Text style={styles.inlineInfoText}>등록된 폴더가 없어요.</Text>
+              ) : null}
+              {!homeFoldersQuery.isLoading && !homeFoldersQuery.isError ? (
+                <ScrollView style={styles.folderListWrap}>
+                  {(homeFoldersQuery.data ?? []).map((folder) => (
+                    <View key={`folder-manage-${folder.folderId}`} style={styles.folderListItem}>
+                      <View style={styles.folderListTextWrap}>
+                        <Text style={styles.folderListName}>{folder.folderName}</Text>
+                        <Text style={styles.folderListMeta}>문장 {folder.quoteCount}개</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.folderDeleteButton}
+                        disabled={homeDeleteFolderMutation.isPending}
+                        onPress={() => handleDeleteFolder(folder.folderId)}
+                      >
+                        <Text style={styles.folderDeleteButtonText}>삭제</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              ) : null}
+
+              <TouchableOpacity style={styles.modalCloseButton} onPress={() => setIsFolderManageVisible(false)}>
+                <Text style={styles.modalCloseButtonText}>닫기</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
         <Pressable style={styles.floatingButton} onPress={onPressRegister}>
           <Text style={styles.floatingButtonText}>＋</Text>
         </Pressable>
@@ -394,6 +518,16 @@ const styles = StyleSheet.create({
   homeTabButtonActive: { backgroundColor: '#8d7353', borderColor: '#8d7353' },
   homeTabText: { color: '#7b7369', fontSize: 11, fontWeight: '600' },
   homeTabTextActive: { color: '#fff' },
+  folderManageRow: { marginBottom: 10, alignItems: 'flex-end' },
+  folderManageButton: {
+    borderWidth: 1,
+    borderColor: '#d8cdbf',
+    backgroundColor: '#f7f2ea',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  folderManageButtonText: { color: '#6f6557', fontSize: 11, fontWeight: '700' },
   inlineInfoText: { color: '#7b7369', fontSize: 12, marginBottom: 8 },
   inlineRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   inlineErrorText: { color: '#b25555', fontSize: 12 },
@@ -461,6 +595,49 @@ const styles = StyleSheet.create({
     backgroundColor: '#f4efe7',
   },
   detailReactionChipText: { fontSize: 16 },
+  folderCreateRow: { flexDirection: 'row', gap: 8, marginTop: 8, marginBottom: 8, alignItems: 'center' },
+  folderCreateInput: {
+    flex: 1,
+    minHeight: 36,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2d8cb',
+    backgroundColor: '#f7f2ea',
+    paddingHorizontal: 10,
+    fontSize: 12,
+    color: '#443d33',
+  },
+  folderCreateButton: {
+    minWidth: 56,
+    minHeight: 36,
+    borderRadius: 8,
+    backgroundColor: '#8d7353',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  folderCreateButtonText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  folderListWrap: { maxHeight: 220, marginTop: 8 },
+  folderListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ece3d7',
+  },
+  folderListTextWrap: { flex: 1, paddingRight: 8 },
+  folderListName: { color: '#332d26', fontSize: 13, fontWeight: '700' },
+  folderListMeta: { color: '#7a6f62', fontSize: 11, marginTop: 2 },
+  folderDeleteButton: {
+    borderWidth: 1,
+    borderColor: '#d7cbbc',
+    backgroundColor: '#f7f2ea',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  folderDeleteButtonText: { color: '#6f6557', fontSize: 11, fontWeight: '700' },
   modalCloseButton: {
     marginTop: 10,
     alignSelf: 'flex-end',
