@@ -1,5 +1,5 @@
 import React from 'react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppFlow } from './useAppFlow';
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
 import { HomeScreen } from '../features/home/HomeScreen';
@@ -12,6 +12,7 @@ import { GalleryPickerScreen } from '../features/quote/screens/GalleryPickerScre
 import { OcrPreviewScreen } from '../features/quote/screens/OcrPreviewScreen';
 import { QuoteFormScreen } from '../features/quote/screens/QuoteFormScreen';
 import { useQuoteImagePresignedUrl } from '../features/quote/hooks/useQuoteImagePresignedUrl';
+import { useQuoteImageOcr } from '../features/quote/hooks/useQuoteImageOcr';
 import { useAppleLogin } from '../features/onboarding/hooks/useAppleLogin';
 import { useAiStyles } from '../features/onboarding/hooks/useAiStyles';
 import { useSaveNickname } from '../features/onboarding/hooks/useSaveNickname';
@@ -20,6 +21,7 @@ import { useSaveAiStyle } from '../features/onboarding/hooks/useSaveAiStyle';
 import { useCompleteOnboarding } from '../features/onboarding/hooks/useCompleteOnboarding';
 import { hydrateSession, setSession } from '../shared/auth/authSession';
 import { toUserMessage } from '../shared/utils/apiError';
+import { QuoteOcrBlock } from '../features/quote/model/quoteOcr.types';
 
 export default function AppRoot() {
   const { state, actions } = useAppFlow();
@@ -30,7 +32,9 @@ export default function AppRoot() {
   const saveAiStyleMutation = useSaveAiStyle();
   const completeOnboardingMutation = useCompleteOnboarding();
   const quoteImagePresignedUrlMutation = useQuoteImagePresignedUrl();
+  const quoteImageOcrMutation = useQuoteImageOcr();
   const { setAuthSession } = actions;
+  const [ocrPreviewBlocks, setOcrPreviewBlocks] = useState<QuoteOcrBlock[] | undefined>(undefined);
 
   useEffect(() => {
     const syncSession = async () => {
@@ -112,9 +116,16 @@ export default function AppRoot() {
     return (
       <CameraCaptureScreen
         onBack={() => actions.setScreen('quote-method')}
-        isUploading={quoteImagePresignedUrlMutation.isPending}
-        uploadError={quoteImagePresignedUrlMutation.isError ? toUserMessage(quoteImagePresignedUrlMutation.error) : null}
+        isUploading={quoteImagePresignedUrlMutation.isPending || quoteImageOcrMutation.isPending}
+        uploadError={
+          quoteImagePresignedUrlMutation.isError
+            ? toUserMessage(quoteImagePresignedUrlMutation.error)
+            : quoteImageOcrMutation.isError
+              ? toUserMessage(quoteImageOcrMutation.error)
+              : null
+        }
         onCapture={() => {
+          setOcrPreviewBlocks(undefined);
           quoteImagePresignedUrlMutation.mutate(
             {
               fileName: `camera-${Date.now()}.jpg`,
@@ -123,7 +134,20 @@ export default function AppRoot() {
               purpose: 'QUOTE_OCR',
             },
             {
-              onSuccess: () => actions.setScreen('ocr-preview'),
+              onSuccess: (presigned) => {
+                quoteImageOcrMutation.mutate(
+                  {
+                    imageId: presigned.imageId,
+                    imageUrl: presigned.publicUrl,
+                  },
+                  {
+                    onSuccess: (ocr) => {
+                      setOcrPreviewBlocks(ocr.blocks);
+                      actions.setScreen('ocr-preview');
+                    },
+                  },
+                );
+              },
             },
           );
         }}
@@ -135,9 +159,16 @@ export default function AppRoot() {
     return (
       <GalleryPickerScreen
         onBack={() => actions.setScreen('quote-method')}
-        isUploading={quoteImagePresignedUrlMutation.isPending}
-        uploadError={quoteImagePresignedUrlMutation.isError ? toUserMessage(quoteImagePresignedUrlMutation.error) : null}
+        isUploading={quoteImagePresignedUrlMutation.isPending || quoteImageOcrMutation.isPending}
+        uploadError={
+          quoteImagePresignedUrlMutation.isError
+            ? toUserMessage(quoteImagePresignedUrlMutation.error)
+            : quoteImageOcrMutation.isError
+              ? toUserMessage(quoteImageOcrMutation.error)
+              : null
+        }
         onPick={() => {
+          setOcrPreviewBlocks(undefined);
           quoteImagePresignedUrlMutation.mutate(
             {
               fileName: `gallery-${Date.now()}.webp`,
@@ -146,7 +177,20 @@ export default function AppRoot() {
               purpose: 'QUOTE_OCR',
             },
             {
-              onSuccess: () => actions.setScreen('ocr-preview'),
+              onSuccess: (presigned) => {
+                quoteImageOcrMutation.mutate(
+                  {
+                    imageId: presigned.imageId,
+                    imageUrl: presigned.publicUrl,
+                  },
+                  {
+                    onSuccess: (ocr) => {
+                      setOcrPreviewBlocks(ocr.blocks);
+                      actions.setScreen('ocr-preview');
+                    },
+                  },
+                );
+              },
             },
           );
         }}
@@ -159,6 +203,7 @@ export default function AppRoot() {
       <OcrPreviewScreen
         onBack={() => actions.setScreen(state.registerType === 'camera' ? 'camera-capture' : 'gallery-picker')}
         onNext={() => actions.setScreen('quote-form')}
+        blocks={ocrPreviewBlocks}
       />
     );
   }
