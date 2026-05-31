@@ -1,6 +1,8 @@
 export type HomeCardView = 'list' | 'grid';
 
 export type HomeCardSort = 'LATEST' | 'MOST_REACTED';
+export type HomeCardCategory = 'ALL' | 'BOOK' | 'QUOTE' | 'MEMO';
+export type HomeCardEmojiType = 'HEART' | 'SMILE' | 'FIRE' | 'CLAP' | 'THINKING';
 
 export type HomeCardsQuery = {
   view: HomeCardView;
@@ -11,6 +13,12 @@ export type HomeCardsQuery = {
 
 export type HomeCardsSearchQuery = HomeCardsQuery & {
   q: string;
+};
+
+export type HomeCardsFilterQuery = HomeCardsQuery & {
+  category?: HomeCardCategory;
+  emojiType?: HomeCardEmojiType;
+  folderId?: number;
 };
 
 export type EmojiCount = {

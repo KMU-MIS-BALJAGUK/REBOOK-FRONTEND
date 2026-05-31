@@ -1,4 +1,4 @@
-import { HomeCardsResponseDto, HomeCardsSearchResponseDto } from './home.dto';
+import { HomeCardsFilterResponseDto, HomeCardsResponseDto, HomeCardsSearchResponseDto } from './home.dto';
 import { HomeCardsResult } from './home.types';
 
 export function toHomeCardsResult(dto: HomeCardsResponseDto): HomeCardsResult {
@@ -32,6 +32,14 @@ export function toHomeCardsResult(dto: HomeCardsResponseDto): HomeCardsResult {
 }
 
 export function toHomeCardsSearchResult(dto: HomeCardsSearchResponseDto): HomeCardsResult {
+  return toHomeCardsResult({
+    view: dto.view,
+    items: dto.items,
+    pageInfo: dto.pageInfo,
+  });
+}
+
+export function toHomeCardsFilterResult(dto: HomeCardsFilterResponseDto): HomeCardsResult {
   return toHomeCardsResult({
     view: dto.view,
     items: dto.items,

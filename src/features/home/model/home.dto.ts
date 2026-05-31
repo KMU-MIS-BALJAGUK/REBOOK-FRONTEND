@@ -44,3 +44,15 @@ export type HomeCardsSearchResponseDto = {
   items: HomeCardItemDto[];
   pageInfo: HomeCardsPageInfoDto;
 };
+
+export type HomeCardsFilterResponseDto = {
+  view: HomeCardListViewDto;
+  filter: {
+    category: string | null;
+    emojiType: string | null;
+    folderId: number | null;
+    sort: HomeCardSortDto | null;
+  };
+  items: HomeCardItemDto[];
+  pageInfo: HomeCardsPageInfoDto;
+};

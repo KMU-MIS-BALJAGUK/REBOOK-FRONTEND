@@ -13,7 +13,8 @@ import {
 import { HomeTabKey } from '../../app/types';
 import { useHomeCards } from './hooks/useHomeCards';
 import { useSearchHomeCards } from './hooks/useSearchHomeCards';
-import { HomeCardItem, HomeCardSort, HomeCardView } from './model/home.types';
+import { useHomeCardsFilter } from './hooks/useHomeCardsFilter';
+import { HomeCardEmojiType, HomeCardItem, HomeCardSort, HomeCardView } from './model/home.types';
 import { toUserMessage } from '../../shared/utils/apiError';
 
 type Props = {
@@ -28,16 +29,30 @@ type Props = {
 
 export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPressCommunity, onPressAiChat, onPressMyPage }: Props) {
   const [searchKeyword, setSearchKeyword] = useState<string>('');
-  const viewMode: HomeCardView = useMemo(() => (tab === 'book' ? 'grid' : 'list'), [tab]);
+  const [selectedEmojiType, setSelectedEmojiType] = useState<HomeCardEmojiType | undefined>(undefined);
+  const viewMode: HomeCardView = useMemo(() => {
+    if (tab === 'folder') return 'grid';
+    return 'list';
+  }, [tab]);
   const sort: HomeCardSort = useMemo(() => (tab === 'emotion' ? 'MOST_REACTED' : 'LATEST'), [tab]);
   const trimmedKeyword = searchKeyword.trim();
   const isSearchMode = trimmedKeyword.length > 0;
 
   const homeCardsQuery = useHomeCards({
-    view: viewMode,
+    view: 'list',
     size: 20,
-    sort,
+    sort: 'LATEST',
   });
+  const homeFilterQuery = useHomeCardsFilter(
+    {
+      view: viewMode,
+      size: 20,
+      sort,
+      category: tab === 'book' ? 'BOOK' : tab === 'folder' ? 'ALL' : tab === 'emotion' ? 'ALL' : undefined,
+      emojiType: tab === 'emotion' ? selectedEmojiType : undefined,
+    },
+    !isSearchMode && tab !== 'all',
+  );
   const homeSearchQuery = useSearchHomeCards(
     {
       q: trimmedKeyword,
@@ -47,7 +62,7 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
     },
     isSearchMode,
   );
-  const activeQuery = isSearchMode ? homeSearchQuery : homeCardsQuery;
+  const activeQuery = isSearchMode ? homeSearchQuery : tab === 'all' ? homeCardsQuery : homeFilterQuery;
 
   const displayName = nickname.trim() ? nickname : 'User';
   const list = activeQuery.data?.items ?? [];
@@ -82,6 +97,19 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
           <HomeTabButton label="폴더별" active={tab === 'folder'} onPress={() => onChangeTab('folder')} />
           <HomeTabButton label="감정별" active={tab === 'emotion'} onPress={() => onChangeTab('emotion')} />
         </View>
+        {tab === 'emotion' ? (
+          <View style={styles.emojiChipRow}>
+            {EMOJI_CHIPS.map((chip) => (
+              <TouchableOpacity
+                key={chip.type}
+                onPress={() => setSelectedEmojiType((prev) => (prev === chip.type ? undefined : chip.type))}
+                style={[styles.emojiChip, selectedEmojiType === chip.type && styles.emojiChipActive]}
+              >
+                <Text style={styles.emojiChipText}>{chip.emoji}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
 
         {activeQuery.isLoading ? (
           <View style={styles.centerStateWrap}>
@@ -222,6 +250,19 @@ const styles = StyleSheet.create({
   homeTabButtonActive: { backgroundColor: '#8d7353', borderColor: '#8d7353' },
   homeTabText: { color: '#7b7369', fontSize: 11, fontWeight: '600' },
   homeTabTextActive: { color: '#fff' },
+  emojiChipRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  emojiChip: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: '#e4dbce',
+    backgroundColor: '#f7f3ec',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emojiChipActive: { borderColor: '#8d7353', backgroundColor: '#f3ece1' },
+  emojiChipText: { fontSize: 16 },
   homeList: { flex: 1 },
   centerStateWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   stateText: { color: '#7c7468', fontSize: 13 },
@@ -288,3 +329,11 @@ const styles = StyleSheet.create({
   bottomLabel: { fontSize: 10, color: '#92897d' },
   bottomLabelActive: { fontSize: 10, color: '#8d7353', fontWeight: '700' },
 });
+
+const EMOJI_CHIPS: Array<{ type: HomeCardEmojiType; emoji: string }> = [
+  { type: 'SMILE', emoji: '😊' },
+  { type: 'HEART', emoji: '😍' },
+  { type: 'THINKING', emoji: '🤔' },
+  { type: 'FIRE', emoji: '🔥' },
+  { type: 'CLAP', emoji: '👏' },
+];
