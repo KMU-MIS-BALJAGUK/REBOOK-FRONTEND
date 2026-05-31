@@ -1,7 +1,23 @@
 import { getJson } from '../../../shared/api/httpClient';
-import { toHomeCardsFilterResult, toHomeCardsResult, toHomeCardsSearchResult } from '../model/home.mapper';
-import { HomeCardsFilterResponseDto, HomeCardsResponseDto, HomeCardsSearchResponseDto } from '../model/home.dto';
-import { HomeCardsFilterQuery, HomeCardsQuery, HomeCardsResult, HomeCardsSearchQuery } from '../model/home.types';
+import {
+  toHomeCardDetailResult,
+  toHomeCardsFilterResult,
+  toHomeCardsResult,
+  toHomeCardsSearchResult,
+} from '../model/home.mapper';
+import {
+  HomeCardDetailResponseDto,
+  HomeCardsFilterResponseDto,
+  HomeCardsResponseDto,
+  HomeCardsSearchResponseDto,
+} from '../model/home.dto';
+import {
+  HomeCardDetailResult,
+  HomeCardsFilterQuery,
+  HomeCardsQuery,
+  HomeCardsResult,
+  HomeCardsSearchQuery,
+} from '../model/home.types';
 
 function buildHomeCardsQueryString(params: HomeCardsQuery): string {
   const query = new URLSearchParams();
@@ -43,4 +59,12 @@ export async function getHomeCardsByFilter(params: HomeCardsFilterQuery): Promis
   });
 
   return toHomeCardsFilterResult(response);
+}
+
+export async function getHomeCardDetail(cardId: number): Promise<HomeCardDetailResult> {
+  const response = await getJson<HomeCardDetailResponseDto>(`/api/v1/home/cards/${cardId}`, {
+    auth: true,
+  });
+
+  return toHomeCardDetailResult(response);
 }

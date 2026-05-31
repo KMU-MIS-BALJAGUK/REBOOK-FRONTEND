@@ -56,3 +56,21 @@ export type HomeCardsFilterResponseDto = {
   items: HomeCardItemDto[];
   pageInfo: HomeCardsPageInfoDto;
 };
+
+export type HomeCardDetailResponseDto = {
+  cardId: number;
+  bookId: number;
+  bookTitle: string;
+  author: string;
+  coverImageUrl: string;
+  pageNumber: number;
+  quoteText: string;
+  memo: string | null;
+  folder: {
+    folderId: number;
+    folderName: string;
+  } | null;
+  reactionSummary: ReactionSummaryDto;
+  createdAt: string;
+  updatedAt: string;
+};

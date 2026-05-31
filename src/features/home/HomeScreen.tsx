@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  Modal,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -14,6 +15,7 @@ import { HomeTabKey } from '../../app/types';
 import { useHomeCards } from './hooks/useHomeCards';
 import { useSearchHomeCards } from './hooks/useSearchHomeCards';
 import { useHomeCardsFilter } from './hooks/useHomeCardsFilter';
+import { useHomeCardDetail } from './hooks/useHomeCardDetail';
 import { HomeCardEmojiType, HomeCardItem, HomeCardSort, HomeCardView } from './model/home.types';
 import { toUserMessage } from '../../shared/utils/apiError';
 
@@ -30,6 +32,7 @@ type Props = {
 export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPressCommunity, onPressAiChat, onPressMyPage }: Props) {
   const [searchKeyword, setSearchKeyword] = useState<string>('');
   const [selectedEmojiType, setSelectedEmojiType] = useState<HomeCardEmojiType | undefined>(undefined);
+  const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const viewMode: HomeCardView = useMemo(() => {
     if (tab === 'folder') return 'grid';
     return 'list';
@@ -62,6 +65,7 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
     },
     isSearchMode,
   );
+  const homeCardDetailQuery = useHomeCardDetail(selectedCardId);
   const activeQuery = isSearchMode ? homeSearchQuery : tab === 'all' ? homeCardsQuery : homeFilterQuery;
 
   const displayName = nickname.trim() ? nickname : 'User';
@@ -136,17 +140,52 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
           (isSearchMode ? 'list' : viewMode) === 'list' ? (
             <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false}>
               {list.map((item) => (
-                <ListCard key={item.cardId} item={item} />
+                <ListCard key={item.cardId} item={item} onPress={() => setSelectedCardId(item.cardId)} />
               ))}
             </ScrollView>
           ) : (
             <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false} contentContainerStyle={styles.gridWrap}>
               {list.map((item) => (
-                <GridCard key={item.cardId} item={item} />
+                <GridCard key={item.cardId} item={item} onPress={() => setSelectedCardId(item.cardId)} />
               ))}
             </ScrollView>
           )
         ) : null}
+
+        <Modal visible={selectedCardId !== null} transparent animationType="fade" onRequestClose={() => setSelectedCardId(null)}>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              {homeCardDetailQuery.isLoading ? (
+                <Text style={styles.stateText}>상세 정보를 불러오는 중...</Text>
+              ) : null}
+              {!homeCardDetailQuery.isLoading && homeCardDetailQuery.isError ? (
+                <>
+                  <Text style={styles.stateText}>{toUserMessage(homeCardDetailQuery.error)}</Text>
+                  <TouchableOpacity style={styles.retryButton} onPress={() => void homeCardDetailQuery.refetch()}>
+                    <Text style={styles.retryButtonText}>다시 시도</Text>
+                  </TouchableOpacity>
+                </>
+              ) : null}
+              {!homeCardDetailQuery.isLoading && !homeCardDetailQuery.isError && homeCardDetailQuery.data ? (
+                <>
+                  <Text style={styles.detailTitle}>
+                    {homeCardDetailQuery.data.bookTitle} · P.{homeCardDetailQuery.data.pageNumber}
+                  </Text>
+                  <Text style={styles.detailQuote}>{homeCardDetailQuery.data.quoteText}</Text>
+                  <Text style={styles.detailMeta}>저자: {homeCardDetailQuery.data.author}</Text>
+                  <Text style={styles.detailMeta}>
+                    폴더: {homeCardDetailQuery.data.folder ? homeCardDetailQuery.data.folder.folderName : '없음'}
+                  </Text>
+                  <Text style={styles.detailMeta}>메모: {homeCardDetailQuery.data.memo ?? '없음'}</Text>
+                  <Text style={styles.detailMeta}>수정: {homeCardDetailQuery.data.updatedAt}</Text>
+                </>
+              ) : null}
+              <TouchableOpacity style={styles.modalCloseButton} onPress={() => setSelectedCardId(null)}>
+                <Text style={styles.modalCloseButtonText}>닫기</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         <Pressable style={styles.floatingButton} onPress={onPressRegister}>
           <Text style={styles.floatingButtonText}>＋</Text>
@@ -189,24 +228,24 @@ function HomeTabButton({ label, active, onPress }: HomeTabButtonProps) {
   );
 }
 
-function ListCard({ item }: { item: HomeCardItem }) {
+function ListCard({ item, onPress }: { item: HomeCardItem; onPress: () => void }) {
   return (
-    <View style={styles.quoteCard}>
+    <Pressable style={styles.quoteCard} onPress={onPress}>
       <Text style={styles.quoteTitle}>{item.bookTitle} · P.{item.pageNumber}</Text>
       <Text style={styles.quoteText}>{item.quoteText}</Text>
       <Text style={styles.quoteMeta}>{item.author}</Text>
       <Text style={styles.quoteMark}>{item.reactionSummary.myReaction ? '🙂' : '·'}</Text>
-    </View>
+    </Pressable>
   );
 }
 
-function GridCard({ item }: { item: HomeCardItem }) {
+function GridCard({ item, onPress }: { item: HomeCardItem; onPress: () => void }) {
   return (
-    <View style={styles.gridCard}>
+    <Pressable style={styles.gridCard} onPress={onPress}>
       <Text style={styles.gridTitle} numberOfLines={1}>{item.bookTitle}</Text>
       <Text style={styles.gridPage}>P.{item.pageNumber}</Text>
       <Text style={styles.gridQuote} numberOfLines={3}>{item.quoteText}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -276,6 +315,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#f4efe7',
   },
   retryButtonText: { color: '#5f564b', fontWeight: '600', fontSize: 13 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(32, 26, 20, 0.45)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  modalCard: {
+    backgroundColor: '#f9f6f0',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e8dfd2',
+    padding: 16,
+    gap: 6,
+  },
+  detailTitle: { fontSize: 16, fontWeight: '700', color: '#2f2a24', marginBottom: 4 },
+  detailQuote: { fontSize: 14, lineHeight: 22, color: '#322d27', marginBottom: 6 },
+  detailMeta: { fontSize: 12, color: '#756b5f' },
+  modalCloseButton: {
+    marginTop: 10,
+    alignSelf: 'flex-end',
+    backgroundColor: '#8d7353',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  modalCloseButtonText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   quoteCard: {
     backgroundColor: '#f9f6f0',
     borderWidth: 1,

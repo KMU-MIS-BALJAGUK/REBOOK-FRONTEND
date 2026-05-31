@@ -1,5 +1,10 @@
-import { HomeCardsFilterResponseDto, HomeCardsResponseDto, HomeCardsSearchResponseDto } from './home.dto';
-import { HomeCardsResult } from './home.types';
+import {
+  HomeCardDetailResponseDto,
+  HomeCardsFilterResponseDto,
+  HomeCardsResponseDto,
+  HomeCardsSearchResponseDto,
+} from './home.dto';
+import { HomeCardDetailResult, HomeCardsResult } from './home.types';
 
 export function toHomeCardsResult(dto: HomeCardsResponseDto): HomeCardsResult {
   return {
@@ -45,4 +50,33 @@ export function toHomeCardsFilterResult(dto: HomeCardsFilterResponseDto): HomeCa
     items: dto.items,
     pageInfo: dto.pageInfo,
   });
+}
+
+export function toHomeCardDetailResult(dto: HomeCardDetailResponseDto): HomeCardDetailResult {
+  return {
+    cardId: dto.cardId,
+    bookId: dto.bookId,
+    bookTitle: dto.bookTitle,
+    author: dto.author,
+    coverImageUrl: dto.coverImageUrl,
+    pageNumber: dto.pageNumber,
+    quoteText: dto.quoteText,
+    memo: dto.memo,
+    folder: dto.folder
+      ? {
+          folderId: dto.folder.folderId,
+          folderName: dto.folder.folderName,
+        }
+      : null,
+    reactionSummary: {
+      totalCount: dto.reactionSummary.totalCount,
+      myReaction: dto.reactionSummary.myReaction,
+      counts: dto.reactionSummary.counts.map((count) => ({
+        emojiType: count.emojiType,
+        count: count.count,
+      })),
+    },
+    createdAt: dto.createdAt,
+    updatedAt: dto.updatedAt,
+  };
 }

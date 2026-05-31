@@ -56,3 +56,21 @@ export type HomeCardsResult = {
   items: HomeCardItem[];
   pageInfo: HomeCardsPageInfo;
 };
+
+export type HomeCardDetailResult = {
+  cardId: number;
+  bookId: number;
+  bookTitle: string;
+  author: string;
+  coverImageUrl: string;
+  pageNumber: number;
+  quoteText: string;
+  memo: string | null;
+  folder: {
+    folderId: number;
+    folderName: string;
+  } | null;
+  reactionSummary: ReactionSummary;
+  createdAt: string;
+  updatedAt: string;
+};
