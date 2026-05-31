@@ -55,7 +55,7 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
       view: viewMode,
       size: 20,
       sort,
-      category: tab === 'book' ? 'BOOK' : tab === 'folder' ? 'ALL' : tab === 'emotion' ? 'ALL' : undefined,
+      category: tab === 'book' ? 'BOOK' : tab === 'folder' ? 'FOLDER' : tab === 'emotion' ? 'EMOTION' : undefined,
       emojiType: tab === 'emotion' ? selectedEmojiType : undefined,
     },
     !isSearchMode && tab !== 'all',
@@ -124,17 +124,30 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
         </View>
 
         {tab === 'emotion' ? (
-          <View style={styles.emojiChipRow}>
-            {(reactionEmojisQuery.data ?? []).map((chip) => (
-              <TouchableOpacity
-                key={chip.emojiType}
-                onPress={() => setSelectedEmojiType((prev) => (prev === chip.emojiType ? undefined : chip.emojiType))}
-                style={[styles.emojiChip, selectedEmojiType === chip.emojiType && styles.emojiChipActive]}
-              >
-                <Text style={styles.emojiChipText}>{emojiTypeToIcon(chip.emojiType)}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <>
+            {reactionEmojisQuery.isLoading ? <Text style={styles.inlineInfoText}>이모지를 불러오는 중...</Text> : null}
+            {reactionEmojisQuery.isError ? (
+              <View style={styles.inlineRow}>
+                <Text style={styles.inlineErrorText}>이모지를 불러오지 못했어요.</Text>
+                <TouchableOpacity style={styles.inlineRetryButton} onPress={() => void reactionEmojisQuery.refetch()}>
+                  <Text style={styles.inlineRetryText}>재시도</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+            {!reactionEmojisQuery.isLoading && !reactionEmojisQuery.isError ? (
+              <View style={styles.emojiChipRow}>
+                {(reactionEmojisQuery.data ?? []).map((chip) => (
+                  <TouchableOpacity
+                    key={chip.emojiType}
+                    onPress={() => setSelectedEmojiType((prev) => (prev === chip.emojiType ? undefined : chip.emojiType))}
+                    style={[styles.emojiChip, selectedEmojiType === chip.emojiType && styles.emojiChipActive]}
+                  >
+                    <Text style={styles.emojiChipText}>{emojiTypeToIcon(chip.emojiType)}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null}
+          </>
         ) : null}
 
         {activeQuery.isLoading ? (
@@ -208,20 +221,31 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
                   </Text>
                   <Text style={styles.detailMeta}>메모: {homeCardDetailQuery.data.memo ?? '없음'}</Text>
                   <Text style={styles.detailMeta}>수정: {homeCardDetailQuery.data.updatedAt}</Text>
-                  <View style={styles.detailReactionRow}>
-                    {(reactionEmojisQuery.data ?? []).map((chip) => (
-                      <TouchableOpacity
-                        key={`detail-${chip.emojiType}`}
-                        style={styles.detailReactionChip}
-                        onPress={() => {
-                          if (!selectedCardId) return;
-                          handleReact(selectedCardId, chip.emojiType);
-                        }}
-                      >
-                        <Text style={styles.detailReactionChipText}>{emojiTypeToIcon(chip.emojiType)}</Text>
+                  {reactionEmojisQuery.isLoading ? <Text style={styles.inlineInfoText}>이모지 로딩 중...</Text> : null}
+                  {reactionEmojisQuery.isError ? (
+                    <View style={styles.inlineRow}>
+                      <Text style={styles.inlineErrorText}>이모지를 불러오지 못했어요.</Text>
+                      <TouchableOpacity style={styles.inlineRetryButton} onPress={() => void reactionEmojisQuery.refetch()}>
+                        <Text style={styles.inlineRetryText}>재시도</Text>
                       </TouchableOpacity>
-                    ))}
-                  </View>
+                    </View>
+                  ) : null}
+                  {!reactionEmojisQuery.isLoading && !reactionEmojisQuery.isError ? (
+                    <View style={styles.detailReactionRow}>
+                      {(reactionEmojisQuery.data ?? []).map((chip) => (
+                        <TouchableOpacity
+                          key={`detail-${chip.emojiType}`}
+                          style={styles.detailReactionChip}
+                          onPress={() => {
+                            if (!selectedCardId) return;
+                            handleReact(selectedCardId, chip.emojiType);
+                          }}
+                        >
+                          <Text style={styles.detailReactionChipText}>{emojiTypeToIcon(chip.emojiType)}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  ) : null}
                 </>
               ) : null}
               <TouchableOpacity style={styles.modalCloseButton} onPress={() => setSelectedCardId(null)}>
@@ -235,21 +259,32 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
           <View style={styles.reactionPickerBackdrop}>
             <View style={styles.reactionPickerCard}>
               <Text style={styles.reactionPickerTitle}>반응 선택</Text>
-              <View style={styles.reactionPickerRow}>
-                {(reactionEmojisQuery.data ?? []).map((chip) => (
-                  <TouchableOpacity
-                    key={`picker-${chip.emojiType}`}
-                    style={styles.reactionPickerChip}
-                    onPress={() => {
-                      if (!reactionPickerCardId) return;
-                      handleReact(reactionPickerCardId, chip.emojiType);
-                      setReactionPickerCardId(null);
-                    }}
-                  >
-                    <Text style={styles.reactionPickerChipText}>{emojiTypeToIcon(chip.emojiType)}</Text>
+              {reactionEmojisQuery.isLoading ? <Text style={styles.inlineInfoText}>이모지 로딩 중...</Text> : null}
+              {reactionEmojisQuery.isError ? (
+                <View style={styles.inlineRow}>
+                  <Text style={styles.inlineErrorText}>이모지를 불러오지 못했어요.</Text>
+                  <TouchableOpacity style={styles.inlineRetryButton} onPress={() => void reactionEmojisQuery.refetch()}>
+                    <Text style={styles.inlineRetryText}>재시도</Text>
                   </TouchableOpacity>
-                ))}
-              </View>
+                </View>
+              ) : null}
+              {!reactionEmojisQuery.isLoading && !reactionEmojisQuery.isError ? (
+                <View style={styles.reactionPickerRow}>
+                  {(reactionEmojisQuery.data ?? []).map((chip) => (
+                    <TouchableOpacity
+                      key={`picker-${chip.emojiType}`}
+                      style={styles.reactionPickerChip}
+                      onPress={() => {
+                        if (!reactionPickerCardId) return;
+                        handleReact(reactionPickerCardId, chip.emojiType);
+                        setReactionPickerCardId(null);
+                      }}
+                    >
+                      <Text style={styles.reactionPickerChipText}>{emojiTypeToIcon(chip.emojiType)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : null}
               <TouchableOpacity style={styles.modalCloseButton} onPress={() => setReactionPickerCardId(null)}>
                 <Text style={styles.modalCloseButtonText}>닫기</Text>
               </TouchableOpacity>
@@ -359,6 +394,18 @@ const styles = StyleSheet.create({
   homeTabButtonActive: { backgroundColor: '#8d7353', borderColor: '#8d7353' },
   homeTabText: { color: '#7b7369', fontSize: 11, fontWeight: '600' },
   homeTabTextActive: { color: '#fff' },
+  inlineInfoText: { color: '#7b7369', fontSize: 12, marginBottom: 8 },
+  inlineRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  inlineErrorText: { color: '#b25555', fontSize: 12 },
+  inlineRetryButton: {
+    borderWidth: 1,
+    borderColor: '#c8beaf',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#f4efe7',
+  },
+  inlineRetryText: { color: '#5f564b', fontSize: 11, fontWeight: '600' },
   emojiChipRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   emojiChip: {
     width: 38,

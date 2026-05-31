@@ -1,7 +1,8 @@
 export type HomeCardView = 'list' | 'grid';
 
 export type HomeCardSort = 'LATEST' | 'MOST_REACTED';
-export type HomeCardCategory = 'ALL' | 'BOOK' | 'QUOTE' | 'MEMO';
+export type HomeCardCategory = 'BOOK' | 'QUOTE' | 'MEMO';
+export type HomeCardsFilterMode = 'ALL' | 'BOOK' | 'FOLDER' | 'EMOTION';
 export type HomeCardEmojiType = 'HEART' | 'SMILE' | 'FIRE' | 'CLAP' | 'THINKING';
 
 export type HomeCardsQuery = {
@@ -16,19 +17,20 @@ export type HomeCardsSearchQuery = HomeCardsQuery & {
 };
 
 export type HomeCardsFilterQuery = HomeCardsQuery & {
-  category?: HomeCardCategory;
+  category?: HomeCardsFilterMode;
+  contentCategory?: HomeCardCategory;
   emojiType?: HomeCardEmojiType;
   folderId?: number;
 };
 
 export type EmojiCount = {
-  emojiType: string;
+  emojiType: HomeCardEmojiType;
   count: number;
 };
 
 export type ReactionSummary = {
   totalCount: number;
-  myReaction: string | null;
+  myReaction: HomeCardEmojiType | null;
   counts: EmojiCount[];
 };
 

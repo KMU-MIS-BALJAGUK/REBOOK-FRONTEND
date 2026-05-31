@@ -26,6 +26,35 @@ import {
   ReactionEmojiOption,
 } from '../model/home.types';
 
+type ServiceDebugInfo = {
+  serviceName: string;
+  cause: unknown;
+  meta?: Record<string, unknown>;
+};
+
+export class HomeServiceError extends Error {
+  userMessage: string;
+  debugInfo: ServiceDebugInfo;
+
+  constructor(userMessage: string, debugInfo: ServiceDebugInfo) {
+    super(userMessage);
+    this.name = 'HomeServiceError';
+    this.userMessage = userMessage;
+    this.debugInfo = debugInfo;
+  }
+}
+
+function wrapServiceError(
+  serviceName: string,
+  userMessage: string,
+  error: unknown,
+  meta?: Record<string, unknown>,
+): HomeServiceError {
+  const debugInfo: ServiceDebugInfo = { serviceName, cause: error, meta };
+  console.error(`[${serviceName}]`, debugInfo);
+  return new HomeServiceError(userMessage, debugInfo);
+}
+
 function buildHomeCardsQueryString(params: HomeCardsQuery): string {
   const query = new URLSearchParams();
   query.set('view', params.view);
@@ -43,54 +72,84 @@ function buildHomeCardsQueryString(params: HomeCardsQuery): string {
 
 export async function getHomeCards(params: HomeCardsQuery): Promise<HomeCardsResult> {
   const query = buildHomeCardsQueryString(params);
-  const response = await getJson<HomeCardsResponseDto>(`/api/v1/home/cards?${query}`, {
-    auth: true,
-  });
+  const path = `/api/v1/home/cards?${query}`;
+  try {
+    const response = await getJson<HomeCardsResponseDto>(path, {
+      auth: true,
+    });
 
-  return toHomeCardsResult(response);
+    return toHomeCardsResult(response);
+  } catch (error) {
+    throw wrapServiceError('getHomeCards', '홈 카드 목록을 불러오지 못했어요.', error, { path, params });
+  }
 }
 
 export async function searchHomeCards(params: HomeCardsSearchQuery): Promise<HomeCardsResult> {
   const query = buildHomeCardsQueryString(params);
-  const response = await getJson<HomeCardsSearchResponseDto>(`/api/v1/home/cards/search?${query}`, {
-    auth: true,
-  });
+  const path = `/api/v1/home/cards/search?${query}`;
+  try {
+    const response = await getJson<HomeCardsSearchResponseDto>(path, {
+      auth: true,
+    });
 
-  return toHomeCardsSearchResult(response);
+    return toHomeCardsSearchResult(response);
+  } catch (error) {
+    throw wrapServiceError('searchHomeCards', '검색 결과를 불러오지 못했어요.', error, { path, params });
+  }
 }
 
 export async function getHomeCardsByFilter(params: HomeCardsFilterQuery): Promise<HomeCardsResult> {
   const query = buildHomeCardsQueryString(params);
-  const response = await getJson<HomeCardsFilterResponseDto>(`/api/v1/home/cards/filter?${query}`, {
-    auth: true,
-  });
+  const path = `/api/v1/home/cards/filter?${query}`;
+  try {
+    const response = await getJson<HomeCardsFilterResponseDto>(path, {
+      auth: true,
+    });
 
-  return toHomeCardsFilterResult(response);
+    return toHomeCardsFilterResult(response);
+  } catch (error) {
+    throw wrapServiceError('getHomeCardsByFilter', '필터 카드 목록을 불러오지 못했어요.', error, { path, params });
+  }
 }
 
 export async function getHomeCardDetail(cardId: number): Promise<HomeCardDetailResult> {
-  const response = await getJson<HomeCardDetailResponseDto>(`/api/v1/home/cards/${cardId}`, {
-    auth: true,
-  });
+  const path = `/api/v1/home/cards/${cardId}`;
+  try {
+    const response = await getJson<HomeCardDetailResponseDto>(path, {
+      auth: true,
+    });
 
-  return toHomeCardDetailResult(response);
+    return toHomeCardDetailResult(response);
+  } catch (error) {
+    throw wrapServiceError('getHomeCardDetail', '카드 상세 정보를 불러오지 못했어요.', error, { path, cardId });
+  }
 }
 
 export async function getReactionEmojis(): Promise<ReactionEmojiOption[]> {
-  const response = await getJson<ReactionEmojisResponseDto>('/api/v1/home/cards/reactions/emojis', {
-    auth: true,
-  });
+  const path = '/api/v1/home/cards/reactions/emojis';
+  try {
+    const response = await getJson<ReactionEmojisResponseDto>(path, {
+      auth: true,
+    });
 
-  return toReactionEmojiOptions(response);
+    return toReactionEmojiOptions(response);
+  } catch (error) {
+    throw wrapServiceError('getReactionEmojis', '이모지 목록을 불러오지 못했어요.', error, { path });
+  }
 }
 
 export async function reactToCard(input: ReactToCardInput): Promise<ReactToCardResult> {
-  const response = await postJson<ReactToCardResponseDto>(`/api/v1/home/cards/${input.cardId}/reactions`, {
-    auth: true,
-    body: {
-      emojiType: input.emojiType,
-    },
-  });
+  const path = `/api/v1/home/cards/${input.cardId}/reactions`;
+  try {
+    const response = await postJson<ReactToCardResponseDto>(path, {
+      auth: true,
+      body: {
+        emojiType: input.emojiType,
+      },
+    });
 
-  return toReactToCardResult(response);
+    return toReactToCardResult(response);
+  } catch (error) {
+    throw wrapServiceError('reactToCard', '이모지 반응 처리에 실패했어요.', error, { path, input });
+  }
 }

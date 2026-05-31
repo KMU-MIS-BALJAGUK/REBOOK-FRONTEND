@@ -14,6 +14,21 @@ import {
   ReactionEmojiOption,
 } from './home.types';
 
+const VALID_EMOJI_TYPES: ReadonlyArray<HomeCardEmojiType> = ['HEART', 'SMILE', 'FIRE', 'CLAP', 'THINKING'];
+
+function toHomeCardEmojiType(value: string): HomeCardEmojiType {
+  if (VALID_EMOJI_TYPES.includes(value as HomeCardEmojiType)) {
+    return value as HomeCardEmojiType;
+  }
+
+  throw new Error(`Invalid emoji type: ${value}`);
+}
+
+function toNullableHomeCardEmojiType(value: string | null): HomeCardEmojiType | null {
+  if (value === null) return null;
+  return toHomeCardEmojiType(value);
+}
+
 export function toHomeCardsResult(dto: HomeCardsResponseDto): HomeCardsResult {
   return {
     view: dto.view,
@@ -28,9 +43,9 @@ export function toHomeCardsResult(dto: HomeCardsResponseDto): HomeCardsResult {
       memoPreview: item.memoPreview,
       reactionSummary: {
         totalCount: item.reactionSummary.totalCount,
-        myReaction: item.reactionSummary.myReaction,
+        myReaction: toNullableHomeCardEmojiType(item.reactionSummary.myReaction),
         counts: item.reactionSummary.counts.map((count) => ({
-          emojiType: count.emojiType,
+          emojiType: toHomeCardEmojiType(count.emojiType),
           count: count.count,
         })),
       },
@@ -78,9 +93,9 @@ export function toHomeCardDetailResult(dto: HomeCardDetailResponseDto): HomeCard
       : null,
     reactionSummary: {
       totalCount: dto.reactionSummary.totalCount,
-      myReaction: dto.reactionSummary.myReaction,
+      myReaction: toNullableHomeCardEmojiType(dto.reactionSummary.myReaction),
       counts: dto.reactionSummary.counts.map((count) => ({
-        emojiType: count.emojiType,
+        emojiType: toHomeCardEmojiType(count.emojiType),
         count: count.count,
       })),
     },
@@ -92,7 +107,7 @@ export function toHomeCardDetailResult(dto: HomeCardDetailResponseDto): HomeCard
 export function toReactionEmojiOptions(dto: ReactionEmojisResponseDto): ReactionEmojiOption[] {
   return dto.items
     .map((item) => ({
-      emojiType: item.emojiType as HomeCardEmojiType,
+      emojiType: toHomeCardEmojiType(item.emojiType),
       label: item.label,
       sortOrder: item.sortOrder,
     }))
@@ -102,12 +117,12 @@ export function toReactionEmojiOptions(dto: ReactionEmojisResponseDto): Reaction
 export function toReactToCardResult(dto: ReactToCardResponseDto): ReactToCardResult {
   return {
     cardId: dto.cardId,
-    myReaction: dto.myReaction as HomeCardEmojiType | null,
+    myReaction: toNullableHomeCardEmojiType(dto.myReaction),
     reactionSummary: {
       totalCount: dto.reactionSummary.totalCount,
-      myReaction: dto.myReaction as HomeCardEmojiType | null,
+      myReaction: toNullableHomeCardEmojiType(dto.reactionSummary.myReaction),
       counts: dto.reactionSummary.counts.map((count) => ({
-        emojiType: count.emojiType,
+        emojiType: toHomeCardEmojiType(count.emojiType),
         count: count.count,
       })),
     },
