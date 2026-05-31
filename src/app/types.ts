@@ -12,6 +12,6 @@ export type ScreenKey =
   | 'ocr-preview'
   | 'quote-form';
 
-export type HomeTabKey = 'all' | 'library' | 'insight';
+export type HomeTabKey = 'all' | 'book' | 'folder' | 'emotion';
 
 export type RegisterType = 'camera' | 'gallery' | 'manual';

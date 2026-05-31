@@ -16,6 +16,14 @@ export function toUserMessage(error: unknown): string {
   if (error instanceof ApiError) {
     return error.message;
   }
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'userMessage' in error &&
+    typeof error.userMessage === 'string'
+  ) {
+    return error.userMessage;
+  }
 
   return '요청 처리 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.';
 }
