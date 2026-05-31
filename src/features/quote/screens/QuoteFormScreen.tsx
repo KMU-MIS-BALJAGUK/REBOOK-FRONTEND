@@ -3,6 +3,7 @@ import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TextInpu
 import { RegisterType } from '../../../app/types';
 import { toUserMessage } from '../../../shared/utils/apiError';
 import { useCreateQuote } from '../hooks/useCreateQuote';
+import { useFolders } from '../hooks/useFolders';
 
 type Props = {
   onBack: () => void;
@@ -18,11 +19,13 @@ type Props = {
 
 export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteText, ocrSource }: Props) {
   const createQuoteMutation = useCreateQuote();
+  const foldersQuery = useFolders({ includeQuoteCount: true });
   const [book, setBook] = useState('');
   const [author, setAuthor] = useState('');
   const [page, setPage] = useState('');
   const [quote, setQuote] = useState(initialQuoteText ?? '');
   const [memo, setMemo] = useState('');
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const methodLabel = initialMethod === 'manual' ? '직접입력' : initialMethod === 'camera' ? '사진찍기' : '갤러리';
   const apiError = createQuoteMutation.isError ? toUserMessage(createQuoteMutation.error) : null;
@@ -61,6 +64,7 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
         pageNumber,
         quoteText: trimmedQuote,
         memo: memo.trim() ? memo.trim() : undefined,
+        folderId: selectedFolderId ?? undefined,
         registerType: initialMethod,
         ocrSource: canUseOcrSource ? ocrSource : undefined,
       },
@@ -110,16 +114,41 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
           multiline
           placeholder="이 문장이 만든 생각을 자유롭게 적어보세요"
         />
-        <Text style={styles.formLabel}>붙인 상태</Text>
+        <Text style={styles.formLabel}>폴더 선택</Text>
+        <View style={styles.tagRow}>
+          {foldersQuery.isLoading ? (
+            <Text style={styles.helperText}>폴더를 불러오는 중...</Text>
+          ) : foldersQuery.isError ? (
+            <View style={styles.inlineRow}>
+              <Text style={styles.errorTextInline}>폴더 조회에 실패했어요.</Text>
+              <TouchableOpacity onPress={() => void foldersQuery.refetch()}>
+                <Text style={styles.retryText}>다시 시도</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (foldersQuery.data ?? []).length === 0 ? (
+            <Text style={styles.helperText}>등록된 폴더가 없어요.</Text>
+          ) : (
+            (foldersQuery.data ?? []).map((folder) => {
+              const selected = selectedFolderId === folder.folderId;
+              return (
+                <TouchableOpacity
+                  key={folder.folderId}
+                  style={selected ? styles.tagChipActive : styles.tagChip}
+                  onPress={() => setSelectedFolderId((prev) => (prev === folder.folderId ? null : folder.folderId))}
+                >
+                  <Text style={selected ? styles.tagChipTextActive : styles.tagChipText}>
+                    {folder.folderName}
+                    {typeof folder.quoteCount === 'number' ? ` (${folder.quoteCount})` : ''}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </View>
+        <Text style={styles.formLabel}>등록 방식</Text>
         <View style={styles.tagRow}>
           <View style={styles.tagChipActive}>
             <Text style={styles.tagChipTextActive}>{methodLabel}</Text>
-          </View>
-          <View style={styles.tagChip}>
-            <Text style={styles.tagChipText}>나중에 보기</Text>
-          </View>
-          <View style={styles.tagChip}>
-            <Text style={styles.tagChipText}>사유중</Text>
           </View>
         </View>
         {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
@@ -207,5 +236,23 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: '#b14f4f',
     fontSize: 12,
+  },
+  helperText: {
+    color: '#7f766a',
+    fontSize: 12,
+  },
+  inlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  errorTextInline: {
+    color: '#b14f4f',
+    fontSize: 12,
+  },
+  retryText: {
+    color: '#8d7353',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });
