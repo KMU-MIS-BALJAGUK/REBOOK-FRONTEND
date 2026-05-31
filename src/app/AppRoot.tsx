@@ -23,6 +23,13 @@ import { hydrateSession, setSession } from '../shared/auth/authSession';
 import { toUserMessage } from '../shared/utils/apiError';
 import { QuoteOcrBlock } from '../features/quote/model/quoteOcr.types';
 
+type OcrQuoteContext = {
+  imageId: number;
+  ocrId: number;
+  fullText: string;
+  blockIds: number[];
+};
+
 export default function AppRoot() {
   const { state, actions } = useAppFlow();
   const appleLoginMutation = useAppleLogin();
@@ -35,6 +42,7 @@ export default function AppRoot() {
   const quoteImageOcrMutation = useQuoteImageOcr();
   const { setAuthSession } = actions;
   const [ocrPreviewBlocks, setOcrPreviewBlocks] = useState<QuoteOcrBlock[] | undefined>(undefined);
+  const [ocrQuoteContext, setOcrQuoteContext] = useState<OcrQuoteContext | undefined>(undefined);
 
   useEffect(() => {
     const syncSession = async () => {
@@ -126,6 +134,7 @@ export default function AppRoot() {
         }
         onCapture={() => {
           setOcrPreviewBlocks(undefined);
+          setOcrQuoteContext(undefined);
           quoteImagePresignedUrlMutation.mutate(
             {
               fileName: `camera-${Date.now()}.jpg`,
@@ -143,6 +152,12 @@ export default function AppRoot() {
                   {
                     onSuccess: (ocr) => {
                       setOcrPreviewBlocks(ocr.blocks);
+                      setOcrQuoteContext({
+                        imageId: ocr.imageId,
+                        ocrId: ocr.ocrId,
+                        fullText: ocr.fullText,
+                        blockIds: ocr.blocks.filter((block) => block.selected).map((block) => block.blockId),
+                      });
                       actions.setScreen('ocr-preview');
                     },
                   },
@@ -169,6 +184,7 @@ export default function AppRoot() {
         }
         onPick={() => {
           setOcrPreviewBlocks(undefined);
+          setOcrQuoteContext(undefined);
           quoteImagePresignedUrlMutation.mutate(
             {
               fileName: `gallery-${Date.now()}.webp`,
@@ -186,6 +202,12 @@ export default function AppRoot() {
                   {
                     onSuccess: (ocr) => {
                       setOcrPreviewBlocks(ocr.blocks);
+                      setOcrQuoteContext({
+                        imageId: ocr.imageId,
+                        ocrId: ocr.ocrId,
+                        fullText: ocr.fullText,
+                        blockIds: ocr.blocks.filter((block) => block.selected).map((block) => block.blockId),
+                      });
                       actions.setScreen('ocr-preview');
                     },
                   },
@@ -212,8 +234,20 @@ export default function AppRoot() {
     return (
       <QuoteFormScreen
         onBack={() => actions.setScreen('home')}
+        onSaved={() => actions.setScreen('home')}
         initialMethod={state.registerType}
-        ocrFilled={state.registerType === 'camera' || state.registerType === 'gallery'}
+        initialQuoteText={
+          state.registerType === 'camera' || state.registerType === 'gallery' ? (ocrQuoteContext?.fullText ?? '') : ''
+        }
+        ocrSource={
+          ocrQuoteContext
+            ? {
+                imageId: ocrQuoteContext.imageId,
+                ocrId: ocrQuoteContext.ocrId,
+                blockIds: ocrQuoteContext.blockIds,
+              }
+            : undefined
+        }
       />
     );
   }

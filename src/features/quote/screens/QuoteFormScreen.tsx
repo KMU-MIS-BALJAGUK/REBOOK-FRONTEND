@@ -1,19 +1,76 @@
-import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { RegisterType } from '../../../app/types';
+import { toUserMessage } from '../../../shared/utils/apiError';
+import { useCreateQuote } from '../hooks/useCreateQuote';
 
 type Props = {
   onBack: () => void;
+  onSaved: () => void;
   initialMethod: RegisterType;
-  ocrFilled: boolean;
+  initialQuoteText?: string;
+  ocrSource?: {
+    imageId: number;
+    ocrId: number;
+    blockIds?: number[];
+  };
 };
 
-export function QuoteFormScreen({ onBack, initialMethod, ocrFilled }: Props) {
+export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteText, ocrSource }: Props) {
+  const createQuoteMutation = useCreateQuote();
   const [book, setBook] = useState('');
+  const [author, setAuthor] = useState('');
   const [page, setPage] = useState('');
-  const [quote, setQuote] = useState(ocrFilled ? '우리는 말을 하면서 사유할 수 있다. 말은 생각을 반복시킨다.' : '');
+  const [quote, setQuote] = useState(initialQuoteText ?? '');
   const [memo, setMemo] = useState('');
+  const [validationError, setValidationError] = useState<string | null>(null);
   const methodLabel = initialMethod === 'manual' ? '직접입력' : initialMethod === 'camera' ? '사진찍기' : '갤러리';
+  const apiError = createQuoteMutation.isError ? toUserMessage(createQuoteMutation.error) : null;
+  const submitError = validationError ?? apiError;
+  const isSubmitDisabled = createQuoteMutation.isPending;
+  const canUseOcrSource = useMemo(
+    () => (initialMethod === 'camera' || initialMethod === 'gallery') && Boolean(ocrSource),
+    [initialMethod, ocrSource],
+  );
+
+  const handleSubmit = () => {
+    const trimmedBook = book.trim();
+    const trimmedQuote = quote.trim();
+    const pageNumber = Number(page.trim());
+
+    if (!trimmedBook) {
+      setValidationError('책 제목을 입력해주세요.');
+      return;
+    }
+
+    if (!trimmedQuote) {
+      setValidationError('문장을 입력해주세요.');
+      return;
+    }
+
+    if (!Number.isFinite(pageNumber) || pageNumber <= 0) {
+      setValidationError('페이지는 1 이상의 숫자로 입력해주세요.');
+      return;
+    }
+
+    setValidationError(null);
+    createQuoteMutation.mutate(
+      {
+        bookTitle: trimmedBook,
+        author: author.trim(),
+        pageNumber,
+        quoteText: trimmedQuote,
+        memo: memo.trim() ? memo.trim() : undefined,
+        registerType: initialMethod,
+        ocrSource: canUseOcrSource ? ocrSource : undefined,
+      },
+      {
+        onSuccess: () => {
+          onSaved();
+        },
+      },
+    );
+  };
 
   return (
     <SafeAreaView style={styles.formSafeArea}>
@@ -27,6 +84,8 @@ export function QuoteFormScreen({ onBack, initialMethod, ocrFilled }: Props) {
       <ScrollView contentContainerStyle={styles.formBody} showsVerticalScrollIndicator={false}>
         <Text style={styles.formLabel}>책 제목</Text>
         <TextInput style={styles.formInput} value={book} onChangeText={setBook} placeholder="책 제목을 입력하세요" />
+        <Text style={styles.formLabel}>저자</Text>
+        <TextInput style={styles.formInput} value={author} onChangeText={setAuthor} placeholder="저자를 입력하세요" />
         <Text style={styles.formLabel}>페이지</Text>
         <TextInput
           style={styles.formInput}
@@ -63,9 +122,14 @@ export function QuoteFormScreen({ onBack, initialMethod, ocrFilled }: Props) {
             <Text style={styles.tagChipText}>사유중</Text>
           </View>
         </View>
+        {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
       </ScrollView>
-      <TouchableOpacity style={styles.submitButton}>
-        <Text style={styles.submitButtonText}>문장 저장하기</Text>
+      <TouchableOpacity style={[styles.submitButton, isSubmitDisabled && styles.submitButtonDisabled]} disabled={isSubmitDisabled} onPress={handleSubmit}>
+        {createQuoteMutation.isPending ? (
+          <ActivityIndicator color="#fff" size="small" />
+        ) : (
+          <Text style={styles.submitButtonText}>문장 저장하기</Text>
+        )}
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -135,5 +199,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  submitButtonDisabled: {
+    opacity: 0.7,
+  },
   submitButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  errorText: {
+    marginTop: 10,
+    color: '#b14f4f',
+    fontSize: 12,
+  },
 });
