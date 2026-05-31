@@ -21,6 +21,8 @@ type Props = {
   selectedRecordOption: string;
   selectedMood: string;
   isNextDisabled: boolean;
+  isAppleLoginLoading: boolean;
+  appleLoginError: string | null;
   onNicknameChange: (value: string) => void;
   onBookTitleChange: (value: string) => void;
   onAuthorChange: (value: string) => void;
@@ -28,6 +30,7 @@ type Props = {
   onMoodChange: (value: string) => void;
   onPrev: () => void;
   onNext: () => void;
+  onAppleLoginPress: () => void;
 };
 
 export function OnboardingScreen(props: Props) {
@@ -41,6 +44,8 @@ export function OnboardingScreen(props: Props) {
     selectedRecordOption,
     selectedMood,
     isNextDisabled,
+    isAppleLoginLoading,
+    appleLoginError,
     onNicknameChange,
     onBookTitleChange,
     onAuthorChange,
@@ -48,6 +53,7 @@ export function OnboardingScreen(props: Props) {
     onMoodChange,
     onPrev,
     onNext,
+    onAppleLoginPress,
   } = props;
 
   return (
@@ -187,6 +193,7 @@ export function OnboardingScreen(props: Props) {
         </ScrollView>
 
         <View style={styles.footer}>
+          {stepKey === 'intro' && appleLoginError ? <Text style={styles.errorText}>{appleLoginError}</Text> : null}
           <View style={styles.dotRow}>
             {[...Array(totalSteps)].map((_, index) => (
               <View key={index} style={[styles.dot, index === step && styles.dotActive]} />
@@ -203,11 +210,23 @@ export function OnboardingScreen(props: Props) {
             )}
 
             <TouchableOpacity
-              onPress={onNext}
-              disabled={step !== totalSteps - 1 && isNextDisabled}
-              style={[styles.primaryButton, step !== totalSteps - 1 && isNextDisabled && styles.primaryButtonDisabled]}
+              onPress={stepKey === 'intro' ? onAppleLoginPress : onNext}
+              disabled={stepKey === 'intro' ? isAppleLoginLoading : step !== totalSteps - 1 && isNextDisabled}
+              style={[
+                styles.primaryButton,
+                (stepKey === 'intro' ? isAppleLoginLoading : step !== totalSteps - 1 && isNextDisabled) &&
+                  styles.primaryButtonDisabled,
+              ]}
             >
-              <Text style={styles.primaryText}>{step === totalSteps - 1 ? 'ReBook 시작하기' : '다음'}</Text>
+              <Text style={styles.primaryText}>
+                {stepKey === 'intro'
+                  ? isAppleLoginLoading
+                    ? '로그인 중...'
+                    : 'Apple로 시작하기'
+                  : step === totalSteps - 1
+                    ? 'ReBook 시작하기'
+                    : '다음'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -337,6 +356,12 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 14, color: '#2f2a24', fontWeight: '600', marginBottom: 3 },
   cardSubtitle: { fontSize: 12, color: '#7c7468' },
   footer: { marginTop: 8 },
+  errorText: {
+    color: '#cf4f4f',
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
   dotRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginBottom: 14 },
   dot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#d4cec2' },
   dotActive: { width: 18, backgroundColor: '#8d7353' },

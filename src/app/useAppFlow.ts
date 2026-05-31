@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { HomeTabKey, RegisterType, ScreenKey, StepKey } from './types';
+import { AuthSession } from '../features/onboarding/model/auth.types';
 
 const TOTAL_STEPS = 5;
 
@@ -13,6 +14,7 @@ export function useAppFlow() {
   const [selectedMood, setSelectedMood] = useState<string>('cozy');
   const [homeTab, setHomeTab] = useState<HomeTabKey>('all');
   const [registerType, setRegisterType] = useState<RegisterType>('manual');
+  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
 
   const stepKey = useMemo<StepKey>(() => {
     if (step === 0) return 'intro';
@@ -48,6 +50,7 @@ export function useAppFlow() {
       selectedMood,
       homeTab,
       registerType,
+      authSession,
       isNextDisabled,
       totalSteps: TOTAL_STEPS,
     },
@@ -60,6 +63,7 @@ export function useAppFlow() {
       setSelectedMood,
       setHomeTab,
       setRegisterType,
+      setAuthSession,
       goNext,
       goPrev,
     },

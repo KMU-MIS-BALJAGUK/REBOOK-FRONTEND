@@ -10,9 +10,12 @@ import { CameraCaptureScreen } from '../features/quote/screens/CameraCaptureScre
 import { GalleryPickerScreen } from '../features/quote/screens/GalleryPickerScreen';
 import { OcrPreviewScreen } from '../features/quote/screens/OcrPreviewScreen';
 import { QuoteFormScreen } from '../features/quote/screens/QuoteFormScreen';
+import { useAppleLogin } from '../features/onboarding/hooks/useAppleLogin';
+import { toUserMessage } from '../shared/utils/apiError';
 
 export default function AppRoot() {
   const { state, actions } = useAppFlow();
+  const appleLoginMutation = useAppleLogin();
 
   if (state.screen === 'home') {
     return (
@@ -117,6 +120,8 @@ export default function AppRoot() {
       selectedRecordOption={state.selectedRecordOption}
       selectedMood={state.selectedMood}
       isNextDisabled={state.isNextDisabled}
+      isAppleLoginLoading={appleLoginMutation.isPending}
+      appleLoginError={appleLoginMutation.isError ? toUserMessage(appleLoginMutation.error) : null}
       onNicknameChange={actions.setNickname}
       onBookTitleChange={actions.setBookTitle}
       onAuthorChange={actions.setAuthor}
@@ -124,6 +129,14 @@ export default function AppRoot() {
       onMoodChange={actions.setSelectedMood}
       onPrev={actions.goPrev}
       onNext={actions.goNext}
+      onAppleLoginPress={() => {
+        appleLoginMutation.mutate(undefined, {
+          onSuccess: (session) => {
+            actions.setAuthSession(session);
+            actions.goNext();
+          },
+        });
+      }}
     />
   );
 }
