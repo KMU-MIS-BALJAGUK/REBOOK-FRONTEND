@@ -1,4 +1,5 @@
 import React from 'react';
+import { useEffect } from 'react';
 import { useAppFlow } from './useAppFlow';
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
 import { HomeScreen } from '../features/home/HomeScreen';
@@ -11,11 +12,24 @@ import { GalleryPickerScreen } from '../features/quote/screens/GalleryPickerScre
 import { OcrPreviewScreen } from '../features/quote/screens/OcrPreviewScreen';
 import { QuoteFormScreen } from '../features/quote/screens/QuoteFormScreen';
 import { useAppleLogin } from '../features/onboarding/hooks/useAppleLogin';
+import { hydrateSession, setSession } from '../shared/auth/authSession';
 import { toUserMessage } from '../shared/utils/apiError';
 
 export default function AppRoot() {
   const { state, actions } = useAppFlow();
   const appleLoginMutation = useAppleLogin();
+  const { setAuthSession } = actions;
+
+  useEffect(() => {
+    const syncSession = async () => {
+      const session = await hydrateSession();
+      if (session) {
+        setAuthSession(session);
+      }
+    };
+
+    syncSession();
+  }, [setAuthSession]);
 
   if (state.screen === 'home') {
     return (
@@ -133,6 +147,7 @@ export default function AppRoot() {
         appleLoginMutation.mutate(undefined, {
           onSuccess: (session) => {
             actions.setAuthSession(session);
+            void setSession(session);
             actions.goNext();
           },
         });

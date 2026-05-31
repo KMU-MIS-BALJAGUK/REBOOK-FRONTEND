@@ -1,3 +1,5 @@
+import { AuthSession } from '../../../shared/types/auth.types';
+
 export type AppleLoginInput = {
   identityToken: string;
   authorizationCode: string;
@@ -5,12 +7,4 @@ export type AppleLoginInput = {
   name?: string;
   deviceId?: string;
 };
-
-export type AuthSession = {
-  userId: number;
-  accessToken: string;
-  accessTokenExpiresInSeconds: number;
-  refreshToken: string;
-  refreshTokenExpiresInSeconds: number;
-  firstLogin: boolean;
-};
+export type { AuthSession };

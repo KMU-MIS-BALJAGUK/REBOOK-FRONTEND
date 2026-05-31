@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { HomeTabKey, RegisterType, ScreenKey, StepKey } from './types';
-import { AuthSession } from '../features/onboarding/model/auth.types';
+import { AuthSession } from '../shared/types/auth.types';
 
 const TOTAL_STEPS = 5;
 
