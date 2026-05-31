@@ -1,6 +1,18 @@
-import React from 'react';
-import { Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import {
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { HomeTabKey } from '../../app/types';
+import { useHomeCards } from './hooks/useHomeCards';
+import { HomeCardItem, HomeCardSort, HomeCardView } from './model/home.types';
+import { toUserMessage } from '../../shared/utils/apiError';
 
 type Props = {
   nickname: string;
@@ -12,20 +24,18 @@ type Props = {
   onPressMyPage: () => void;
 };
 
-const allNotes = [
-  { id: '1', quote: '우리는 길을 잃음으로써 새로운 길을 배운다.', book: '데미안', author: '헤르만 헤세' },
-  { id: '2', quote: '희망은 좋은 것이다. 아마 가장 좋은 것일지 모른다.', book: '쇼생크 탈출', author: '스티븐 킹' },
-  { id: '3', quote: '나는 나에게 일어난 일의 희생자가 아니라 선택자다.', book: '인생수업', author: '엘리자베스 퀴블러 로스' },
-];
-
-const insightNotes = [
-  { id: '4', quote: '당신이 읽은 책은 결국 당신이 된다.', book: '독서의 기쁨', author: '수전 와이즈 바우어' },
-  { id: '5', quote: '성장은 불편함과 함께 온다.', book: '아주 작은 습관의 힘', author: '제임스 클리어' },
-];
-
 export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPressCommunity, onPressAiChat, onPressMyPage }: Props) {
-  const list = tab === 'all' ? allNotes : tab === 'insight' ? insightNotes : [];
+  const [viewMode, setViewMode] = useState<HomeCardView>('list');
+  const sort: HomeCardSort = useMemo(() => (tab === 'insight' ? 'MOST_REACTED' : 'LATEST'), [tab]);
+
+  const homeCardsQuery = useHomeCards({
+    view: viewMode,
+    size: 20,
+    sort,
+  });
+
   const displayName = nickname.trim() ? nickname : 'User';
+  const list = homeCardsQuery.data?.items ?? [];
 
   return (
     <SafeAreaView style={styles.homeSafeArea}>
@@ -40,9 +50,12 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
             <Text style={styles.searchIcon}>⌕</Text>
             <Text style={styles.searchText}>문장을 검색해보세요</Text>
           </View>
-          <View style={styles.roundButton}>
-            <Text style={styles.roundButtonText}>⌄</Text>
-          </View>
+          <TouchableOpacity
+            style={styles.roundButton}
+            onPress={() => setViewMode((prev) => (prev === 'list' ? 'grid' : 'list'))}
+          >
+            <Text style={styles.roundButtonText}>{viewMode === 'list' ? '▦' : '☰'}</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.homeTabRow}>
@@ -51,26 +64,42 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
           <HomeTabButton label="인사이트" active={tab === 'insight'} onPress={() => onChangeTab('insight')} />
         </View>
 
-        {list.length > 0 ? (
-          <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false}>
-            {list.map((item) => (
-              <View key={item.id} style={styles.quoteCard}>
-                <Text style={styles.quoteText}>{item.quote}</Text>
-                <Text style={styles.quoteMeta}>{item.book} · {item.author}</Text>
-                <Text style={styles.quoteMark}>●</Text>
-              </View>
-            ))}
-          </ScrollView>
-        ) : (
-          <View style={styles.emptyGrid}>
-            {[...Array(4)].map((_, index) => (
-              <View key={index} style={styles.emptyCard}>
-                <Text style={styles.emptyEmoji}>🗒️</Text>
-                <Text style={styles.emptyTitle}>아직 기록이 없어요</Text>
-              </View>
-            ))}
+        {homeCardsQuery.isLoading ? (
+          <View style={styles.centerStateWrap}>
+            <Text style={styles.stateText}>카드를 불러오는 중...</Text>
           </View>
-        )}
+        ) : null}
+
+        {!homeCardsQuery.isLoading && homeCardsQuery.isError ? (
+          <View style={styles.centerStateWrap}>
+            <Text style={styles.stateText}>{toUserMessage(homeCardsQuery.error)}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={() => void homeCardsQuery.refetch()}>
+              <Text style={styles.retryButtonText}>다시 시도</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {!homeCardsQuery.isLoading && !homeCardsQuery.isError && list.length === 0 ? (
+          <View style={styles.centerStateWrap}>
+            <Text style={styles.stateText}>표시할 카드가 아직 없어요.</Text>
+          </View>
+        ) : null}
+
+        {!homeCardsQuery.isLoading && !homeCardsQuery.isError && list.length > 0 ? (
+          viewMode === 'list' ? (
+            <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false}>
+              {list.map((item) => (
+                <ListCard key={item.cardId} item={item} />
+              ))}
+            </ScrollView>
+          ) : (
+            <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false} contentContainerStyle={styles.gridWrap}>
+              {list.map((item) => (
+                <GridCard key={item.cardId} item={item} />
+              ))}
+            </ScrollView>
+          )
+        ) : null}
 
         <Pressable style={styles.floatingButton} onPress={onPressRegister}>
           <Text style={styles.floatingButtonText}>＋</Text>
@@ -113,6 +142,27 @@ function HomeTabButton({ label, active, onPress }: HomeTabButtonProps) {
   );
 }
 
+function ListCard({ item }: { item: HomeCardItem }) {
+  return (
+    <View style={styles.quoteCard}>
+      <Text style={styles.quoteTitle}>{item.bookTitle} · P.{item.pageNumber}</Text>
+      <Text style={styles.quoteText}>{item.quoteText}</Text>
+      <Text style={styles.quoteMeta}>{item.author}</Text>
+      <Text style={styles.quoteMark}>{item.reactionSummary.myReaction ? '🙂' : '·'}</Text>
+    </View>
+  );
+}
+
+function GridCard({ item }: { item: HomeCardItem }) {
+  return (
+    <View style={styles.gridCard}>
+      <Text style={styles.gridTitle} numberOfLines={1}>{item.bookTitle}</Text>
+      <Text style={styles.gridPage}>P.{item.pageNumber}</Text>
+      <Text style={styles.gridQuote} numberOfLines={3}>{item.quoteText}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   homeSafeArea: { flex: 1, backgroundColor: '#f6f3ee' },
   homeContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
@@ -140,7 +190,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  roundButtonText: { color: '#fff', fontSize: 14, marginTop: -1 },
+  roundButtonText: { color: '#fff', fontSize: 13, marginTop: -1 },
   homeTabRow: { flexDirection: 'row', gap: 6, marginBottom: 10 },
   homeTabButton: {
     borderRadius: 14,
@@ -154,6 +204,18 @@ const styles = StyleSheet.create({
   homeTabText: { color: '#7b7369', fontSize: 11, fontWeight: '600' },
   homeTabTextActive: { color: '#fff' },
   homeList: { flex: 1 },
+  centerStateWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  stateText: { color: '#7c7468', fontSize: 13 },
+  retryButton: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#c8beaf',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#f4efe7',
+  },
+  retryButtonText: { color: '#5f564b', fontWeight: '600', fontSize: 13 },
   quoteCard: {
     backgroundColor: '#f9f6f0',
     borderWidth: 1,
@@ -162,31 +224,23 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
   },
+  quoteTitle: { fontSize: 13, color: '#3f3830', fontWeight: '700', marginBottom: 6 },
   quoteText: { fontSize: 13, color: '#322d27', lineHeight: 19, marginBottom: 9 },
   quoteMeta: { fontSize: 10, color: '#8b8173' },
   quoteMark: { position: 'absolute', right: 10, bottom: 8, color: '#e6b545', fontSize: 11 },
-  emptyGrid: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    alignContent: 'flex-start',
-    rowGap: 10,
-    paddingTop: 4,
-  },
-  emptyCard: {
-    width: '48.4%',
-    aspectRatio: 0.93,
+  gridWrap: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10 },
+  gridCard: {
+    width: '48.5%',
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#ece4d8',
     backgroundColor: '#f7f3ec',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+    padding: 10,
+    minHeight: 126,
   },
-  emptyEmoji: { fontSize: 16, opacity: 0.5 },
-  emptyTitle: { fontSize: 10, color: '#998f83' },
+  gridTitle: { color: '#3f3830', fontWeight: '700', fontSize: 12, marginBottom: 4 },
+  gridPage: { color: '#8b8173', fontSize: 10, marginBottom: 8 },
+  gridQuote: { color: '#322d27', fontSize: 12, lineHeight: 18 },
   floatingButton: {
     position: 'absolute',
     right: 18,
