@@ -81,3 +81,46 @@ src/
 - UI 변경과 로직 변경이 한 파일에 과도하게 섞이지 않게 유지
 - PR 단위는 한 기능 흐름 기준으로 작게 유지
 - 린트/포맷/타입체크 통과를 머지 기준으로 삼는다
+
+
+## API 연동 규칙
+1) Feature-first 구조 준수
+- `src/features/{feature}/model`
+- `src/features/{feature}/services`
+- `src/features/{feature}/hooks`(필요 시)
+
+2) 타입/모델 분리
+- API DTO 타입과 UI 모델 타입을 분리
+- 파일 예시:
+- `{domain}.dto.ts` (req/res DTO)
+- `{domain}.types.ts` (UI model)
+- `{domain}.mapper.ts` (DTO -> UI model 변환)
+
+3) Raw 응답 직접 사용 금지
+- 화면/훅에서 API raw JSON 직접 접근하지 말 것
+- 서비스에서 DTO 수신 -> mapper 변환 -> UI model만 반환
+
+4) Service 계층 강제
+- 화면 컴포넌트에서 fetch/axios 직접 호출 금지
+- `features/*/services/*Service.ts` 통해서만 API 호출
+
+5) 상태 관리 원칙
+- 서버 상태는 React Query 사용 (query/mutation)
+- 전역 클라이언트 상태와 서버 상태 혼합 금지
+
+6) 4가지 UI 상태 필수
+- `loading / error / empty / success` 모두 처리
+
+7) 에러 처리 표준화
+- 공통 에러 파서 사용
+- 사용자 메시지와 디버깅용 정보 분리
+
+8) 타입 안정성
+- `any` 금지
+- null/optional 필드 안전 처리
+
+9) 결과 보고 형식
+- 생성/수정 파일 목록
+- 각 파일 역할 요약
+- 호출 흐름(화면 -> hook -> service -> mapper) 설명
+- 남은 TODO(있다면) 명시

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useEffect } from 'react';
 import { useAppFlow } from './useAppFlow';
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
 import { HomeScreen } from '../features/home/HomeScreen';
@@ -10,9 +11,35 @@ import { CameraCaptureScreen } from '../features/quote/screens/CameraCaptureScre
 import { GalleryPickerScreen } from '../features/quote/screens/GalleryPickerScreen';
 import { OcrPreviewScreen } from '../features/quote/screens/OcrPreviewScreen';
 import { QuoteFormScreen } from '../features/quote/screens/QuoteFormScreen';
+import { useAppleLogin } from '../features/onboarding/hooks/useAppleLogin';
+import { useAiStyles } from '../features/onboarding/hooks/useAiStyles';
+import { useSaveNickname } from '../features/onboarding/hooks/useSaveNickname';
+import { useSaveFirstBook } from '../features/onboarding/hooks/useSaveFirstBook';
+import { useSaveAiStyle } from '../features/onboarding/hooks/useSaveAiStyle';
+import { useCompleteOnboarding } from '../features/onboarding/hooks/useCompleteOnboarding';
+import { hydrateSession, setSession } from '../shared/auth/authSession';
+import { toUserMessage } from '../shared/utils/apiError';
 
 export default function AppRoot() {
   const { state, actions } = useAppFlow();
+  const appleLoginMutation = useAppleLogin();
+  const aiStylesQuery = useAiStyles(state.stepKey === 'mood');
+  const saveNicknameMutation = useSaveNickname();
+  const saveFirstBookMutation = useSaveFirstBook();
+  const saveAiStyleMutation = useSaveAiStyle();
+  const completeOnboardingMutation = useCompleteOnboarding();
+  const { setAuthSession } = actions;
+
+  useEffect(() => {
+    const syncSession = async () => {
+      const session = await hydrateSession();
+      if (session) {
+        setAuthSession(session);
+      }
+    };
+
+    syncSession();
+  }, [setAuthSession]);
 
   if (state.screen === 'home') {
     return (
@@ -117,13 +144,111 @@ export default function AppRoot() {
       selectedRecordOption={state.selectedRecordOption}
       selectedMood={state.selectedMood}
       isNextDisabled={state.isNextDisabled}
+      isAppleLoginLoading={appleLoginMutation.isPending}
+      appleLoginError={appleLoginMutation.isError ? toUserMessage(appleLoginMutation.error) : null}
+      isNicknameSaving={saveNicknameMutation.isPending}
+      nicknameSaveError={saveNicknameMutation.isError ? toUserMessage(saveNicknameMutation.error) : null}
+      isFirstBookSaving={saveFirstBookMutation.isPending}
+      firstBookSaveError={saveFirstBookMutation.isError ? toUserMessage(saveFirstBookMutation.error) : null}
+      aiStyles={aiStylesQuery.data ?? []}
+      isAiStylesLoading={aiStylesQuery.isLoading}
+      aiStylesError={aiStylesQuery.isError ? toUserMessage(aiStylesQuery.error) : null}
+      isAiStyleSaving={saveAiStyleMutation.isPending}
+      aiStyleSaveError={saveAiStyleMutation.isError ? toUserMessage(saveAiStyleMutation.error) : null}
+      isCompleteSaving={completeOnboardingMutation.isPending}
+      completeSaveError={completeOnboardingMutation.isError ? toUserMessage(completeOnboardingMutation.error) : null}
+      onRetryAiStyles={() => {
+        void aiStylesQuery.refetch();
+      }}
       onNicknameChange={actions.setNickname}
       onBookTitleChange={actions.setBookTitle}
       onAuthorChange={actions.setAuthor}
       onRecordOptionChange={actions.setSelectedRecordOption}
       onMoodChange={actions.setSelectedMood}
       onPrev={actions.goPrev}
-      onNext={actions.goNext}
+      onNext={() => {
+        if (state.stepKey === 'nickname') {
+          saveNicknameMutation.mutate(
+            { nickname: state.nickname.trim() },
+            {
+              onSuccess: (result) => {
+                actions.setNickname(result.nickname);
+                actions.goNext();
+              },
+            },
+          );
+          return;
+        }
+        if (state.stepKey === 'book') {
+          const input =
+            state.selectedRecordOption === 'now'
+              ? {
+                  selectionType: 'CURRENT_BOOK' as const,
+                  book: {
+                    title: state.bookTitle.trim(),
+                    author: state.author.trim(),
+                  },
+                }
+              : state.selectedRecordOption === 'finished'
+                ? {
+                    selectionType: 'FINISHED_BOOK' as const,
+                    book: {
+                      title: state.bookTitle.trim(),
+                      author: state.author.trim(),
+                    },
+                  }
+                : {
+                    selectionType: 'SKIP' as const,
+                  };
+
+          saveFirstBookMutation.mutate(input, {
+            onSuccess: () => {
+              actions.goNext();
+            },
+          });
+          return;
+        }
+        if (state.stepKey === 'mood') {
+          saveAiStyleMutation.mutate(
+            { styleCode: state.selectedMood },
+            {
+              onSuccess: () => {
+                actions.goNext();
+              },
+            },
+          );
+          return;
+        }
+        if (state.stepKey === 'done') {
+          completeOnboardingMutation.mutate(
+            { completed: true },
+            {
+              onSuccess: (result) => {
+                if (result.redirectTo === 'HOME') {
+                  actions.setScreen('home');
+                  return;
+                }
+                actions.goNext();
+              },
+            },
+          );
+          return;
+        }
+
+        actions.goNext();
+      }}
+      onAppleLoginPress={() => {
+        appleLoginMutation.mutate(undefined, {
+          onSuccess: (session) => {
+            if (!session) {
+              return;
+            }
+            actions.setAuthSession(session);
+            void setSession(session);
+            actions.goNext();
+          },
+        });
+      }}
     />
   );
 }

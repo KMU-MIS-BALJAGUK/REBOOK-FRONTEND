@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { StepKey } from '../../app/types';
+import { AiStyle } from './model/onboarding.types';
 
 type Props = {
   step: number;
@@ -21,6 +22,19 @@ type Props = {
   selectedRecordOption: string;
   selectedMood: string;
   isNextDisabled: boolean;
+  isAppleLoginLoading: boolean;
+  appleLoginError: string | null;
+  isNicknameSaving: boolean;
+  nicknameSaveError: string | null;
+  isFirstBookSaving: boolean;
+  firstBookSaveError: string | null;
+  aiStyles: AiStyle[];
+  isAiStylesLoading: boolean;
+  aiStylesError: string | null;
+  isAiStyleSaving: boolean;
+  aiStyleSaveError: string | null;
+  isCompleteSaving: boolean;
+  completeSaveError: string | null;
   onNicknameChange: (value: string) => void;
   onBookTitleChange: (value: string) => void;
   onAuthorChange: (value: string) => void;
@@ -28,6 +42,8 @@ type Props = {
   onMoodChange: (value: string) => void;
   onPrev: () => void;
   onNext: () => void;
+  onAppleLoginPress: () => void;
+  onRetryAiStyles: () => void;
 };
 
 export function OnboardingScreen(props: Props) {
@@ -41,6 +57,19 @@ export function OnboardingScreen(props: Props) {
     selectedRecordOption,
     selectedMood,
     isNextDisabled,
+    isAppleLoginLoading,
+    appleLoginError,
+    isNicknameSaving,
+    nicknameSaveError,
+    isFirstBookSaving,
+    firstBookSaveError,
+    aiStyles,
+    isAiStylesLoading,
+    aiStylesError,
+    isAiStyleSaving,
+    aiStyleSaveError,
+    isCompleteSaving,
+    completeSaveError,
     onNicknameChange,
     onBookTitleChange,
     onAuthorChange,
@@ -48,6 +77,8 @@ export function OnboardingScreen(props: Props) {
     onMoodChange,
     onPrev,
     onNext,
+    onAppleLoginPress,
+    onRetryAiStyles,
   } = props;
 
   return (
@@ -116,7 +147,7 @@ export function OnboardingScreen(props: Props) {
                 />
               </View>
 
-              {selectedRecordOption === 'now' && (
+              {(selectedRecordOption === 'now' || selectedRecordOption === 'finished') && (
                 <View style={styles.formWrap}>
                   <Text style={styles.label}>책 제목</Text>
                   <TextInput
@@ -148,29 +179,35 @@ export function OnboardingScreen(props: Props) {
               <Text style={styles.sectionTitle}>AI와 어떻게 대화하고 싶으세요?</Text>
               <Text style={styles.sectionSubtitle}>대화 스타일을 선택하면 더 잘 맞는 질문을 드려요</Text>
 
-              <View style={styles.optionColumn}>
-                <CardOption
-                  emoji="😊"
-                  title="친근하고 따뜻하게"
-                  subtitle="편안한 톤의 코칭"
-                  active={selectedMood === 'cozy'}
-                  onPress={() => onMoodChange('cozy')}
-                />
-                <CardOption
-                  emoji="🧠"
-                  title="논리적이고 깊이 있게"
-                  subtitle="생각을 확장하는 질문"
-                  active={selectedMood === 'deep'}
-                  onPress={() => onMoodChange('deep')}
-                />
-                <CardOption
-                  emoji="⚡"
-                  title="간결하고 명확하게"
-                  subtitle="핵심만 짚어주는 대화"
-                  active={selectedMood === 'short'}
-                  onPress={() => onMoodChange('short')}
-                />
-              </View>
+              {isAiStylesLoading ? <Text style={styles.infoText}>AI 스타일을 불러오는 중...</Text> : null}
+
+              {!isAiStylesLoading && aiStylesError ? (
+                <View style={styles.inlineCenter}>
+                  <Text style={styles.errorText}>{aiStylesError}</Text>
+                  <TouchableOpacity onPress={onRetryAiStyles} style={styles.retryButton}>
+                    <Text style={styles.retryButtonText}>다시 시도</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              {!isAiStylesLoading && !aiStylesError && aiStyles.length === 0 ? (
+                <Text style={styles.infoText}>선택 가능한 AI 스타일이 없어요.</Text>
+              ) : null}
+
+              {!isAiStylesLoading && !aiStylesError && aiStyles.length > 0 ? (
+                <View style={styles.optionColumn}>
+                  {aiStyles.map((style) => (
+                    <CardOption
+                      key={style.styleCode}
+                      emoji={getStyleEmoji(style.styleCode)}
+                      title={style.styleName}
+                      subtitle={getStyleSubtitle(style.styleCode)}
+                      active={selectedMood === style.styleCode}
+                      onPress={() => onMoodChange(style.styleCode)}
+                    />
+                  ))}
+                </View>
+              ) : null}
             </View>
           )}
 
@@ -187,6 +224,11 @@ export function OnboardingScreen(props: Props) {
         </ScrollView>
 
         <View style={styles.footer}>
+          {stepKey === 'intro' && appleLoginError ? <Text style={styles.errorText}>{appleLoginError}</Text> : null}
+          {stepKey === 'nickname' && nicknameSaveError ? <Text style={styles.errorText}>{nicknameSaveError}</Text> : null}
+          {stepKey === 'book' && firstBookSaveError ? <Text style={styles.errorText}>{firstBookSaveError}</Text> : null}
+          {stepKey === 'mood' && aiStyleSaveError ? <Text style={styles.errorText}>{aiStyleSaveError}</Text> : null}
+          {stepKey === 'done' && completeSaveError ? <Text style={styles.errorText}>{completeSaveError}</Text> : null}
           <View style={styles.dotRow}>
             {[...Array(totalSteps)].map((_, index) => (
               <View key={index} style={[styles.dot, index === step && styles.dotActive]} />
@@ -203,11 +245,61 @@ export function OnboardingScreen(props: Props) {
             )}
 
             <TouchableOpacity
-              onPress={onNext}
-              disabled={step !== totalSteps - 1 && isNextDisabled}
-              style={[styles.primaryButton, step !== totalSteps - 1 && isNextDisabled && styles.primaryButtonDisabled]}
+              onPress={stepKey === 'intro' ? onAppleLoginPress : onNext}
+              disabled={
+                stepKey === 'intro'
+                  ? isAppleLoginLoading
+                  : stepKey === 'nickname'
+                    ? isNicknameSaving || isNextDisabled
+                    : stepKey === 'book'
+                      ? isFirstBookSaving || isNextDisabled
+                    : stepKey === 'mood'
+                      ? isAiStyleSaving || isNextDisabled
+                    : stepKey === 'done'
+                      ? isCompleteSaving
+                    : step !== totalSteps - 1 && isNextDisabled
+              }
+              style={[
+                styles.primaryButton,
+                (stepKey === 'intro'
+                  ? isAppleLoginLoading
+                  : stepKey === 'nickname'
+                    ? isNicknameSaving || isNextDisabled
+                    : stepKey === 'book'
+                      ? isFirstBookSaving || isNextDisabled
+                    : stepKey === 'mood'
+                      ? isAiStyleSaving || isNextDisabled
+                    : stepKey === 'done'
+                      ? isCompleteSaving
+                    : step !== totalSteps - 1 && isNextDisabled) &&
+                  styles.primaryButtonDisabled,
+              ]}
             >
-              <Text style={styles.primaryText}>{step === totalSteps - 1 ? 'ReBook 시작하기' : '다음'}</Text>
+              <Text style={styles.primaryText}>
+                {stepKey === 'intro'
+                  ? isAppleLoginLoading
+                    ? '로그인 중...'
+                    : 'Apple로 시작하기'
+                  : stepKey === 'nickname'
+                    ? isNicknameSaving
+                      ? '저장 중...'
+                      : '다음'
+                  : stepKey === 'book'
+                    ? isFirstBookSaving
+                      ? '저장 중...'
+                      : '다음'
+                  : stepKey === 'mood'
+                    ? isAiStyleSaving
+                      ? '저장 중...'
+                      : '다음'
+                  : stepKey === 'done'
+                    ? isCompleteSaving
+                      ? '완료 처리 중...'
+                      : 'ReBook 시작하기'
+                  : step === totalSteps - 1
+                    ? 'ReBook 시작하기'
+                    : '다음'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -248,6 +340,20 @@ function CardOption({ emoji, title, subtitle, active, onPress }: CardOptionProps
       </View>
     </TouchableOpacity>
   );
+}
+
+function getStyleEmoji(styleCode: string): string {
+  if (styleCode === 'FRIENDLY') return '😊';
+  if (styleCode === 'DEEP') return '📚';
+  if (styleCode === 'CLEAR') return '💬';
+  return '✨';
+}
+
+function getStyleSubtitle(styleCode: string): string {
+  if (styleCode === 'FRIENDLY') return '편안한 대화 스타일';
+  if (styleCode === 'DEEP') return '분석적인 대화 스타일';
+  if (styleCode === 'CLEAR') return '핵심만 간추린 스타일';
+  return '원하는 대화 스타일';
 }
 
 const styles = StyleSheet.create({
@@ -336,7 +442,25 @@ const styles = StyleSheet.create({
   cardTextWrap: { flex: 1 },
   cardTitle: { fontSize: 14, color: '#2f2a24', fontWeight: '600', marginBottom: 3 },
   cardSubtitle: { fontSize: 12, color: '#7c7468' },
+  infoText: { color: '#7c7468', textAlign: 'center', fontSize: 13, marginBottom: 12 },
+  inlineCenter: { alignItems: 'center', marginBottom: 8 },
+  retryButton: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#c8beaf',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#f4efe7',
+  },
+  retryButtonText: { color: '#5f564b', fontWeight: '600', fontSize: 13 },
   footer: { marginTop: 8 },
+  errorText: {
+    color: '#cf4f4f',
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
   dotRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginBottom: 14 },
   dot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#d4cec2' },
   dotActive: { width: 18, backgroundColor: '#8d7353' },

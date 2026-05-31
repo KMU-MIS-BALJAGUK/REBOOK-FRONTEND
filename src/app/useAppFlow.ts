@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { HomeTabKey, RegisterType, ScreenKey, StepKey } from './types';
+import { AuthSession } from '../shared/types/auth.types';
 
 const TOTAL_STEPS = 5;
 
@@ -10,9 +11,10 @@ export function useAppFlow() {
   const [bookTitle, setBookTitle] = useState<string>('');
   const [author, setAuthor] = useState<string>('');
   const [selectedRecordOption, setSelectedRecordOption] = useState<string>('now');
-  const [selectedMood, setSelectedMood] = useState<string>('cozy');
+  const [selectedMood, setSelectedMood] = useState<string>('FRIENDLY');
   const [homeTab, setHomeTab] = useState<HomeTabKey>('all');
   const [registerType, setRegisterType] = useState<RegisterType>('manual');
+  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
 
   const stepKey = useMemo<StepKey>(() => {
     if (step === 0) return 'intro';
@@ -24,7 +26,9 @@ export function useAppFlow() {
 
   const isNextDisabled =
     (stepKey === 'nickname' && nickname.trim().length < 2) ||
-    (stepKey === 'book' && selectedRecordOption === 'now' && (!bookTitle.trim() || !author.trim()));
+    (stepKey === 'book' &&
+      (selectedRecordOption === 'now' || selectedRecordOption === 'finished') &&
+      (!bookTitle.trim() || !author.trim()));
 
   const goNext = () => {
     if (step === TOTAL_STEPS - 1) {
@@ -48,6 +52,7 @@ export function useAppFlow() {
       selectedMood,
       homeTab,
       registerType,
+      authSession,
       isNextDisabled,
       totalSteps: TOTAL_STEPS,
     },
@@ -60,6 +65,7 @@ export function useAppFlow() {
       setSelectedMood,
       setHomeTab,
       setRegisterType,
+      setAuthSession,
       goNext,
       goPrev,
     },
