@@ -13,6 +13,7 @@ import { OcrPreviewScreen } from '../features/quote/screens/OcrPreviewScreen';
 import { QuoteFormScreen } from '../features/quote/screens/QuoteFormScreen';
 import { useAppleLogin } from '../features/onboarding/hooks/useAppleLogin';
 import { useSaveNickname } from '../features/onboarding/hooks/useSaveNickname';
+import { useSaveFirstBook } from '../features/onboarding/hooks/useSaveFirstBook';
 import { hydrateSession, setSession } from '../shared/auth/authSession';
 import { toUserMessage } from '../shared/utils/apiError';
 
@@ -20,6 +21,7 @@ export default function AppRoot() {
   const { state, actions } = useAppFlow();
   const appleLoginMutation = useAppleLogin();
   const saveNicknameMutation = useSaveNickname();
+  const saveFirstBookMutation = useSaveFirstBook();
   const { setAuthSession } = actions;
 
   useEffect(() => {
@@ -140,6 +142,8 @@ export default function AppRoot() {
       appleLoginError={appleLoginMutation.isError ? toUserMessage(appleLoginMutation.error) : null}
       isNicknameSaving={saveNicknameMutation.isPending}
       nicknameSaveError={saveNicknameMutation.isError ? toUserMessage(saveNicknameMutation.error) : null}
+      isFirstBookSaving={saveFirstBookMutation.isPending}
+      firstBookSaveError={saveFirstBookMutation.isError ? toUserMessage(saveFirstBookMutation.error) : null}
       onNicknameChange={actions.setNickname}
       onBookTitleChange={actions.setBookTitle}
       onAuthorChange={actions.setAuthor}
@@ -157,6 +161,35 @@ export default function AppRoot() {
               },
             },
           );
+          return;
+        }
+        if (state.stepKey === 'book') {
+          const input =
+            state.selectedRecordOption === 'now'
+              ? {
+                  selectionType: 'CURRENT_BOOK' as const,
+                  book: {
+                    title: state.bookTitle.trim(),
+                    author: state.author.trim(),
+                  },
+                }
+              : state.selectedRecordOption === 'finished'
+                ? {
+                    selectionType: 'FINISHED_BOOK' as const,
+                    book: {
+                      title: state.bookTitle.trim(),
+                      author: state.author.trim(),
+                    },
+                  }
+                : {
+                    selectionType: 'SKIP' as const,
+                  };
+
+          saveFirstBookMutation.mutate(input, {
+            onSuccess: () => {
+              actions.goNext();
+            },
+          });
           return;
         }
 

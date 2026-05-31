@@ -26,7 +26,9 @@ export function useAppFlow() {
 
   const isNextDisabled =
     (stepKey === 'nickname' && nickname.trim().length < 2) ||
-    (stepKey === 'book' && selectedRecordOption === 'now' && (!bookTitle.trim() || !author.trim()));
+    (stepKey === 'book' &&
+      (selectedRecordOption === 'now' || selectedRecordOption === 'finished') &&
+      (!bookTitle.trim() || !author.trim()));
 
   const goNext = () => {
     if (step === TOTAL_STEPS - 1) {

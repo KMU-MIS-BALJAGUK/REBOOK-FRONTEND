@@ -1,7 +1,12 @@
 import { postJson } from '../../../shared/api/httpClient';
-import { toNicknameSaveResult, toSaveNicknameRequestDto } from '../model/onboarding.mapper';
-import { SaveNicknameResponseDto } from '../model/onboarding.dto';
-import { NicknameSaveResult, SaveNicknameInput } from '../model/onboarding.types';
+import {
+  toFirstBookSaveResult,
+  toNicknameSaveResult,
+  toSaveFirstBookRequestDto,
+  toSaveNicknameRequestDto,
+} from '../model/onboarding.mapper';
+import { SaveFirstBookResponseDto, SaveNicknameResponseDto } from '../model/onboarding.dto';
+import { FirstBookSaveResult, SaveFirstBookInput, NicknameSaveResult, SaveNicknameInput } from '../model/onboarding.types';
 
 export async function saveNickname(input: SaveNicknameInput): Promise<NicknameSaveResult> {
   const dto = toSaveNicknameRequestDto(input);
@@ -11,4 +16,14 @@ export async function saveNickname(input: SaveNicknameInput): Promise<NicknameSa
   });
 
   return toNicknameSaveResult(response);
+}
+
+export async function saveFirstBook(input: SaveFirstBookInput): Promise<FirstBookSaveResult> {
+  const dto = toSaveFirstBookRequestDto(input);
+  const response = await postJson<SaveFirstBookResponseDto>('/api/v1/onboarding/first-book', {
+    body: dto,
+    auth: true,
+  });
+
+  return toFirstBookSaveResult(response);
 }

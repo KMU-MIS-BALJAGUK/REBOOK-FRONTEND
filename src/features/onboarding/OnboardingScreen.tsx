@@ -25,6 +25,8 @@ type Props = {
   appleLoginError: string | null;
   isNicknameSaving: boolean;
   nicknameSaveError: string | null;
+  isFirstBookSaving: boolean;
+  firstBookSaveError: string | null;
   onNicknameChange: (value: string) => void;
   onBookTitleChange: (value: string) => void;
   onAuthorChange: (value: string) => void;
@@ -50,6 +52,8 @@ export function OnboardingScreen(props: Props) {
     appleLoginError,
     isNicknameSaving,
     nicknameSaveError,
+    isFirstBookSaving,
+    firstBookSaveError,
     onNicknameChange,
     onBookTitleChange,
     onAuthorChange,
@@ -126,7 +130,7 @@ export function OnboardingScreen(props: Props) {
                 />
               </View>
 
-              {selectedRecordOption === 'now' && (
+              {(selectedRecordOption === 'now' || selectedRecordOption === 'finished') && (
                 <View style={styles.formWrap}>
                   <Text style={styles.label}>책 제목</Text>
                   <TextInput
@@ -199,6 +203,7 @@ export function OnboardingScreen(props: Props) {
         <View style={styles.footer}>
           {stepKey === 'intro' && appleLoginError ? <Text style={styles.errorText}>{appleLoginError}</Text> : null}
           {stepKey === 'nickname' && nicknameSaveError ? <Text style={styles.errorText}>{nicknameSaveError}</Text> : null}
+          {stepKey === 'book' && firstBookSaveError ? <Text style={styles.errorText}>{firstBookSaveError}</Text> : null}
           <View style={styles.dotRow}>
             {[...Array(totalSteps)].map((_, index) => (
               <View key={index} style={[styles.dot, index === step && styles.dotActive]} />
@@ -221,6 +226,8 @@ export function OnboardingScreen(props: Props) {
                   ? isAppleLoginLoading
                   : stepKey === 'nickname'
                     ? isNicknameSaving || isNextDisabled
+                    : stepKey === 'book'
+                      ? isFirstBookSaving || isNextDisabled
                     : step !== totalSteps - 1 && isNextDisabled
               }
               style={[
@@ -229,6 +236,8 @@ export function OnboardingScreen(props: Props) {
                   ? isAppleLoginLoading
                   : stepKey === 'nickname'
                     ? isNicknameSaving || isNextDisabled
+                    : stepKey === 'book'
+                      ? isFirstBookSaving || isNextDisabled
                     : step !== totalSteps - 1 && isNextDisabled) &&
                   styles.primaryButtonDisabled,
               ]}
@@ -240,6 +249,10 @@ export function OnboardingScreen(props: Props) {
                     : 'Apple로 시작하기'
                   : stepKey === 'nickname'
                     ? isNicknameSaving
+                      ? '저장 중...'
+                      : '다음'
+                  : stepKey === 'book'
+                    ? isFirstBookSaving
                       ? '저장 중...'
                       : '다음'
                   : step === totalSteps - 1
