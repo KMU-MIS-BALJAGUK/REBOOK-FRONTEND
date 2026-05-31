@@ -17,6 +17,7 @@ type Props = {
   nickname: string;
   onPressHome: () => void;
   onPressCommunity: () => void;
+  onPressMyPage: () => void;
 };
 
 const recentChats = [
@@ -52,7 +53,7 @@ const storedSentences = [
 
 const quickQuestions = ['이 문장 쉽게 해석해줘', '왜 이 문장이 인상 깊었을까?', '내 상황과 연결해서 설명해줘', '비슷한 문장 추천해줘'];
 
-export function AiChatScreen({ nickname, onPressHome, onPressCommunity }: Props) {
+export function AiChatScreen({ nickname, onPressHome, onPressCommunity, onPressMyPage }: Props) {
   const [view, setView] = useState<ChatView>('list');
   const [showSelector, setShowSelector] = useState(false);
   const displayName = nickname.trim() ? nickname : 'User';
@@ -139,6 +140,10 @@ export function AiChatScreen({ nickname, onPressHome, onPressCommunity }: Props)
             <Text style={styles.bottomIcon}>◔</Text>
             <Text style={styles.bottomLabelActive}>AI 채팅</Text>
           </View>
+          <TouchableOpacity style={styles.bottomItem} onPress={onPressMyPage}>
+            <Text style={styles.bottomIcon}>⚪</Text>
+            <Text style={styles.bottomLabel}>마이</Text>
+          </TouchableOpacity>
         </View>
 
         {showSelector && (

@@ -9,6 +9,7 @@ type Props = {
   onPressRegister: () => void;
   onPressCommunity: () => void;
   onPressAiChat: () => void;
+  onPressMyPage: () => void;
 };
 
 const allNotes = [
@@ -22,7 +23,7 @@ const insightNotes = [
   { id: '5', quote: '성장은 불편함과 함께 온다.', book: '아주 작은 습관의 힘', author: '제임스 클리어' },
 ];
 
-export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPressCommunity, onPressAiChat }: Props) {
+export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPressCommunity, onPressAiChat, onPressMyPage }: Props) {
   const list = tab === 'all' ? allNotes : tab === 'insight' ? insightNotes : [];
   const displayName = nickname.trim() ? nickname : 'User';
 
@@ -87,6 +88,10 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
           <TouchableOpacity style={styles.bottomItem} onPress={onPressAiChat}>
             <Text style={styles.bottomIcon}>◔</Text>
             <Text style={styles.bottomLabel}>AI 채팅</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.bottomItem} onPress={onPressMyPage}>
+            <Text style={styles.bottomIcon}>⚪</Text>
+            <Text style={styles.bottomLabel}>마이</Text>
           </TouchableOpacity>
         </View>
       </View>
