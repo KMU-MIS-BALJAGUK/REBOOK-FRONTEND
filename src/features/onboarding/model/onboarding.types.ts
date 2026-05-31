@@ -38,3 +38,13 @@ export type AiStyle = {
   styleCode: string;
   styleName: string;
 };
+
+export type SaveAiStyleInput = {
+  styleCode: string;
+};
+
+export type SaveAiStyleResult = {
+  styleCode: string;
+  styleName: string;
+  onboardingStatus: OnboardingStatus;
+};

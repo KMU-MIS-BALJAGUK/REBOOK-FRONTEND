@@ -15,6 +15,7 @@ import { useAppleLogin } from '../features/onboarding/hooks/useAppleLogin';
 import { useAiStyles } from '../features/onboarding/hooks/useAiStyles';
 import { useSaveNickname } from '../features/onboarding/hooks/useSaveNickname';
 import { useSaveFirstBook } from '../features/onboarding/hooks/useSaveFirstBook';
+import { useSaveAiStyle } from '../features/onboarding/hooks/useSaveAiStyle';
 import { hydrateSession, setSession } from '../shared/auth/authSession';
 import { toUserMessage } from '../shared/utils/apiError';
 
@@ -24,6 +25,7 @@ export default function AppRoot() {
   const aiStylesQuery = useAiStyles(state.stepKey === 'mood');
   const saveNicknameMutation = useSaveNickname();
   const saveFirstBookMutation = useSaveFirstBook();
+  const saveAiStyleMutation = useSaveAiStyle();
   const { setAuthSession } = actions;
 
   useEffect(() => {
@@ -149,6 +151,8 @@ export default function AppRoot() {
       aiStyles={aiStylesQuery.data ?? []}
       isAiStylesLoading={aiStylesQuery.isLoading}
       aiStylesError={aiStylesQuery.isError ? toUserMessage(aiStylesQuery.error) : null}
+      isAiStyleSaving={saveAiStyleMutation.isPending}
+      aiStyleSaveError={saveAiStyleMutation.isError ? toUserMessage(saveAiStyleMutation.error) : null}
       onRetryAiStyles={() => {
         void aiStylesQuery.refetch();
       }}
@@ -198,6 +202,17 @@ export default function AppRoot() {
               actions.goNext();
             },
           });
+          return;
+        }
+        if (state.stepKey === 'mood') {
+          saveAiStyleMutation.mutate(
+            { styleCode: state.selectedMood },
+            {
+              onSuccess: () => {
+                actions.goNext();
+              },
+            },
+          );
           return;
         }
 

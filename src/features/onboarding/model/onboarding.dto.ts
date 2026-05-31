@@ -41,3 +41,13 @@ export type AiStyleItemDto = {
 export type GetAiStylesResponseDto = {
   styles: AiStyleItemDto[];
 };
+
+export type SaveAiStyleRequestDto = {
+  styleCode: string;
+};
+
+export type SaveAiStyleResponseDto = {
+  styleCode: string;
+  styleName: string;
+  onboardingStatus: OnboardingStatusDto;
+};
