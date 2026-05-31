@@ -39,8 +39,13 @@ async function requestJson<TResponse>(
     body: method === 'POST' && options.body ? JSON.stringify(options.body) : undefined,
   });
 
-  const json = (await response.json()) as Envelope<TResponse>;
-  const isAuthError = response.status === 401 || json.code === 401;
+  let json: Partial<Envelope<TResponse>> | undefined;
+  try {
+    json = (await response.json()) as Envelope<TResponse>;
+  } catch {
+    json = undefined;
+  }
+  const isAuthError = response.status === 401 || json?.code === 401;
 
   if (options.auth && isAuthError && !hasRetriedAfterRefresh) {
     try {
@@ -52,12 +57,21 @@ async function requestJson<TResponse>(
     }
   }
 
-  if (!response.ok || json.code >= 400) {
+  if (!response.ok || (typeof json?.code === 'number' && json.code >= 400)) {
     throw new ApiError({
-      message: json.msg || '요청을 처리하지 못했어요.',
+      message: json?.msg || `요청을 처리하지 못했어요. (${response.status})`,
       status: response.status,
-      code: json.code,
-      debugMessage: `${method} ${path} failed with response code ${json.code}`,
+      code: json?.code,
+      debugMessage: `${method} ${path} failed with HTTP ${response.status}${json?.code ? ` / code ${json.code}` : ''}`,
+    });
+  }
+
+  if (typeof json?.data === 'undefined') {
+    throw new ApiError({
+      message: '응답 데이터 형식이 올바르지 않아요.',
+      status: response.status,
+      code: json?.code,
+      debugMessage: `${method} ${path} returned no parsable data`,
     });
   }
 

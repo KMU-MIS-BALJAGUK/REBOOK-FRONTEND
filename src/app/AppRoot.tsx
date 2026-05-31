@@ -240,6 +240,9 @@ export default function AppRoot() {
       onAppleLoginPress={() => {
         appleLoginMutation.mutate(undefined, {
           onSuccess: (session) => {
+            if (!session) {
+              return;
+            }
             actions.setAuthSession(session);
             void setSession(session);
             actions.goNext();
