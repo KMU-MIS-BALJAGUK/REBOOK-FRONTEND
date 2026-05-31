@@ -80,3 +80,14 @@ export type ReactionEmojiOption = {
   label: string;
   sortOrder: number;
 };
+
+export type ReactToCardInput = {
+  cardId: number;
+  emojiType: HomeCardEmojiType;
+};
+
+export type ReactToCardResult = {
+  cardId: number;
+  myReaction: HomeCardEmojiType | null;
+  reactionSummary: ReactionSummary;
+};

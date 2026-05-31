@@ -84,3 +84,13 @@ export type ReactionEmojiOptionDto = {
 export type ReactionEmojisResponseDto = {
   items: ReactionEmojiOptionDto[];
 };
+
+export type ReactToCardRequestDto = {
+  emojiType: string;
+};
+
+export type ReactToCardResponseDto = {
+  cardId: number;
+  myReaction: string | null;
+  reactionSummary: ReactionSummaryDto;
+};

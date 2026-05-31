@@ -1,11 +1,18 @@
 import {
   HomeCardDetailResponseDto,
+  ReactToCardResponseDto,
   ReactionEmojisResponseDto,
   HomeCardsFilterResponseDto,
   HomeCardsResponseDto,
   HomeCardsSearchResponseDto,
 } from './home.dto';
-import { HomeCardDetailResult, HomeCardEmojiType, HomeCardsResult, ReactionEmojiOption } from './home.types';
+import {
+  HomeCardDetailResult,
+  HomeCardEmojiType,
+  HomeCardsResult,
+  ReactToCardResult,
+  ReactionEmojiOption,
+} from './home.types';
 
 export function toHomeCardsResult(dto: HomeCardsResponseDto): HomeCardsResult {
   return {
@@ -90,4 +97,19 @@ export function toReactionEmojiOptions(dto: ReactionEmojisResponseDto): Reaction
       sortOrder: item.sortOrder,
     }))
     .sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+export function toReactToCardResult(dto: ReactToCardResponseDto): ReactToCardResult {
+  return {
+    cardId: dto.cardId,
+    myReaction: dto.myReaction as HomeCardEmojiType | null,
+    reactionSummary: {
+      totalCount: dto.reactionSummary.totalCount,
+      myReaction: dto.myReaction as HomeCardEmojiType | null,
+      counts: dto.reactionSummary.counts.map((count) => ({
+        emojiType: count.emojiType,
+        count: count.count,
+      })),
+    },
+  };
 }

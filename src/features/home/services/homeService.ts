@@ -1,13 +1,15 @@
-import { getJson } from '../../../shared/api/httpClient';
+import { getJson, postJson } from '../../../shared/api/httpClient';
 import {
   toHomeCardDetailResult,
   toHomeCardsFilterResult,
   toHomeCardsResult,
+  toReactToCardResult,
   toReactionEmojiOptions,
   toHomeCardsSearchResult,
 } from '../model/home.mapper';
 import {
   HomeCardDetailResponseDto,
+  ReactToCardResponseDto,
   ReactionEmojisResponseDto,
   HomeCardsFilterResponseDto,
   HomeCardsResponseDto,
@@ -15,6 +17,8 @@ import {
 } from '../model/home.dto';
 import {
   HomeCardDetailResult,
+  ReactToCardInput,
+  ReactToCardResult,
   HomeCardsFilterQuery,
   HomeCardsQuery,
   HomeCardsResult,
@@ -78,4 +82,15 @@ export async function getReactionEmojis(): Promise<ReactionEmojiOption[]> {
   });
 
   return toReactionEmojiOptions(response);
+}
+
+export async function reactToCard(input: ReactToCardInput): Promise<ReactToCardResult> {
+  const response = await postJson<ReactToCardResponseDto>(`/api/v1/home/cards/${input.cardId}/reactions`, {
+    auth: true,
+    body: {
+      emojiType: input.emojiType,
+    },
+  });
+
+  return toReactToCardResult(response);
 }

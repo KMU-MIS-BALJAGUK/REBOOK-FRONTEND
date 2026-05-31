@@ -17,6 +17,7 @@ import { useSearchHomeCards } from './hooks/useSearchHomeCards';
 import { useHomeCardsFilter } from './hooks/useHomeCardsFilter';
 import { useHomeCardDetail } from './hooks/useHomeCardDetail';
 import { useReactionEmojis } from './hooks/useReactionEmojis';
+import { useCardReaction } from './hooks/useCardReaction';
 import { HomeCardEmojiType, HomeCardItem, HomeCardSort, HomeCardView } from './model/home.types';
 import { toUserMessage } from '../../shared/utils/apiError';
 
@@ -34,6 +35,8 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
   const [searchKeyword, setSearchKeyword] = useState<string>('');
   const [selectedEmojiType, setSelectedEmojiType] = useState<HomeCardEmojiType | undefined>(undefined);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
+  const [reactionPickerCardId, setReactionPickerCardId] = useState<number | null>(null);
+
   const viewMode: HomeCardView = useMemo(() => {
     if (tab === 'folder') return 'grid';
     return 'list';
@@ -67,11 +70,27 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
     isSearchMode,
   );
   const homeCardDetailQuery = useHomeCardDetail(selectedCardId);
-  const reactionEmojisQuery = useReactionEmojis(tab === 'emotion' || selectedCardId !== null);
+  const reactionEmojisQuery = useReactionEmojis(tab === 'emotion' || selectedCardId !== null || reactionPickerCardId !== null);
+  const cardReactionMutation = useCardReaction();
+
   const activeQuery = isSearchMode ? homeSearchQuery : tab === 'all' ? homeCardsQuery : homeFilterQuery;
 
   const displayName = nickname.trim() ? nickname : 'User';
   const list = activeQuery.data?.items ?? [];
+
+  const handleReact = (cardId: number, emojiType: HomeCardEmojiType) => {
+    cardReactionMutation.mutate(
+      { cardId, emojiType },
+      {
+        onSuccess: () => {
+          void activeQuery.refetch();
+          if (selectedCardId === cardId) {
+            void homeCardDetailQuery.refetch();
+          }
+        },
+      },
+    );
+  };
 
   return (
     <SafeAreaView style={styles.homeSafeArea}>
@@ -103,6 +122,7 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
           <HomeTabButton label="폴더별" active={tab === 'folder'} onPress={() => onChangeTab('folder')} />
           <HomeTabButton label="감정별" active={tab === 'emotion'} onPress={() => onChangeTab('emotion')} />
         </View>
+
         {tab === 'emotion' ? (
           <View style={styles.emojiChipRow}>
             {(reactionEmojisQuery.data ?? []).map((chip) => (
@@ -142,13 +162,23 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
           (isSearchMode ? 'list' : viewMode) === 'list' ? (
             <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false}>
               {list.map((item) => (
-                <ListCard key={item.cardId} item={item} onPress={() => setSelectedCardId(item.cardId)} />
+                <ListCard
+                  key={item.cardId}
+                  item={item}
+                  onPress={() => setSelectedCardId(item.cardId)}
+                  onLongPress={() => setReactionPickerCardId(item.cardId)}
+                />
               ))}
             </ScrollView>
           ) : (
             <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false} contentContainerStyle={styles.gridWrap}>
               {list.map((item) => (
-                <GridCard key={item.cardId} item={item} onPress={() => setSelectedCardId(item.cardId)} />
+                <GridCard
+                  key={item.cardId}
+                  item={item}
+                  onPress={() => setSelectedCardId(item.cardId)}
+                  onLongPress={() => setReactionPickerCardId(item.cardId)}
+                />
               ))}
             </ScrollView>
           )
@@ -157,9 +187,7 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
         <Modal visible={selectedCardId !== null} transparent animationType="fade" onRequestClose={() => setSelectedCardId(null)}>
           <View style={styles.modalBackdrop}>
             <View style={styles.modalCard}>
-              {homeCardDetailQuery.isLoading ? (
-                <Text style={styles.stateText}>상세 정보를 불러오는 중...</Text>
-              ) : null}
+              {homeCardDetailQuery.isLoading ? <Text style={styles.stateText}>상세 정보를 불러오는 중...</Text> : null}
               {!homeCardDetailQuery.isLoading && homeCardDetailQuery.isError ? (
                 <>
                   <Text style={styles.stateText}>{toUserMessage(homeCardDetailQuery.error)}</Text>
@@ -180,9 +208,49 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
                   </Text>
                   <Text style={styles.detailMeta}>메모: {homeCardDetailQuery.data.memo ?? '없음'}</Text>
                   <Text style={styles.detailMeta}>수정: {homeCardDetailQuery.data.updatedAt}</Text>
+                  <View style={styles.detailReactionRow}>
+                    {(reactionEmojisQuery.data ?? []).map((chip) => (
+                      <TouchableOpacity
+                        key={`detail-${chip.emojiType}`}
+                        style={styles.detailReactionChip}
+                        onPress={() => {
+                          if (!selectedCardId) return;
+                          handleReact(selectedCardId, chip.emojiType);
+                        }}
+                      >
+                        <Text style={styles.detailReactionChipText}>{emojiTypeToIcon(chip.emojiType)}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </>
               ) : null}
               <TouchableOpacity style={styles.modalCloseButton} onPress={() => setSelectedCardId(null)}>
+                <Text style={styles.modalCloseButtonText}>닫기</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal visible={reactionPickerCardId !== null} transparent animationType="fade" onRequestClose={() => setReactionPickerCardId(null)}>
+          <View style={styles.reactionPickerBackdrop}>
+            <View style={styles.reactionPickerCard}>
+              <Text style={styles.reactionPickerTitle}>반응 선택</Text>
+              <View style={styles.reactionPickerRow}>
+                {(reactionEmojisQuery.data ?? []).map((chip) => (
+                  <TouchableOpacity
+                    key={`picker-${chip.emojiType}`}
+                    style={styles.reactionPickerChip}
+                    onPress={() => {
+                      if (!reactionPickerCardId) return;
+                      handleReact(reactionPickerCardId, chip.emojiType);
+                      setReactionPickerCardId(null);
+                    }}
+                  >
+                    <Text style={styles.reactionPickerChipText}>{emojiTypeToIcon(chip.emojiType)}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TouchableOpacity style={styles.modalCloseButton} onPress={() => setReactionPickerCardId(null)}>
                 <Text style={styles.modalCloseButtonText}>닫기</Text>
               </TouchableOpacity>
             </View>
@@ -230,9 +298,9 @@ function HomeTabButton({ label, active, onPress }: HomeTabButtonProps) {
   );
 }
 
-function ListCard({ item, onPress }: { item: HomeCardItem; onPress: () => void }) {
+function ListCard({ item, onPress, onLongPress }: { item: HomeCardItem; onPress: () => void; onLongPress: () => void }) {
   return (
-    <Pressable style={styles.quoteCard} onPress={onPress}>
+    <Pressable style={styles.quoteCard} onPress={onPress} onLongPress={onLongPress}>
       <Text style={styles.quoteTitle}>{item.bookTitle} · P.{item.pageNumber}</Text>
       <Text style={styles.quoteText}>{item.quoteText}</Text>
       <Text style={styles.quoteMeta}>{item.author}</Text>
@@ -241,9 +309,9 @@ function ListCard({ item, onPress }: { item: HomeCardItem; onPress: () => void }
   );
 }
 
-function GridCard({ item, onPress }: { item: HomeCardItem; onPress: () => void }) {
+function GridCard({ item, onPress, onLongPress }: { item: HomeCardItem; onPress: () => void; onLongPress: () => void }) {
   return (
-    <Pressable style={styles.gridCard} onPress={onPress}>
+    <Pressable style={styles.gridCard} onPress={onPress} onLongPress={onLongPress}>
       <Text style={styles.gridTitle} numberOfLines={1}>{item.bookTitle}</Text>
       <Text style={styles.gridPage}>P.{item.pageNumber}</Text>
       <Text style={styles.gridQuote} numberOfLines={3}>{item.quoteText}</Text>
@@ -334,6 +402,18 @@ const styles = StyleSheet.create({
   detailTitle: { fontSize: 16, fontWeight: '700', color: '#2f2a24', marginBottom: 4 },
   detailQuote: { fontSize: 14, lineHeight: 22, color: '#322d27', marginBottom: 6 },
   detailMeta: { fontSize: 12, color: '#756b5f' },
+  detailReactionRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  detailReactionChip: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: '#d9d0c2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f4efe7',
+  },
+  detailReactionChipText: { fontSize: 16 },
   modalCloseButton: {
     marginTop: 10,
     alignSelf: 'flex-end',
@@ -343,6 +423,32 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   modalCloseButtonText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  reactionPickerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(32, 26, 20, 0.38)',
+    justifyContent: 'flex-end',
+    padding: 20,
+  },
+  reactionPickerCard: {
+    backgroundColor: '#f9f6f0',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e8dfd2',
+    padding: 14,
+  },
+  reactionPickerTitle: { fontSize: 14, color: '#2f2a24', fontWeight: '700', marginBottom: 10 },
+  reactionPickerRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  reactionPickerChip: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: '#d9d0c2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f4efe7',
+  },
+  reactionPickerChipText: { fontSize: 17 },
   quoteCard: {
     backgroundColor: '#f9f6f0',
     borderWidth: 1,
