@@ -33,6 +33,8 @@ type Props = {
   aiStylesError: string | null;
   isAiStyleSaving: boolean;
   aiStyleSaveError: string | null;
+  isCompleteSaving: boolean;
+  completeSaveError: string | null;
   onNicknameChange: (value: string) => void;
   onBookTitleChange: (value: string) => void;
   onAuthorChange: (value: string) => void;
@@ -66,6 +68,8 @@ export function OnboardingScreen(props: Props) {
     aiStylesError,
     isAiStyleSaving,
     aiStyleSaveError,
+    isCompleteSaving,
+    completeSaveError,
     onNicknameChange,
     onBookTitleChange,
     onAuthorChange,
@@ -224,6 +228,7 @@ export function OnboardingScreen(props: Props) {
           {stepKey === 'nickname' && nicknameSaveError ? <Text style={styles.errorText}>{nicknameSaveError}</Text> : null}
           {stepKey === 'book' && firstBookSaveError ? <Text style={styles.errorText}>{firstBookSaveError}</Text> : null}
           {stepKey === 'mood' && aiStyleSaveError ? <Text style={styles.errorText}>{aiStyleSaveError}</Text> : null}
+          {stepKey === 'done' && completeSaveError ? <Text style={styles.errorText}>{completeSaveError}</Text> : null}
           <View style={styles.dotRow}>
             {[...Array(totalSteps)].map((_, index) => (
               <View key={index} style={[styles.dot, index === step && styles.dotActive]} />
@@ -250,6 +255,8 @@ export function OnboardingScreen(props: Props) {
                       ? isFirstBookSaving || isNextDisabled
                     : stepKey === 'mood'
                       ? isAiStyleSaving || isNextDisabled
+                    : stepKey === 'done'
+                      ? isCompleteSaving
                     : step !== totalSteps - 1 && isNextDisabled
               }
               style={[
@@ -262,6 +269,8 @@ export function OnboardingScreen(props: Props) {
                       ? isFirstBookSaving || isNextDisabled
                     : stepKey === 'mood'
                       ? isAiStyleSaving || isNextDisabled
+                    : stepKey === 'done'
+                      ? isCompleteSaving
                     : step !== totalSteps - 1 && isNextDisabled) &&
                   styles.primaryButtonDisabled,
               ]}
@@ -283,6 +292,10 @@ export function OnboardingScreen(props: Props) {
                     ? isAiStyleSaving
                       ? '저장 중...'
                       : '다음'
+                  : stepKey === 'done'
+                    ? isCompleteSaving
+                      ? '완료 처리 중...'
+                      : 'ReBook 시작하기'
                   : step === totalSteps - 1
                     ? 'ReBook 시작하기'
                     : '다음'}

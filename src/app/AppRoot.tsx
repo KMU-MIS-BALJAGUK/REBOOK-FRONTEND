@@ -16,6 +16,7 @@ import { useAiStyles } from '../features/onboarding/hooks/useAiStyles';
 import { useSaveNickname } from '../features/onboarding/hooks/useSaveNickname';
 import { useSaveFirstBook } from '../features/onboarding/hooks/useSaveFirstBook';
 import { useSaveAiStyle } from '../features/onboarding/hooks/useSaveAiStyle';
+import { useCompleteOnboarding } from '../features/onboarding/hooks/useCompleteOnboarding';
 import { hydrateSession, setSession } from '../shared/auth/authSession';
 import { toUserMessage } from '../shared/utils/apiError';
 
@@ -26,6 +27,7 @@ export default function AppRoot() {
   const saveNicknameMutation = useSaveNickname();
   const saveFirstBookMutation = useSaveFirstBook();
   const saveAiStyleMutation = useSaveAiStyle();
+  const completeOnboardingMutation = useCompleteOnboarding();
   const { setAuthSession } = actions;
 
   useEffect(() => {
@@ -153,6 +155,8 @@ export default function AppRoot() {
       aiStylesError={aiStylesQuery.isError ? toUserMessage(aiStylesQuery.error) : null}
       isAiStyleSaving={saveAiStyleMutation.isPending}
       aiStyleSaveError={saveAiStyleMutation.isError ? toUserMessage(saveAiStyleMutation.error) : null}
+      isCompleteSaving={completeOnboardingMutation.isPending}
+      completeSaveError={completeOnboardingMutation.isError ? toUserMessage(completeOnboardingMutation.error) : null}
       onRetryAiStyles={() => {
         void aiStylesQuery.refetch();
       }}
@@ -209,6 +213,21 @@ export default function AppRoot() {
             { styleCode: state.selectedMood },
             {
               onSuccess: () => {
+                actions.goNext();
+              },
+            },
+          );
+          return;
+        }
+        if (state.stepKey === 'done') {
+          completeOnboardingMutation.mutate(
+            { completed: true },
+            {
+              onSuccess: (result) => {
+                if (result.redirectTo === 'HOME') {
+                  actions.setScreen('home');
+                  return;
+                }
                 actions.goNext();
               },
             },

@@ -1,4 +1,6 @@
 import {
+  CompleteOnboardingRequestDto,
+  CompleteOnboardingResponseDto,
   GetAiStylesResponseDto,
   SaveAiStyleRequestDto,
   SaveAiStyleResponseDto,
@@ -9,6 +11,8 @@ import {
 } from './onboarding.dto';
 import {
   AiStyle,
+  CompleteOnboardingInput,
+  CompleteOnboardingResult,
   FirstBookSaveResult,
   SaveAiStyleInput,
   SaveAiStyleResult,
@@ -78,6 +82,30 @@ export function toSaveAiStyleResult(dto: SaveAiStyleResponseDto): SaveAiStyleRes
   return {
     styleCode: dto.styleCode,
     styleName: dto.styleName,
+    onboardingStatus: {
+      completed: dto.onboardingStatus.completed,
+      nextStep: dto.onboardingStatus.nextStep,
+      completedSteps: dto.onboardingStatus.completedSteps,
+    },
+  };
+}
+
+export function toCompleteOnboardingRequestDto(input: CompleteOnboardingInput): CompleteOnboardingRequestDto {
+  return {
+    completed: input.completed,
+  };
+}
+
+export function toCompleteOnboardingResult(dto: CompleteOnboardingResponseDto): CompleteOnboardingResult {
+  return {
+    userId: dto.userId,
+    onboardingCompleted: dto.onboardingCompleted,
+    redirectTo: dto.redirectTo,
+    profile: {
+      nickname: dto.profile.nickname,
+      aiStyle: dto.profile.aiStyle,
+      hasFirstBook: dto.profile.hasFirstBook,
+    },
     onboardingStatus: {
       completed: dto.onboardingStatus.completed,
       nextStep: dto.onboardingStatus.nextStep,

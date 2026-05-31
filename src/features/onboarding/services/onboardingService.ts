@@ -1,5 +1,7 @@
 import { getJson, postJson } from '../../../shared/api/httpClient';
 import {
+  toCompleteOnboardingRequestDto,
+  toCompleteOnboardingResult,
   toAiStyles,
   toSaveAiStyleRequestDto,
   toSaveAiStyleResult,
@@ -9,6 +11,7 @@ import {
   toSaveNicknameRequestDto,
 } from '../model/onboarding.mapper';
 import {
+  CompleteOnboardingResponseDto,
   GetAiStylesResponseDto,
   SaveAiStyleResponseDto,
   SaveFirstBookResponseDto,
@@ -16,6 +19,8 @@ import {
 } from '../model/onboarding.dto';
 import {
   AiStyle,
+  CompleteOnboardingInput,
+  CompleteOnboardingResult,
   FirstBookSaveResult,
   SaveAiStyleInput,
   SaveAiStyleResult,
@@ -60,4 +65,14 @@ export async function saveAiStyle(input: SaveAiStyleInput): Promise<SaveAiStyleR
   });
 
   return toSaveAiStyleResult(response);
+}
+
+export async function completeOnboarding(input: CompleteOnboardingInput): Promise<CompleteOnboardingResult> {
+  const dto = toCompleteOnboardingRequestDto(input);
+  const response = await postJson<CompleteOnboardingResponseDto>('/api/v1/onboarding/complete', {
+    body: dto,
+    auth: true,
+  });
+
+  return toCompleteOnboardingResult(response);
 }

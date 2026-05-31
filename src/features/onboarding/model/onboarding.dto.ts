@@ -51,3 +51,19 @@ export type SaveAiStyleResponseDto = {
   styleName: string;
   onboardingStatus: OnboardingStatusDto;
 };
+
+export type CompleteOnboardingRequestDto = {
+  completed: boolean;
+};
+
+export type CompleteOnboardingResponseDto = {
+  userId: number;
+  onboardingCompleted: boolean;
+  redirectTo: string;
+  profile: {
+    nickname: string;
+    aiStyle: string;
+    hasFirstBook: boolean;
+  };
+  onboardingStatus: OnboardingStatusDto;
+};

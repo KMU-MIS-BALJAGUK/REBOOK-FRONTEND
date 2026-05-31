@@ -48,3 +48,19 @@ export type SaveAiStyleResult = {
   styleName: string;
   onboardingStatus: OnboardingStatus;
 };
+
+export type CompleteOnboardingInput = {
+  completed: boolean;
+};
+
+export type CompleteOnboardingResult = {
+  userId: number;
+  onboardingCompleted: boolean;
+  redirectTo: string;
+  profile: {
+    nickname: string;
+    aiStyle: string;
+    hasFirstBook: boolean;
+  };
+  onboardingStatus: OnboardingStatus;
+};
