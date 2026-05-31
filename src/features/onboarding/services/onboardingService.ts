@@ -1,12 +1,13 @@
-import { postJson } from '../../../shared/api/httpClient';
+import { getJson, postJson } from '../../../shared/api/httpClient';
 import {
+  toAiStyles,
   toFirstBookSaveResult,
   toNicknameSaveResult,
   toSaveFirstBookRequestDto,
   toSaveNicknameRequestDto,
 } from '../model/onboarding.mapper';
-import { SaveFirstBookResponseDto, SaveNicknameResponseDto } from '../model/onboarding.dto';
-import { FirstBookSaveResult, SaveFirstBookInput, NicknameSaveResult, SaveNicknameInput } from '../model/onboarding.types';
+import { GetAiStylesResponseDto, SaveFirstBookResponseDto, SaveNicknameResponseDto } from '../model/onboarding.dto';
+import { AiStyle, FirstBookSaveResult, SaveFirstBookInput, NicknameSaveResult, SaveNicknameInput } from '../model/onboarding.types';
 
 export async function saveNickname(input: SaveNicknameInput): Promise<NicknameSaveResult> {
   const dto = toSaveNicknameRequestDto(input);
@@ -26,4 +27,12 @@ export async function saveFirstBook(input: SaveFirstBookInput): Promise<FirstBoo
   });
 
   return toFirstBookSaveResult(response);
+}
+
+export async function getAiStyles(): Promise<AiStyle[]> {
+  const response = await getJson<GetAiStylesResponseDto>('/api/v1/onboarding/ai-styles', {
+    auth: true,
+  });
+
+  return toAiStyles(response);
 }

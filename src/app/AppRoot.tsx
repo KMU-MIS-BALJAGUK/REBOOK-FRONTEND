@@ -12,6 +12,7 @@ import { GalleryPickerScreen } from '../features/quote/screens/GalleryPickerScre
 import { OcrPreviewScreen } from '../features/quote/screens/OcrPreviewScreen';
 import { QuoteFormScreen } from '../features/quote/screens/QuoteFormScreen';
 import { useAppleLogin } from '../features/onboarding/hooks/useAppleLogin';
+import { useAiStyles } from '../features/onboarding/hooks/useAiStyles';
 import { useSaveNickname } from '../features/onboarding/hooks/useSaveNickname';
 import { useSaveFirstBook } from '../features/onboarding/hooks/useSaveFirstBook';
 import { hydrateSession, setSession } from '../shared/auth/authSession';
@@ -20,6 +21,7 @@ import { toUserMessage } from '../shared/utils/apiError';
 export default function AppRoot() {
   const { state, actions } = useAppFlow();
   const appleLoginMutation = useAppleLogin();
+  const aiStylesQuery = useAiStyles(state.stepKey === 'mood');
   const saveNicknameMutation = useSaveNickname();
   const saveFirstBookMutation = useSaveFirstBook();
   const { setAuthSession } = actions;
@@ -144,6 +146,12 @@ export default function AppRoot() {
       nicknameSaveError={saveNicknameMutation.isError ? toUserMessage(saveNicknameMutation.error) : null}
       isFirstBookSaving={saveFirstBookMutation.isPending}
       firstBookSaveError={saveFirstBookMutation.isError ? toUserMessage(saveFirstBookMutation.error) : null}
+      aiStyles={aiStylesQuery.data ?? []}
+      isAiStylesLoading={aiStylesQuery.isLoading}
+      aiStylesError={aiStylesQuery.isError ? toUserMessage(aiStylesQuery.error) : null}
+      onRetryAiStyles={() => {
+        void aiStylesQuery.refetch();
+      }}
       onNicknameChange={actions.setNickname}
       onBookTitleChange={actions.setBookTitle}
       onAuthorChange={actions.setAuthor}

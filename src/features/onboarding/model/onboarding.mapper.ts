@@ -1,10 +1,11 @@
 import {
+  GetAiStylesResponseDto,
   SaveFirstBookRequestDto,
   SaveFirstBookResponseDto,
   SaveNicknameRequestDto,
   SaveNicknameResponseDto,
 } from './onboarding.dto';
-import { FirstBookSaveResult, SaveFirstBookInput, NicknameSaveResult, SaveNicknameInput } from './onboarding.types';
+import { AiStyle, FirstBookSaveResult, SaveFirstBookInput, NicknameSaveResult, SaveNicknameInput } from './onboarding.types';
 
 export function toSaveNicknameRequestDto(input: SaveNicknameInput): SaveNicknameRequestDto {
   return {
@@ -48,4 +49,11 @@ export function toFirstBookSaveResult(dto: SaveFirstBookResponseDto): FirstBookS
       completedSteps: dto.onboardingStatus.completedSteps,
     },
   };
+}
+
+export function toAiStyles(dto: GetAiStylesResponseDto): AiStyle[] {
+  return dto.styles.map((style) => ({
+    styleCode: style.styleCode,
+    styleName: style.styleName,
+  }));
 }

@@ -32,3 +32,12 @@ export type SaveFirstBookResponseDto = {
   readingStatus?: string;
   onboardingStatus: OnboardingStatusDto;
 };
+
+export type AiStyleItemDto = {
+  styleCode: string;
+  styleName: string;
+};
+
+export type GetAiStylesResponseDto = {
+  styles: AiStyleItemDto[];
+};

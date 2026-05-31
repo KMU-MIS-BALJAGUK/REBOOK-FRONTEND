@@ -15,23 +15,28 @@ type Envelope<T> = {
 };
 
 export async function postJson<TResponse>(path: string, options: RequestOptions = {}): Promise<TResponse> {
-  return requestJson<TResponse>(path, options, false);
+  return requestJson<TResponse>('POST', path, options, false);
+}
+
+export async function getJson<TResponse>(path: string, options: RequestOptions = {}): Promise<TResponse> {
+  return requestJson<TResponse>('GET', path, options, false);
 }
 
 async function requestJson<TResponse>(
+  method: 'GET' | 'POST',
   path: string,
   options: RequestOptions,
   hasRetriedAfterRefresh: boolean,
 ): Promise<TResponse> {
   const accessToken = options.auth ? getAccessToken() : null;
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: 'POST',
+    method,
     headers: {
       ...DEFAULT_HEADERS,
       ...(options.auth && accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...options.headers,
     },
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    body: method === 'POST' && options.body ? JSON.stringify(options.body) : undefined,
   });
 
   const json = (await response.json()) as Envelope<TResponse>;
@@ -40,7 +45,7 @@ async function requestJson<TResponse>(
   if (options.auth && isAuthError && !hasRetriedAfterRefresh) {
     try {
       await refreshSessionSingleFlight();
-      return requestJson<TResponse>(path, options, true);
+      return requestJson<TResponse>(method, path, options, true);
     } catch (refreshError) {
       await clearSession();
       throw refreshError;
@@ -52,7 +57,7 @@ async function requestJson<TResponse>(
       message: json.msg || '요청을 처리하지 못했어요.',
       status: response.status,
       code: json.code,
-      debugMessage: `POST ${path} failed with response code ${json.code}`,
+      debugMessage: `${method} ${path} failed with response code ${json.code}`,
     });
   }
 

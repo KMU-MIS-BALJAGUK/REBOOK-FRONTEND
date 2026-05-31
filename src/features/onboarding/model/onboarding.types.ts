@@ -33,3 +33,8 @@ export type FirstBookSaveResult = {
   readingStatus?: string;
   onboardingStatus: OnboardingStatus;
 };
+
+export type AiStyle = {
+  styleCode: string;
+  styleName: string;
+};

@@ -11,7 +11,7 @@ export function useAppFlow() {
   const [bookTitle, setBookTitle] = useState<string>('');
   const [author, setAuthor] = useState<string>('');
   const [selectedRecordOption, setSelectedRecordOption] = useState<string>('now');
-  const [selectedMood, setSelectedMood] = useState<string>('cozy');
+  const [selectedMood, setSelectedMood] = useState<string>('FRIENDLY');
   const [homeTab, setHomeTab] = useState<HomeTabKey>('all');
   const [registerType, setRegisterType] = useState<RegisterType>('manual');
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
