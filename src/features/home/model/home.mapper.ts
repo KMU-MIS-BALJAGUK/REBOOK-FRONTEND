@@ -1,4 +1,4 @@
-import { HomeCardsResponseDto } from './home.dto';
+import { HomeCardsResponseDto, HomeCardsSearchResponseDto } from './home.dto';
 import { HomeCardsResult } from './home.types';
 
 export function toHomeCardsResult(dto: HomeCardsResponseDto): HomeCardsResult {
@@ -29,4 +29,12 @@ export function toHomeCardsResult(dto: HomeCardsResponseDto): HomeCardsResult {
       size: dto.pageInfo.size,
     },
   };
+}
+
+export function toHomeCardsSearchResult(dto: HomeCardsSearchResponseDto): HomeCardsResult {
+  return toHomeCardsResult({
+    view: dto.view,
+    items: dto.items,
+    pageInfo: dto.pageInfo,
+  });
 }

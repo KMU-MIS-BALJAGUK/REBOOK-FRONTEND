@@ -9,6 +9,10 @@ export type HomeCardsQuery = {
   sort?: HomeCardSort;
 };
 
+export type HomeCardsSearchQuery = HomeCardsQuery & {
+  q: string;
+};
+
 export type EmojiCount = {
   emojiType: string;
   count: number;

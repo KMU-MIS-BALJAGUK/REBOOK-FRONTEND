@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Pressable,
   SafeAreaView,
@@ -6,11 +6,13 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { HomeTabKey } from '../../app/types';
 import { useHomeCards } from './hooks/useHomeCards';
+import { useSearchHomeCards } from './hooks/useSearchHomeCards';
 import { HomeCardItem, HomeCardSort, HomeCardView } from './model/home.types';
 import { toUserMessage } from '../../shared/utils/apiError';
 
@@ -25,17 +27,30 @@ type Props = {
 };
 
 export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPressCommunity, onPressAiChat, onPressMyPage }: Props) {
+  const [searchKeyword, setSearchKeyword] = useState<string>('');
   const viewMode: HomeCardView = useMemo(() => (tab === 'book' ? 'grid' : 'list'), [tab]);
   const sort: HomeCardSort = useMemo(() => (tab === 'emotion' ? 'MOST_REACTED' : 'LATEST'), [tab]);
+  const trimmedKeyword = searchKeyword.trim();
+  const isSearchMode = trimmedKeyword.length > 0;
 
   const homeCardsQuery = useHomeCards({
     view: viewMode,
     size: 20,
     sort,
   });
+  const homeSearchQuery = useSearchHomeCards(
+    {
+      q: trimmedKeyword,
+      view: 'list',
+      size: 20,
+      sort,
+    },
+    isSearchMode,
+  );
+  const activeQuery = isSearchMode ? homeSearchQuery : homeCardsQuery;
 
   const displayName = nickname.trim() ? nickname : 'User';
-  const list = homeCardsQuery.data?.items ?? [];
+  const list = activeQuery.data?.items ?? [];
 
   return (
     <SafeAreaView style={styles.homeSafeArea}>
@@ -48,7 +63,13 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
         <View style={styles.homeSearchRow}>
           <View style={styles.searchPill}>
             <Text style={styles.searchIcon}>⌕</Text>
-            <Text style={styles.searchText}>문장을 검색해보세요</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="키워드를 검색하세요"
+              placeholderTextColor="#9f968a"
+              value={searchKeyword}
+              onChangeText={setSearchKeyword}
+            />
           </View>
           <View style={styles.roundButton}>
             <Text style={styles.roundButtonText}>나</Text>
@@ -62,29 +83,29 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
           <HomeTabButton label="감정별" active={tab === 'emotion'} onPress={() => onChangeTab('emotion')} />
         </View>
 
-        {homeCardsQuery.isLoading ? (
+        {activeQuery.isLoading ? (
           <View style={styles.centerStateWrap}>
-            <Text style={styles.stateText}>카드를 불러오는 중...</Text>
+            <Text style={styles.stateText}>{isSearchMode ? '검색 결과를 불러오는 중...' : '카드를 불러오는 중...'}</Text>
           </View>
         ) : null}
 
-        {!homeCardsQuery.isLoading && homeCardsQuery.isError ? (
+        {!activeQuery.isLoading && activeQuery.isError ? (
           <View style={styles.centerStateWrap}>
-            <Text style={styles.stateText}>{toUserMessage(homeCardsQuery.error)}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={() => void homeCardsQuery.refetch()}>
+            <Text style={styles.stateText}>{toUserMessage(activeQuery.error)}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={() => void activeQuery.refetch()}>
               <Text style={styles.retryButtonText}>다시 시도</Text>
             </TouchableOpacity>
           </View>
         ) : null}
 
-        {!homeCardsQuery.isLoading && !homeCardsQuery.isError && list.length === 0 ? (
+        {!activeQuery.isLoading && !activeQuery.isError && list.length === 0 ? (
           <View style={styles.centerStateWrap}>
-            <Text style={styles.stateText}>표시할 카드가 아직 없어요.</Text>
+            <Text style={styles.stateText}>{isSearchMode ? '검색 결과가 없어요.' : '표시할 카드가 아직 없어요.'}</Text>
           </View>
         ) : null}
 
-        {!homeCardsQuery.isLoading && !homeCardsQuery.isError && list.length > 0 ? (
-          viewMode === 'list' ? (
+        {!activeQuery.isLoading && !activeQuery.isError && list.length > 0 ? (
+          (isSearchMode ? 'list' : viewMode) === 'list' ? (
             <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false}>
               {list.map((item) => (
                 <ListCard key={item.cardId} item={item} />
@@ -179,7 +200,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   searchIcon: { fontSize: 13, color: '#948878', marginRight: 6 },
-  searchText: { fontSize: 11, color: '#9f968a' },
+  searchInput: { flex: 1, fontSize: 12, color: '#4a433a', paddingVertical: 0 },
   roundButton: {
     width: 28,
     height: 28,

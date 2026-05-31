@@ -37,3 +37,10 @@ export type HomeCardsResponseDto = {
   items: HomeCardItemDto[];
   pageInfo: HomeCardsPageInfoDto;
 };
+
+export type HomeCardsSearchResponseDto = {
+  view: HomeCardListViewDto;
+  keyword: string;
+  items: HomeCardItemDto[];
+  pageInfo: HomeCardsPageInfoDto;
+};
