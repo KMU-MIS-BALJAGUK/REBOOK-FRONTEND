@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   Pressable,
   SafeAreaView,
@@ -25,8 +25,8 @@ type Props = {
 };
 
 export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPressCommunity, onPressAiChat, onPressMyPage }: Props) {
-  const [viewMode, setViewMode] = useState<HomeCardView>('list');
-  const sort: HomeCardSort = useMemo(() => (tab === 'insight' ? 'MOST_REACTED' : 'LATEST'), [tab]);
+  const viewMode: HomeCardView = useMemo(() => (tab === 'book' ? 'grid' : 'list'), [tab]);
+  const sort: HomeCardSort = useMemo(() => (tab === 'emotion' ? 'MOST_REACTED' : 'LATEST'), [tab]);
 
   const homeCardsQuery = useHomeCards({
     view: viewMode,
@@ -50,18 +50,16 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
             <Text style={styles.searchIcon}>⌕</Text>
             <Text style={styles.searchText}>문장을 검색해보세요</Text>
           </View>
-          <TouchableOpacity
-            style={styles.roundButton}
-            onPress={() => setViewMode((prev) => (prev === 'list' ? 'grid' : 'list'))}
-          >
-            <Text style={styles.roundButtonText}>{viewMode === 'list' ? '▦' : '☰'}</Text>
-          </TouchableOpacity>
+          <View style={styles.roundButton}>
+            <Text style={styles.roundButtonText}>나</Text>
+          </View>
         </View>
 
         <View style={styles.homeTabRow}>
-          <HomeTabButton label="모두 보기" active={tab === 'all'} onPress={() => onChangeTab('all')} />
-          <HomeTabButton label="내 도서관" active={tab === 'library'} onPress={() => onChangeTab('library')} />
-          <HomeTabButton label="인사이트" active={tab === 'insight'} onPress={() => onChangeTab('insight')} />
+          <HomeTabButton label="전체" active={tab === 'all'} onPress={() => onChangeTab('all')} />
+          <HomeTabButton label="도서별" active={tab === 'book'} onPress={() => onChangeTab('book')} />
+          <HomeTabButton label="폴더별" active={tab === 'folder'} onPress={() => onChangeTab('folder')} />
+          <HomeTabButton label="감정별" active={tab === 'emotion'} onPress={() => onChangeTab('emotion')} />
         </View>
 
         {homeCardsQuery.isLoading ? (
