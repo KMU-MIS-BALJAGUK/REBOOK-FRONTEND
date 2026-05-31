@@ -12,12 +12,14 @@ import { GalleryPickerScreen } from '../features/quote/screens/GalleryPickerScre
 import { OcrPreviewScreen } from '../features/quote/screens/OcrPreviewScreen';
 import { QuoteFormScreen } from '../features/quote/screens/QuoteFormScreen';
 import { useAppleLogin } from '../features/onboarding/hooks/useAppleLogin';
+import { useSaveNickname } from '../features/onboarding/hooks/useSaveNickname';
 import { hydrateSession, setSession } from '../shared/auth/authSession';
 import { toUserMessage } from '../shared/utils/apiError';
 
 export default function AppRoot() {
   const { state, actions } = useAppFlow();
   const appleLoginMutation = useAppleLogin();
+  const saveNicknameMutation = useSaveNickname();
   const { setAuthSession } = actions;
 
   useEffect(() => {
@@ -136,13 +138,30 @@ export default function AppRoot() {
       isNextDisabled={state.isNextDisabled}
       isAppleLoginLoading={appleLoginMutation.isPending}
       appleLoginError={appleLoginMutation.isError ? toUserMessage(appleLoginMutation.error) : null}
+      isNicknameSaving={saveNicknameMutation.isPending}
+      nicknameSaveError={saveNicknameMutation.isError ? toUserMessage(saveNicknameMutation.error) : null}
       onNicknameChange={actions.setNickname}
       onBookTitleChange={actions.setBookTitle}
       onAuthorChange={actions.setAuthor}
       onRecordOptionChange={actions.setSelectedRecordOption}
       onMoodChange={actions.setSelectedMood}
       onPrev={actions.goPrev}
-      onNext={actions.goNext}
+      onNext={() => {
+        if (state.stepKey === 'nickname') {
+          saveNicknameMutation.mutate(
+            { nickname: state.nickname.trim() },
+            {
+              onSuccess: (result) => {
+                actions.setNickname(result.nickname);
+                actions.goNext();
+              },
+            },
+          );
+          return;
+        }
+
+        actions.goNext();
+      }}
       onAppleLoginPress={() => {
         appleLoginMutation.mutate(undefined, {
           onSuccess: (session) => {
