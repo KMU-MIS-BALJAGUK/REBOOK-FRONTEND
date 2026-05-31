@@ -4,9 +4,11 @@ import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-na
 type Props = {
   onBack: () => void;
   onCapture: () => void;
+  isUploading: boolean;
+  uploadError: string | null;
 };
 
-export function CameraCaptureScreen({ onBack, onCapture }: Props) {
+export function CameraCaptureScreen({ onBack, onCapture, isUploading, uploadError }: Props) {
   return (
     <SafeAreaView style={styles.captureSafeArea}>
       <View style={styles.captureTopBar}>
@@ -21,8 +23,9 @@ export function CameraCaptureScreen({ onBack, onCapture }: Props) {
         </View>
       </View>
       <View style={styles.captureBottomBar}>
-        <TouchableOpacity style={styles.shutterButton} onPress={onCapture}>
-          <Text style={styles.shutterIcon}>◉</Text>
+        {uploadError ? <Text style={styles.errorText}>{uploadError}</Text> : null}
+        <TouchableOpacity style={styles.shutterButton} onPress={onCapture} disabled={isUploading}>
+          <Text style={styles.shutterIcon}>{isUploading ? '…' : '◉'}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -62,4 +65,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   shutterIcon: { fontSize: 26, color: '#8d7353' },
+  errorText: { color: '#b25555', fontSize: 12, marginBottom: 8 },
 });

@@ -11,6 +11,7 @@ import { CameraCaptureScreen } from '../features/quote/screens/CameraCaptureScre
 import { GalleryPickerScreen } from '../features/quote/screens/GalleryPickerScreen';
 import { OcrPreviewScreen } from '../features/quote/screens/OcrPreviewScreen';
 import { QuoteFormScreen } from '../features/quote/screens/QuoteFormScreen';
+import { useQuoteImagePresignedUrl } from '../features/quote/hooks/useQuoteImagePresignedUrl';
 import { useAppleLogin } from '../features/onboarding/hooks/useAppleLogin';
 import { useAiStyles } from '../features/onboarding/hooks/useAiStyles';
 import { useSaveNickname } from '../features/onboarding/hooks/useSaveNickname';
@@ -28,6 +29,7 @@ export default function AppRoot() {
   const saveFirstBookMutation = useSaveFirstBook();
   const saveAiStyleMutation = useSaveAiStyle();
   const completeOnboardingMutation = useCompleteOnboarding();
+  const quoteImagePresignedUrlMutation = useQuoteImagePresignedUrl();
   const { setAuthSession } = actions;
 
   useEffect(() => {
@@ -107,11 +109,49 @@ export default function AppRoot() {
   }
 
   if (state.screen === 'camera-capture') {
-    return <CameraCaptureScreen onBack={() => actions.setScreen('quote-method')} onCapture={() => actions.setScreen('ocr-preview')} />;
+    return (
+      <CameraCaptureScreen
+        onBack={() => actions.setScreen('quote-method')}
+        isUploading={quoteImagePresignedUrlMutation.isPending}
+        uploadError={quoteImagePresignedUrlMutation.isError ? toUserMessage(quoteImagePresignedUrlMutation.error) : null}
+        onCapture={() => {
+          quoteImagePresignedUrlMutation.mutate(
+            {
+              fileName: `camera-${Date.now()}.jpg`,
+              contentType: 'image/jpeg',
+              fileSize: 345678,
+              purpose: 'QUOTE_OCR',
+            },
+            {
+              onSuccess: () => actions.setScreen('ocr-preview'),
+            },
+          );
+        }}
+      />
+    );
   }
 
   if (state.screen === 'gallery-picker') {
-    return <GalleryPickerScreen onBack={() => actions.setScreen('quote-method')} onPick={() => actions.setScreen('ocr-preview')} />;
+    return (
+      <GalleryPickerScreen
+        onBack={() => actions.setScreen('quote-method')}
+        isUploading={quoteImagePresignedUrlMutation.isPending}
+        uploadError={quoteImagePresignedUrlMutation.isError ? toUserMessage(quoteImagePresignedUrlMutation.error) : null}
+        onPick={() => {
+          quoteImagePresignedUrlMutation.mutate(
+            {
+              fileName: `gallery-${Date.now()}.webp`,
+              contentType: 'image/webp',
+              fileSize: 345678,
+              purpose: 'QUOTE_OCR',
+            },
+            {
+              onSuccess: () => actions.setScreen('ocr-preview'),
+            },
+          );
+        }}
+      />
+    );
   }
 
   if (state.screen === 'ocr-preview') {
