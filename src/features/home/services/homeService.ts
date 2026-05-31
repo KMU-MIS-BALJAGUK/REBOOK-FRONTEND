@@ -3,10 +3,12 @@ import {
   toHomeCardDetailResult,
   toHomeCardsFilterResult,
   toHomeCardsResult,
+  toReactionEmojiOptions,
   toHomeCardsSearchResult,
 } from '../model/home.mapper';
 import {
   HomeCardDetailResponseDto,
+  ReactionEmojisResponseDto,
   HomeCardsFilterResponseDto,
   HomeCardsResponseDto,
   HomeCardsSearchResponseDto,
@@ -17,6 +19,7 @@ import {
   HomeCardsQuery,
   HomeCardsResult,
   HomeCardsSearchQuery,
+  ReactionEmojiOption,
 } from '../model/home.types';
 
 function buildHomeCardsQueryString(params: HomeCardsQuery): string {
@@ -67,4 +70,12 @@ export async function getHomeCardDetail(cardId: number): Promise<HomeCardDetailR
   });
 
   return toHomeCardDetailResult(response);
+}
+
+export async function getReactionEmojis(): Promise<ReactionEmojiOption[]> {
+  const response = await getJson<ReactionEmojisResponseDto>('/api/v1/home/cards/reactions/emojis', {
+    auth: true,
+  });
+
+  return toReactionEmojiOptions(response);
 }

@@ -16,6 +16,7 @@ import { useHomeCards } from './hooks/useHomeCards';
 import { useSearchHomeCards } from './hooks/useSearchHomeCards';
 import { useHomeCardsFilter } from './hooks/useHomeCardsFilter';
 import { useHomeCardDetail } from './hooks/useHomeCardDetail';
+import { useReactionEmojis } from './hooks/useReactionEmojis';
 import { HomeCardEmojiType, HomeCardItem, HomeCardSort, HomeCardView } from './model/home.types';
 import { toUserMessage } from '../../shared/utils/apiError';
 
@@ -66,6 +67,7 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
     isSearchMode,
   );
   const homeCardDetailQuery = useHomeCardDetail(selectedCardId);
+  const reactionEmojisQuery = useReactionEmojis(tab === 'emotion' || selectedCardId !== null);
   const activeQuery = isSearchMode ? homeSearchQuery : tab === 'all' ? homeCardsQuery : homeFilterQuery;
 
   const displayName = nickname.trim() ? nickname : 'User';
@@ -103,13 +105,13 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
         </View>
         {tab === 'emotion' ? (
           <View style={styles.emojiChipRow}>
-            {EMOJI_CHIPS.map((chip) => (
+            {(reactionEmojisQuery.data ?? []).map((chip) => (
               <TouchableOpacity
-                key={chip.type}
-                onPress={() => setSelectedEmojiType((prev) => (prev === chip.type ? undefined : chip.type))}
-                style={[styles.emojiChip, selectedEmojiType === chip.type && styles.emojiChipActive]}
+                key={chip.emojiType}
+                onPress={() => setSelectedEmojiType((prev) => (prev === chip.emojiType ? undefined : chip.emojiType))}
+                style={[styles.emojiChip, selectedEmojiType === chip.emojiType && styles.emojiChipActive]}
               >
-                <Text style={styles.emojiChipText}>{chip.emoji}</Text>
+                <Text style={styles.emojiChipText}>{emojiTypeToIcon(chip.emojiType)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -395,10 +397,11 @@ const styles = StyleSheet.create({
   bottomLabelActive: { fontSize: 10, color: '#8d7353', fontWeight: '700' },
 });
 
-const EMOJI_CHIPS: Array<{ type: HomeCardEmojiType; emoji: string }> = [
-  { type: 'SMILE', emoji: '😊' },
-  { type: 'HEART', emoji: '😍' },
-  { type: 'THINKING', emoji: '🤔' },
-  { type: 'FIRE', emoji: '🔥' },
-  { type: 'CLAP', emoji: '👏' },
-];
+function emojiTypeToIcon(type: HomeCardEmojiType): string {
+  if (type === 'SMILE') return '😊';
+  if (type === 'HEART') return '😍';
+  if (type === 'THINKING') return '🤔';
+  if (type === 'FIRE') return '🔥';
+  if (type === 'CLAP') return '👏';
+  return '🙂';
+}

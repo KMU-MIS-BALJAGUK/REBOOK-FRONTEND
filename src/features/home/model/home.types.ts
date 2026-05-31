@@ -74,3 +74,9 @@ export type HomeCardDetailResult = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type ReactionEmojiOption = {
+  emojiType: HomeCardEmojiType;
+  label: string;
+  sortOrder: number;
+};

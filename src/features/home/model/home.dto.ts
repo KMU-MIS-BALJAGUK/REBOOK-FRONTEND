@@ -74,3 +74,13 @@ export type HomeCardDetailResponseDto = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type ReactionEmojiOptionDto = {
+  emojiType: string;
+  label: string;
+  sortOrder: number;
+};
+
+export type ReactionEmojisResponseDto = {
+  items: ReactionEmojiOptionDto[];
+};

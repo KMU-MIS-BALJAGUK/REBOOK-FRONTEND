@@ -1,10 +1,11 @@
 import {
   HomeCardDetailResponseDto,
+  ReactionEmojisResponseDto,
   HomeCardsFilterResponseDto,
   HomeCardsResponseDto,
   HomeCardsSearchResponseDto,
 } from './home.dto';
-import { HomeCardDetailResult, HomeCardsResult } from './home.types';
+import { HomeCardDetailResult, HomeCardEmojiType, HomeCardsResult, ReactionEmojiOption } from './home.types';
 
 export function toHomeCardsResult(dto: HomeCardsResponseDto): HomeCardsResult {
   return {
@@ -79,4 +80,14 @@ export function toHomeCardDetailResult(dto: HomeCardDetailResponseDto): HomeCard
     createdAt: dto.createdAt,
     updatedAt: dto.updatedAt,
   };
+}
+
+export function toReactionEmojiOptions(dto: ReactionEmojisResponseDto): ReactionEmojiOption[] {
+  return dto.items
+    .map((item) => ({
+      emojiType: item.emojiType as HomeCardEmojiType,
+      label: item.label,
+      sortOrder: item.sortOrder,
+    }))
+    .sort((a, b) => a.sortOrder - b.sortOrder);
 }
