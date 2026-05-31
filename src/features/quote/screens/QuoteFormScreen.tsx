@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { RegisterType } from '../../../app/types';
 import { toUserMessage } from '../../../shared/utils/apiError';
+import { useCreateFolder } from '../hooks/useCreateFolder';
 import { useCreateQuote } from '../hooks/useCreateQuote';
 import { useFolders } from '../hooks/useFolders';
 
@@ -19,6 +20,7 @@ type Props = {
 
 export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteText, ocrSource }: Props) {
   const createQuoteMutation = useCreateQuote();
+  const createFolderMutation = useCreateFolder();
   const foldersQuery = useFolders({ includeQuoteCount: true });
   const [book, setBook] = useState('');
   const [author, setAuthor] = useState('');
@@ -26,6 +28,9 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
   const [quote, setQuote] = useState(initialQuoteText ?? '');
   const [memo, setMemo] = useState('');
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [folderError, setFolderError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const methodLabel = initialMethod === 'manual' ? '직접입력' : initialMethod === 'camera' ? '사진찍기' : '갤러리';
   const apiError = createQuoteMutation.isError ? toUserMessage(createQuoteMutation.error) : null;
@@ -35,6 +40,7 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
     () => (initialMethod === 'camera' || initialMethod === 'gallery') && Boolean(ocrSource),
     [initialMethod, ocrSource],
   );
+  const createFolderError = createFolderMutation.isError ? toUserMessage(createFolderMutation.error) : null;
 
   const handleSubmit = () => {
     const trimmedBook = book.trim();
@@ -71,6 +77,31 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
       {
         onSuccess: () => {
           onSaved();
+        },
+      },
+    );
+  };
+
+  const handleCreateFolder = () => {
+    const trimmedName = newFolderName.trim();
+    if (!trimmedName) {
+      setFolderError('폴더 이름을 입력해주세요.');
+      return;
+    }
+    if (trimmedName.length > 20) {
+      setFolderError('폴더 이름은 20자 이하로 입력해주세요.');
+      return;
+    }
+
+    setFolderError(null);
+    createFolderMutation.mutate(
+      { folderName: trimmedName },
+      {
+        onSuccess: async (createdFolder) => {
+          await foldersQuery.refetch();
+          setSelectedFolderId(createdFolder.folderId);
+          setNewFolderName('');
+          setIsCreatingFolder(false);
         },
       },
     );
@@ -128,23 +159,52 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
           ) : (foldersQuery.data ?? []).length === 0 ? (
             <Text style={styles.helperText}>등록된 폴더가 없어요.</Text>
           ) : (
-            (foldersQuery.data ?? []).map((folder) => {
-              const selected = selectedFolderId === folder.folderId;
-              return (
-                <TouchableOpacity
-                  key={folder.folderId}
-                  style={selected ? styles.tagChipActive : styles.tagChip}
-                  onPress={() => setSelectedFolderId((prev) => (prev === folder.folderId ? null : folder.folderId))}
-                >
-                  <Text style={selected ? styles.tagChipTextActive : styles.tagChipText}>
-                    {folder.folderName}
-                    {typeof folder.quoteCount === 'number' ? ` (${folder.quoteCount})` : ''}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })
+            <>
+              {(foldersQuery.data ?? []).map((folder) => {
+                const selected = selectedFolderId === folder.folderId;
+                return (
+                  <TouchableOpacity
+                    key={folder.folderId}
+                    style={selected ? styles.tagChipActive : styles.tagChip}
+                    onPress={() => setSelectedFolderId((prev) => (prev === folder.folderId ? null : folder.folderId))}
+                  >
+                    <Text style={selected ? styles.tagChipTextActive : styles.tagChipText}>
+                      {folder.folderName}
+                      {typeof folder.quoteCount === 'number' ? ` (${folder.quoteCount})` : ''}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+              <TouchableOpacity style={styles.tagChip} onPress={() => setIsCreatingFolder((prev) => !prev)}>
+                <Text style={styles.tagChipText}>+ 새 폴더</Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
+        {isCreatingFolder ? (
+          <View style={styles.createFolderContainer}>
+            <TextInput
+              style={styles.formInput}
+              value={newFolderName}
+              onChangeText={setNewFolderName}
+              placeholder="새 폴더 이름 (최대 20자)"
+              maxLength={20}
+            />
+            <TouchableOpacity
+              style={[styles.createFolderButton, createFolderMutation.isPending && styles.submitButtonDisabled]}
+              disabled={createFolderMutation.isPending}
+              onPress={handleCreateFolder}
+            >
+              {createFolderMutation.isPending ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.createFolderButtonText}>폴더 생성</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : null}
+        {folderError ? <Text style={styles.errorText}>{folderError}</Text> : null}
+        {createFolderError ? <Text style={styles.errorText}>{createFolderError}</Text> : null}
         <Text style={styles.formLabel}>등록 방식</Text>
         <View style={styles.tagRow}>
           <View style={styles.tagChipActive}>
@@ -252,6 +312,24 @@ const styles = StyleSheet.create({
   },
   retryText: {
     color: '#8d7353',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  createFolderContainer: {
+    marginTop: 8,
+    gap: 8,
+  },
+  createFolderButton: {
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: '#8d7353',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+  },
+  createFolderButtonText: {
+    color: '#fff',
     fontSize: 12,
     fontWeight: '700',
   },
