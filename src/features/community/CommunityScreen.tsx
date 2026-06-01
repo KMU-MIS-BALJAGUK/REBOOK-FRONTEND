@@ -7,6 +7,7 @@ import { useCommunityBookTopQuotes } from './hooks/useCommunityBookTopQuotes';
 import { useBookDiscussions } from './hooks/useBookDiscussions';
 import { useCreateBookDiscussion } from './hooks/useCreateBookDiscussion';
 import { CommunityDiscussionCategory } from './model/communityBook.types';
+import { useDiscussionDetail } from './hooks/useDiscussionDetail';
 import { toUserMessage } from '../../shared/utils/apiError';
 
 type Props = {
@@ -19,6 +20,7 @@ type Props = {
 export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressMyPage }: Props) {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
+  const [selectedDiscussionId, setSelectedDiscussionId] = useState<number | null>(null);
   const [detailTab, setDetailTab] = useState<'TOP_QUOTES' | 'DISCUSSION' | 'VOTE'>('TOP_QUOTES');
   const [isCreateDiscussionVisible, setIsCreateDiscussionVisible] = useState(false);
   const [newDiscussionCategory, setNewDiscussionCategory] = useState<CommunityDiscussionCategory>('QUESTION');
@@ -72,6 +74,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
     ),
   );
   const createDiscussionMutation = useCreateBookDiscussion(selectedBookId);
+  const discussionDetailQuery = useDiscussionDetail(selectedDiscussionId);
 
   const handleCreateDiscussion = () => {
     const title = newDiscussionTitle.trim();
@@ -321,14 +324,18 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                       ) : null}
                       {!discussionsQuery.isLoading && !discussionsQuery.isError
                         ? (discussionsQuery.data?.items ?? []).map((item) => (
-                            <View key={item.discussionId} style={styles.discussionCard}>
+                            <TouchableOpacity
+                              key={item.discussionId}
+                              style={styles.discussionCard}
+                              onPress={() => setSelectedDiscussionId(item.discussionId)}
+                            >
                               <View style={styles.discussionBadge}>
                                 <Text style={styles.discussionBadgeText}>{item.categoryLabel}</Text>
                               </View>
                               <Text style={styles.discussionTitle}>{item.title}</Text>
                               <Text style={styles.discussionPreview}>{item.preview}</Text>
                               <Text style={styles.discussionMeta}>댓글 {item.commentCount} · 좋아요 {item.likeCount}</Text>
-                            </View>
+                            </TouchableOpacity>
                           ))
                         : null}
                     </>
@@ -338,6 +345,64 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                 </>
               ) : null}
               <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedBookId(null)}>
+                <Text style={styles.closeButtonText}>닫기</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal visible={selectedDiscussionId !== null} transparent animationType="fade" onRequestClose={() => setSelectedDiscussionId(null)}>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>토론 상세</Text>
+              {discussionDetailQuery.isLoading ? <Text style={styles.infoText}>토론 상세를 불러오는 중...</Text> : null}
+              {!discussionDetailQuery.isLoading && discussionDetailQuery.isError ? (
+                <View style={styles.stateWrap}>
+                  <Text style={styles.errorText}>{toUserMessage(discussionDetailQuery.error)}</Text>
+                  <TouchableOpacity style={styles.retryButton} onPress={() => void discussionDetailQuery.refetch()}>
+                    <Text style={styles.retryButtonText}>다시 시도</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+              {!discussionDetailQuery.isLoading && !discussionDetailQuery.isError && discussionDetailQuery.data ? (
+                <>
+                  <View style={styles.detailHeaderCard}>
+                    <View style={styles.bookRow}>
+                      <View style={styles.coverPlaceholder}>
+                        <Text style={styles.coverText}>표지</Text>
+                      </View>
+                      <View style={styles.bookContent}>
+                        <Text style={styles.bookTitle} numberOfLines={1}>{discussionDetailQuery.data.bookTitle}</Text>
+                        <Text style={styles.bookAuthor}>{discussionDetailQuery.data.bookAuthor}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.discussionBadge}>
+                      <Text style={styles.discussionBadgeText}>{discussionDetailQuery.data.categoryLabel}</Text>
+                    </View>
+                    <Text style={styles.discussionTitle}>{discussionDetailQuery.data.title}</Text>
+                    <Text style={styles.discussionPreview}>{discussionDetailQuery.data.content}</Text>
+                    <Text style={styles.discussionMeta}>
+                      작성자 {discussionDetailQuery.data.writer.nickname} · 댓글 {discussionDetailQuery.data.commentCount}
+                    </Text>
+                    <TouchableOpacity style={styles.likeButton}>
+                      <Text style={styles.likeButtonText}>
+                        {discussionDetailQuery.data.myLike ? '좋아요 취소' : '좋아요'} ({discussionDetailQuery.data.likeCount})
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.commentSectionCard}>
+                    <Text style={styles.commentSectionTitle}>댓글</Text>
+                    <Text style={styles.infoText}>댓글 목록/작성 API 연동 예정</Text>
+                    <TextInput
+                      style={styles.inputBox}
+                      placeholder="댓글을 입력하세요"
+                      placeholderTextColor="#9f968a"
+                      editable={false}
+                    />
+                  </View>
+                </>
+              ) : null}
+              <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedDiscussionId(null)}>
                 <Text style={styles.closeButtonText}>닫기</Text>
               </TouchableOpacity>
             </View>
@@ -614,6 +679,26 @@ const styles = StyleSheet.create({
   discussionTitle: { color: '#312b23', fontSize: 15, fontWeight: '700', marginBottom: 6 },
   discussionPreview: { color: '#696055', fontSize: 13, lineHeight: 18, marginBottom: 8 },
   discussionMeta: { color: '#7c7266', fontSize: 11 },
+  likeButton: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d6cbbb',
+    backgroundColor: '#f4efe7',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  likeButtonText: { color: '#6c6256', fontSize: 12, fontWeight: '700' },
+  commentSectionCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e8dfd2',
+    backgroundColor: '#faf7f2',
+    padding: 10,
+    marginBottom: 10,
+  },
+  commentSectionTitle: { color: '#312b23', fontSize: 13, fontWeight: '700', marginBottom: 8 },
   discussionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',

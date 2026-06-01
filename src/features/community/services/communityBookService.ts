@@ -1,6 +1,7 @@
 import { getJson, postJson } from '../../../shared/api/httpClient';
 import {
   CommunityBookDiscussionsResponseDto,
+  CommunityDiscussionDetailResponseDto,
   CommunityBookTopQuotesResponseDto,
   CommunityBookDetailResponseDto,
   CreateCommunityDiscussionResponseDto,
@@ -12,6 +13,7 @@ import {
   buildCommunityBookDiscussionsQueryString,
   toCreateCommunityDiscussionRequestDto,
   toCreateCommunityDiscussionResult,
+  toCommunityDiscussionDetailResult,
   toCommunityBookDiscussionsResult,
   buildCommunityBookTopQuotesQueryString,
   toCommunityBookTopQuotesResult,
@@ -26,6 +28,7 @@ import {
   CommunityBookDiscussionsResult,
   CreateCommunityDiscussionInput,
   CreateCommunityDiscussionResult,
+  CommunityDiscussionDetailResult,
   CommunityBookTopQuotesQuery,
   CommunityBookTopQuotesResult,
   CommunityBookDetailResult,
@@ -88,4 +91,12 @@ export async function createBookDiscussion(
     body: dto,
   });
   return toCreateCommunityDiscussionResult(response);
+}
+
+export async function getDiscussionDetail(discussionId: number): Promise<CommunityDiscussionDetailResult> {
+  const response = await getJson<CommunityDiscussionDetailResponseDto>(
+    `/api/v1/community/discussions/${discussionId}`,
+    { auth: true },
+  );
+  return toCommunityDiscussionDetailResult(response);
 }

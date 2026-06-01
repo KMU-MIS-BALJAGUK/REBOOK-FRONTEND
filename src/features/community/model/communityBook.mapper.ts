@@ -1,5 +1,6 @@
 import {
   CommunityBookDiscussionsResponseDto,
+  CommunityDiscussionDetailResponseDto,
   CreateCommunityDiscussionRequestDto,
   CreateCommunityDiscussionResponseDto,
   CommunityBookTopQuotesResponseDto,
@@ -12,6 +13,7 @@ import {
   CommunityBookDiscussionsResult,
   CreateCommunityDiscussionInput,
   CreateCommunityDiscussionResult,
+  CommunityDiscussionDetailResult,
   CommunityBookTopQuotesQuery,
   CommunityBookTopQuotesResult,
   CommunityBookDetailResult,
@@ -174,5 +176,30 @@ export function toCreateCommunityDiscussionResult(
     commentCount: dto.commentCount,
     myLike: dto.myLike,
     createdAt: dto.createdAt,
+  };
+}
+
+export function toCommunityDiscussionDetailResult(
+  dto: CommunityDiscussionDetailResponseDto,
+): CommunityDiscussionDetailResult {
+  return {
+    discussionId: dto.discussionId,
+    bookId: dto.bookId,
+    bookTitle: dto.bookTitle,
+    bookAuthor: dto.bookAuthor,
+    bookCoverImageUrl: dto.bookCoverImageUrl,
+    category: dto.category,
+    categoryLabel: dto.categoryLabel,
+    title: dto.title,
+    content: dto.content,
+    likeCount: dto.likeCount,
+    commentCount: dto.commentCount,
+    myLike: dto.myLike,
+    writer: {
+      userId: dto.writer.userId,
+      nickname: dto.writer.nickname,
+    },
+    createdAt: dto.createdAt,
+    updatedAt: dto.updatedAt,
   };
 }

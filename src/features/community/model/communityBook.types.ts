@@ -133,3 +133,24 @@ export type CreateCommunityDiscussionInput = {
 };
 
 export type CreateCommunityDiscussionResult = CommunityBookDiscussionItem;
+
+export type CommunityDiscussionDetailResult = {
+  discussionId: number;
+  bookId: number;
+  bookTitle: string;
+  bookAuthor: string;
+  bookCoverImageUrl: string;
+  category: CommunityDiscussionCategory;
+  categoryLabel: string;
+  title: string;
+  content: string;
+  likeCount: number;
+  commentCount: number;
+  myLike: boolean;
+  writer: {
+    userId: number;
+    nickname: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+};

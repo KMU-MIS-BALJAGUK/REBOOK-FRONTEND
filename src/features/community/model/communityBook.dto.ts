@@ -100,3 +100,24 @@ export type CreateCommunityDiscussionRequestDto = {
 };
 
 export type CreateCommunityDiscussionResponseDto = CommunityBookDiscussionItemDto;
+
+export type CommunityDiscussionDetailResponseDto = {
+  discussionId: number;
+  bookId: number;
+  bookTitle: string;
+  bookAuthor: string;
+  bookCoverImageUrl: string;
+  category: CommunityDiscussionCategoryDto;
+  categoryLabel: string;
+  title: string;
+  content: string;
+  likeCount: number;
+  commentCount: number;
+  myLike: boolean;
+  writer: {
+    userId: number;
+    nickname: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+};
