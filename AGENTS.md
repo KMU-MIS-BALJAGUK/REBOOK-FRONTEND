@@ -124,4 +124,3 @@ src/
 - 각 파일 역할 요약
 - 호출 흐름(화면 -> hook -> service -> mapper) 설명
 - 남은 TODO(있다면) 명시
-
