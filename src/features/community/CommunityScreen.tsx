@@ -434,17 +434,21 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                         ? (pollsQuery.data?.items ?? []).map((poll) => (
                             <View key={poll.pollId} style={styles.pollCard}>
                               <Text style={styles.pollQuestion}>{poll.question}</Text>
-                              <View style={styles.pollOptionsRow}>
-                                <View style={styles.pollOptionBox}>
-                                  <Text style={styles.pollOptionPercentage}>{poll.optionA.percentage}%</Text>
-                                  <Text style={styles.pollOptionLabel}>{poll.optionA.label}</Text>
-                                  <Text style={styles.pollOptionMeta}>{poll.optionA.voteCount}명</Text>
+                              <View style={styles.pollOptionsWrap}>
+                                <View style={styles.pollOptionsRow}>
+                                  <View style={[styles.pollOptionBox, styles.pollOptionBoxLeft]}>
+                                    <Text style={styles.pollOptionPercentage}>{poll.optionA.percentage}%</Text>
+                                    <Text style={styles.pollOptionLabel}>{poll.optionA.label}</Text>
+                                    <Text style={styles.pollOptionMeta}>{poll.optionA.voteCount}명</Text>
+                                  </View>
+                                  <View style={styles.pollOptionBox}>
+                                    <Text style={styles.pollOptionPercentage}>{poll.optionB.percentage}%</Text>
+                                    <Text style={styles.pollOptionLabel}>{poll.optionB.label}</Text>
+                                    <Text style={styles.pollOptionMeta}>{poll.optionB.voteCount}명</Text>
+                                  </View>
                                 </View>
-                                <Text style={styles.pollVsText}>vs</Text>
-                                <View style={styles.pollOptionBox}>
-                                  <Text style={styles.pollOptionPercentage}>{poll.optionB.percentage}%</Text>
-                                  <Text style={styles.pollOptionLabel}>{poll.optionB.label}</Text>
-                                  <Text style={styles.pollOptionMeta}>{poll.optionB.voteCount}명</Text>
+                                <View style={styles.pollVsBadge}>
+                                  <Text style={styles.pollVsText}>VS</Text>
                                 </View>
                               </View>
                               <Text style={styles.pollTotalVotes}>총 {poll.totalVoteCount}명 참여 중</Text>
@@ -912,28 +916,51 @@ const styles = StyleSheet.create({
   pollCard: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e8dfd2',
-    backgroundColor: '#faf7f2',
-    padding: 10,
-    marginBottom: 8,
+    borderColor: '#ddd4c7',
+    backgroundColor: '#f6f2eb',
+    paddingHorizontal: 14,
+    paddingTop: 18,
+    paddingBottom: 16,
+    marginBottom: 10,
   },
-  pollQuestion: { color: '#312b23', fontSize: 14, fontWeight: '700', marginBottom: 8 },
-  pollOptionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  pollQuestion: { color: '#302a23', fontSize: 18, fontWeight: '700', marginBottom: 14, letterSpacing: -0.2 },
+  pollOptionsWrap: { position: 'relative', marginBottom: 18 },
+  pollOptionsRow: { flexDirection: 'row', alignItems: 'stretch', justifyContent: 'space-between', gap: 12 },
   pollOptionBox: {
     flex: 1,
-    borderRadius: 10,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#e8dfd2',
-    backgroundColor: '#f7f2ea',
+    borderColor: '#ddd3c5',
+    backgroundColor: '#f4efe8',
     alignItems: 'center',
-    paddingVertical: 8,
+    justifyContent: 'center',
+    minHeight: 140,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
   },
-  pollVsText: { color: '#8d7353', fontSize: 12, fontWeight: '700', marginHorizontal: 8 },
-  pollOptionPercentage: { color: '#8d7353', fontSize: 18, fontWeight: '700' },
-  pollOptionLabel: { color: '#312b23', fontSize: 12, fontWeight: '600', marginTop: 2 },
-  pollOptionMeta: { color: '#7c7266', fontSize: 11, marginTop: 2 },
-  pollTotalVotes: { color: '#6c6256', fontSize: 12, fontWeight: '600' },
-  pollPendingText: { color: '#7c7266', fontSize: 11, marginTop: 4 },
+  pollOptionBoxLeft: {
+    borderColor: '#9b7f5e',
+    backgroundColor: '#f7f4ee',
+  },
+  pollVsBadge: {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginLeft: -30,
+    marginTop: -30,
+    backgroundColor: '#ab9474',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pollVsText: { color: '#fff', fontSize: 30, fontWeight: '700', letterSpacing: -0.2 },
+  pollOptionPercentage: { color: '#8f7352', fontSize: 46, fontWeight: '700', lineHeight: 50, letterSpacing: -1 },
+  pollOptionLabel: { color: '#302a23', fontSize: 17, fontWeight: '700', marginTop: 2, letterSpacing: -0.2 },
+  pollOptionMeta: { color: '#8c8378', fontSize: 13, fontWeight: '500', marginTop: 4 },
+  pollTotalVotes: { color: '#7b7268', fontSize: 15, textAlign: 'center', fontWeight: '500' },
+  pollPendingText: { color: '#7c7266', fontSize: 11, marginTop: 6, textAlign: 'center' },
   inputLabel: { color: '#6c6256', fontSize: 12, fontWeight: '700', marginBottom: 6, marginTop: 2 },
   categoryRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   categoryChip: {
