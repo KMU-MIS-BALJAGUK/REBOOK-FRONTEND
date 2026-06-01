@@ -125,3 +125,11 @@ export type CommunityBookDiscussionsResult = {
     size: number;
   };
 };
+
+export type CreateCommunityDiscussionInput = {
+  category: CommunityDiscussionCategory;
+  title: string;
+  content: string;
+};
+
+export type CreateCommunityDiscussionResult = CommunityBookDiscussionItem;

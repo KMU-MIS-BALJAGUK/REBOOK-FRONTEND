@@ -1,13 +1,17 @@
-import { getJson } from '../../../shared/api/httpClient';
+import { getJson, postJson } from '../../../shared/api/httpClient';
 import {
   CommunityBookDiscussionsResponseDto,
   CommunityBookTopQuotesResponseDto,
   CommunityBookDetailResponseDto,
+  CreateCommunityDiscussionResponseDto,
+  CreateCommunityDiscussionRequestDto,
   CommunityMyBooksResponseDto,
   CommunityPopularBooksResponseDto,
 } from '../model/communityBook.dto';
 import {
   buildCommunityBookDiscussionsQueryString,
+  toCreateCommunityDiscussionRequestDto,
+  toCreateCommunityDiscussionResult,
   toCommunityBookDiscussionsResult,
   buildCommunityBookTopQuotesQueryString,
   toCommunityBookTopQuotesResult,
@@ -20,6 +24,8 @@ import {
 import {
   CommunityBookDiscussionsQuery,
   CommunityBookDiscussionsResult,
+  CreateCommunityDiscussionInput,
+  CreateCommunityDiscussionResult,
   CommunityBookTopQuotesQuery,
   CommunityBookTopQuotesResult,
   CommunityBookDetailResult,
@@ -70,4 +76,16 @@ export async function getBookDiscussions(
     : `/api/v1/community/books/${bookId}/discussions`;
   const response = await getJson<CommunityBookDiscussionsResponseDto>(path, { auth: true });
   return toCommunityBookDiscussionsResult(response);
+}
+
+export async function createBookDiscussion(
+  bookId: number,
+  input: CreateCommunityDiscussionInput,
+): Promise<CreateCommunityDiscussionResult> {
+  const dto: CreateCommunityDiscussionRequestDto = toCreateCommunityDiscussionRequestDto(input);
+  const response = await postJson<CreateCommunityDiscussionResponseDto>(`/api/v1/community/books/${bookId}/discussions`, {
+    auth: true,
+    body: dto,
+  });
+  return toCreateCommunityDiscussionResult(response);
 }

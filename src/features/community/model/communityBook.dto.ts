@@ -92,3 +92,11 @@ export type CommunityBookDiscussionsResponseDto = {
     size: number;
   };
 };
+
+export type CreateCommunityDiscussionRequestDto = {
+  category: CommunityDiscussionCategoryDto;
+  title: string;
+  content: string;
+};
+
+export type CreateCommunityDiscussionResponseDto = CommunityBookDiscussionItemDto;
