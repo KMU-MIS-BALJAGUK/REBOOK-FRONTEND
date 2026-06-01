@@ -9,3 +9,7 @@ export type MyProfile = {
 export type UpdateNicknameInput = {
   nickname: string;
 };
+
+export type UpdateBioInput = {
+  bio: string;
+};

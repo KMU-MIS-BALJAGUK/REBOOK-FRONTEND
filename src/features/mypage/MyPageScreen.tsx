@@ -3,6 +3,7 @@ import { Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput
 import { useMyProfile } from './hooks/useMyProfile';
 import { toUserMessage } from '../../shared/utils/apiError';
 import { useUpdateMyNickname } from './hooks/useUpdateMyNickname';
+import { useUpdateMyBio } from './hooks/useUpdateMyBio';
 
 type Props = {
   nickname: string;
@@ -23,10 +24,14 @@ const statCards = [
 export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressAiChat }: Props) {
   const [mode, setMode] = useState<ViewMode>('main');
   const [isNicknameEditVisible, setIsNicknameEditVisible] = useState(false);
+  const [isBioEditVisible, setIsBioEditVisible] = useState(false);
   const [nicknameInput, setNicknameInput] = useState('');
+  const [bioInput, setBioInput] = useState('');
   const [nicknameError, setNicknameError] = useState<string | null>(null);
+  const [bioError, setBioError] = useState<string | null>(null);
   const myProfileQuery = useMyProfile();
   const updateNicknameMutation = useUpdateMyNickname();
+  const updateBioMutation = useUpdateMyBio();
   const profile = myProfileQuery.data;
   const displayName = profile?.nickname?.trim() || (nickname.trim() ? nickname : '독서가');
   const displayBio = profile?.bio?.trim() || '책과 함께 성장하는 중';
@@ -55,6 +60,34 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
       {
         onSuccess: () => {
           setIsNicknameEditVisible(false);
+        },
+      },
+    );
+  };
+
+  const handleOpenBioEdit = () => {
+    setBioInput(displayBio);
+    setBioError(null);
+    setIsBioEditVisible(true);
+  };
+
+  const handleUpdateBio = () => {
+    if (updateBioMutation.isPending) {
+      return;
+    }
+
+    const trimmedBio = bioInput.trim();
+    if (trimmedBio.length > 30) {
+      setBioError('한줄소개는 30자 이하로 입력해주세요.');
+      return;
+    }
+
+    setBioError(null);
+    updateBioMutation.mutate(
+      { bio: trimmedBio },
+      {
+        onSuccess: () => {
+          setIsBioEditVisible(false);
         },
       },
     );
@@ -122,7 +155,12 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
                 <Text style={styles.editNicknameButtonText}>✎</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.desc}>{displayBio}</Text>
+            <View style={styles.bioRow}>
+              <Text style={styles.desc}>{displayBio}</Text>
+              <TouchableOpacity style={styles.editNicknameButton} onPress={handleOpenBioEdit}>
+                <Text style={styles.editNicknameButtonText}>✎</Text>
+              </TouchableOpacity>
+            </View>
             {myProfileQuery.isLoading ? <Text style={styles.desc}>프로필을 불러오는 중...</Text> : null}
             {myProfileQuery.isError ? <Text style={styles.errorText}>{toUserMessage(myProfileQuery.error)}</Text> : null}
           </View>
@@ -203,6 +241,38 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
               >
                 <Text style={styles.confirmButtonText}>
                   {updateNicknameMutation.isPending ? '저장 중...' : '저장'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={isBioEditVisible} transparent animationType="fade" onRequestClose={() => setIsBioEditVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>한줄소개 수정</Text>
+            <TextInput
+              style={styles.inputBox}
+              value={bioInput}
+              onChangeText={setBioInput}
+              placeholder="한줄소개를 입력하세요"
+              placeholderTextColor="#9f968a"
+              maxLength={30}
+            />
+            {bioError ? <Text style={styles.errorText}>{bioError}</Text> : null}
+            {updateBioMutation.isError ? <Text style={styles.errorText}>{toUserMessage(updateBioMutation.error)}</Text> : null}
+            <View style={styles.editFooterRow}>
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setIsBioEditVisible(false)}>
+                <Text style={styles.cancelButtonText}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={handleUpdateBio}
+                disabled={updateBioMutation.isPending}
+              >
+                <Text style={styles.confirmButtonText}>
+                  {updateBioMutation.isPending ? '저장 중...' : '저장'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -291,6 +361,7 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: '#fff', fontSize: 22, fontWeight: '700' },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  bioRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   name: { fontSize: 26, fontWeight: '700', color: '#2f2a24', marginBottom: 3 },
   desc: { fontSize: 11, color: '#978c7d' },
   errorText: { fontSize: 11, color: '#b25555', marginTop: 4 },

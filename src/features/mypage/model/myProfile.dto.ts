@@ -9,3 +9,7 @@ export type MyProfileResponseDto = {
 export type UpdateNicknameRequestDto = {
   nickname: string;
 };
+
+export type UpdateBioRequestDto = {
+  bio: string;
+};
