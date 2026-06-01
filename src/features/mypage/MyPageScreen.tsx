@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useMyProfile } from './hooks/useMyProfile';
+import { toUserMessage } from '../../shared/utils/apiError';
 
 type Props = {
   nickname: string;
@@ -19,7 +21,11 @@ const statCards = [
 
 export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressAiChat }: Props) {
   const [mode, setMode] = useState<ViewMode>('main');
-  const displayName = nickname.trim() ? nickname : '독서가';
+  const myProfileQuery = useMyProfile();
+  const profile = myProfileQuery.data;
+  const displayName = profile?.nickname?.trim() || (nickname.trim() ? nickname : '독서가');
+  const displayBio = profile?.bio?.trim() || '책과 함께 성장하는 중';
+  const displayInitial = profile?.initial?.trim() || '나';
 
   if (mode === 'settings') {
     return (
@@ -36,7 +42,7 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
 
           <ScrollView showsVerticalScrollIndicator={false}>
             <Text style={styles.groupLabel}>계정</Text>
-            <SettingRow title="닉네임" sub="독서가" />
+            <SettingRow title="닉네임" sub={displayName} />
 
             <Text style={styles.groupLabel}>앱 설정</Text>
             <SettingRow title="알림 설정" icon="🔔" />
@@ -76,9 +82,11 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
 
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.profileWrap}>
-            <View style={styles.avatar}><Text style={styles.avatarText}>나</Text></View>
+            <View style={styles.avatar}><Text style={styles.avatarText}>{displayInitial}</Text></View>
             <Text style={styles.name}>{displayName}</Text>
-            <Text style={styles.desc}>독서가님의 성장중</Text>
+            <Text style={styles.desc}>{displayBio}</Text>
+            {myProfileQuery.isLoading ? <Text style={styles.desc}>프로필을 불러오는 중...</Text> : null}
+            {myProfileQuery.isError ? <Text style={styles.errorText}>{toUserMessage(myProfileQuery.error)}</Text> : null}
           </View>
 
           <View style={styles.plusCard}>
@@ -214,6 +222,7 @@ const styles = StyleSheet.create({
   avatarText: { color: '#fff', fontSize: 22, fontWeight: '700' },
   name: { fontSize: 26, fontWeight: '700', color: '#2f2a24', marginBottom: 3 },
   desc: { fontSize: 11, color: '#978c7d' },
+  errorText: { fontSize: 11, color: '#b25555', marginTop: 4 },
   plusCard: {
     borderRadius: 12,
     backgroundColor: '#8d7353',
