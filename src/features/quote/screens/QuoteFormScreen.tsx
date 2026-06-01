@@ -57,7 +57,7 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
       return;
     }
 
-    if (!Number.isFinite(pageNumber) || pageNumber <= 0) {
+    if (!Number.isInteger(pageNumber) || pageNumber <= 0) {
       setValidationError('페이지는 1 이상의 숫자로 입력해주세요.');
       return;
     }

@@ -10,7 +10,7 @@ type Props = {
 };
 
 export function OcrPreviewScreen({ onBack, onNext, blocks }: Props) {
-  const displayBlocks = blocks && blocks.length > 0 ? blocks : OCR_SAMPLE_LINES.map((text, index) => ({
+  const displayBlocks = blocks ?? OCR_SAMPLE_LINES.map((text, index) => ({
     blockId: index + 1,
     text,
     selected: index === 1,
