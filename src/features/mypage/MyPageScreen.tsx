@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useMyProfile } from './hooks/useMyProfile';
 import { toUserMessage } from '../../shared/utils/apiError';
+import { useUpdateMyNickname } from './hooks/useUpdateMyNickname';
 
 type Props = {
   nickname: string;
@@ -21,11 +22,43 @@ const statCards = [
 
 export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressAiChat }: Props) {
   const [mode, setMode] = useState<ViewMode>('main');
+  const [isNicknameEditVisible, setIsNicknameEditVisible] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState('');
+  const [nicknameError, setNicknameError] = useState<string | null>(null);
   const myProfileQuery = useMyProfile();
+  const updateNicknameMutation = useUpdateMyNickname();
   const profile = myProfileQuery.data;
   const displayName = profile?.nickname?.trim() || (nickname.trim() ? nickname : '독서가');
   const displayBio = profile?.bio?.trim() || '책과 함께 성장하는 중';
   const displayInitial = profile?.initial?.trim() || '나';
+
+  const handleOpenNicknameEdit = () => {
+    setNicknameInput(displayName);
+    setNicknameError(null);
+    setIsNicknameEditVisible(true);
+  };
+
+  const handleUpdateNickname = () => {
+    if (updateNicknameMutation.isPending) {
+      return;
+    }
+
+    const trimmedNickname = nicknameInput.trim();
+    if (trimmedNickname.length < 2 || trimmedNickname.length > 12) {
+      setNicknameError('닉네임은 2자 이상 12자 이하로 입력해주세요.');
+      return;
+    }
+
+    setNicknameError(null);
+    updateNicknameMutation.mutate(
+      { nickname: trimmedNickname },
+      {
+        onSuccess: () => {
+          setIsNicknameEditVisible(false);
+        },
+      },
+    );
+  };
 
   if (mode === 'settings') {
     return (
@@ -83,7 +116,12 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.profileWrap}>
             <View style={styles.avatar}><Text style={styles.avatarText}>{displayInitial}</Text></View>
-            <Text style={styles.name}>{displayName}</Text>
+            <View style={styles.nameRow}>
+              <Text style={styles.name}>{displayName}</Text>
+              <TouchableOpacity style={styles.editNicknameButton} onPress={handleOpenNicknameEdit}>
+                <Text style={styles.editNicknameButtonText}>✎</Text>
+              </TouchableOpacity>
+            </View>
             <Text style={styles.desc}>{displayBio}</Text>
             {myProfileQuery.isLoading ? <Text style={styles.desc}>프로필을 불러오는 중...</Text> : null}
             {myProfileQuery.isError ? <Text style={styles.errorText}>{toUserMessage(myProfileQuery.error)}</Text> : null}
@@ -139,6 +177,38 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
           onPressAiChat={onPressAiChat}
         />
       </View>
+
+      <Modal visible={isNicknameEditVisible} transparent animationType="fade" onRequestClose={() => setIsNicknameEditVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>닉네임 수정</Text>
+            <TextInput
+              style={styles.inputBox}
+              value={nicknameInput}
+              onChangeText={setNicknameInput}
+              placeholder="닉네임을 입력하세요"
+              placeholderTextColor="#9f968a"
+              maxLength={12}
+            />
+            {nicknameError ? <Text style={styles.errorText}>{nicknameError}</Text> : null}
+            {updateNicknameMutation.isError ? <Text style={styles.errorText}>{toUserMessage(updateNicknameMutation.error)}</Text> : null}
+            <View style={styles.editFooterRow}>
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setIsNicknameEditVisible(false)}>
+                <Text style={styles.cancelButtonText}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={handleUpdateNickname}
+                disabled={updateNicknameMutation.isPending}
+              >
+                <Text style={styles.confirmButtonText}>
+                  {updateNicknameMutation.isPending ? '저장 중...' : '저장'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -220,9 +290,21 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   avatarText: { color: '#fff', fontSize: 22, fontWeight: '700' },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   name: { fontSize: 26, fontWeight: '700', color: '#2f2a24', marginBottom: 3 },
   desc: { fontSize: 11, color: '#978c7d' },
   errorText: { fontSize: 11, color: '#b25555', marginTop: 4 },
+  editNicknameButton: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: '#d8cdbf',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f4efe7',
+  },
+  editNicknameButtonText: { color: '#6c6256', fontSize: 11, fontWeight: '700' },
   plusCard: {
     borderRadius: 12,
     backgroundColor: '#8d7353',
@@ -254,6 +336,47 @@ const styles = StyleSheet.create({
   statLabel: { color: '#94887a', fontSize: 10, marginBottom: 5 },
   statValue: { color: '#2f2a24', fontSize: 24, fontWeight: '700' },
   sectionTitle: { fontSize: 14, color: '#3e352b', fontWeight: '700', marginBottom: 7 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(32, 26, 20, 0.45)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  modalCard: {
+    backgroundColor: '#f9f6f0',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e8dfd2',
+    padding: 16,
+  },
+  modalTitle: { fontSize: 16, color: '#2f2a24', fontWeight: '700', marginBottom: 10 },
+  inputBox: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2d8cb',
+    backgroundColor: '#f7f2ea',
+    paddingHorizontal: 10,
+    minHeight: 38,
+    marginBottom: 8,
+    color: '#352f27',
+  },
+  editFooterRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 4 },
+  cancelButton: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d8cdbf',
+    backgroundColor: '#f4efe7',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  cancelButtonText: { color: '#6c6256', fontSize: 12, fontWeight: '700' },
+  confirmButton: {
+    borderRadius: 8,
+    backgroundColor: '#8d7353',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  confirmButtonText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   analysisCard: {
     borderRadius: 10,
     borderWidth: 1,

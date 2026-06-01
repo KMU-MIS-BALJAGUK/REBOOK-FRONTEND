@@ -5,3 +5,7 @@ export type MyProfileResponseDto = {
   profileImageUrl: string;
   initial: string;
 };
+
+export type UpdateNicknameRequestDto = {
+  nickname: string;
+};

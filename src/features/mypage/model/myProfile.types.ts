@@ -5,3 +5,7 @@ export type MyProfile = {
   profileImageUrl: string;
   initial: string;
 };
+
+export type UpdateNicknameInput = {
+  nickname: string;
+};

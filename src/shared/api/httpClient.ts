@@ -26,8 +26,12 @@ export async function deleteJson<TResponse>(path: string, options: RequestOption
   return requestJson<TResponse>('DELETE', path, options, false);
 }
 
+export async function patchJson<TResponse>(path: string, options: RequestOptions = {}): Promise<TResponse> {
+  return requestJson<TResponse>('PATCH', path, options, false);
+}
+
 async function requestJson<TResponse>(
-  method: 'GET' | 'POST' | 'DELETE',
+  method: 'GET' | 'POST' | 'DELETE' | 'PATCH',
   path: string,
   options: RequestOptions,
   hasRetriedAfterRefresh: boolean,
@@ -40,7 +44,7 @@ async function requestJson<TResponse>(
       ...(options.auth && accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...options.headers,
     },
-    body: method === 'POST' && options.body ? JSON.stringify(options.body) : undefined,
+    body: (method === 'POST' || method === 'PATCH') && options.body ? JSON.stringify(options.body) : undefined,
   });
 
   let json: Partial<Envelope<TResponse>> | undefined;
