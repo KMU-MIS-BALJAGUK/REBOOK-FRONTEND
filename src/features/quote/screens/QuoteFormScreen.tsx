@@ -1,19 +1,111 @@
-import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { RegisterType } from '../../../app/types';
+import { toUserMessage } from '../../../shared/utils/apiError';
+import { useCreateFolder } from '../hooks/useCreateFolder';
+import { useCreateQuote } from '../hooks/useCreateQuote';
+import { useFolders } from '../hooks/useFolders';
 
 type Props = {
   onBack: () => void;
+  onSaved: () => void;
   initialMethod: RegisterType;
-  ocrFilled: boolean;
+  initialQuoteText?: string;
+  ocrSource?: {
+    imageId: number;
+    ocrId: number;
+    blockIds?: number[];
+  };
 };
 
-export function QuoteFormScreen({ onBack, initialMethod, ocrFilled }: Props) {
+export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteText, ocrSource }: Props) {
+  const createQuoteMutation = useCreateQuote();
+  const createFolderMutation = useCreateFolder();
+  const foldersQuery = useFolders({ includeQuoteCount: true });
   const [book, setBook] = useState('');
+  const [author, setAuthor] = useState('');
   const [page, setPage] = useState('');
-  const [quote, setQuote] = useState(ocrFilled ? '우리는 말을 하면서 사유할 수 있다. 말은 생각을 반복시킨다.' : '');
+  const [quote, setQuote] = useState(initialQuoteText ?? '');
   const [memo, setMemo] = useState('');
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [folderError, setFolderError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const methodLabel = initialMethod === 'manual' ? '직접입력' : initialMethod === 'camera' ? '사진찍기' : '갤러리';
+  const apiError = createQuoteMutation.isError ? toUserMessage(createQuoteMutation.error) : null;
+  const submitError = validationError ?? apiError;
+  const isSubmitDisabled = createQuoteMutation.isPending;
+  const canUseOcrSource = useMemo(
+    () => (initialMethod === 'camera' || initialMethod === 'gallery') && Boolean(ocrSource),
+    [initialMethod, ocrSource],
+  );
+  const createFolderError = createFolderMutation.isError ? toUserMessage(createFolderMutation.error) : null;
+
+  const handleSubmit = () => {
+    const trimmedBook = book.trim();
+    const trimmedQuote = quote.trim();
+    const pageNumber = Number(page.trim());
+
+    if (!trimmedBook) {
+      setValidationError('책 제목을 입력해주세요.');
+      return;
+    }
+
+    if (!trimmedQuote) {
+      setValidationError('문장을 입력해주세요.');
+      return;
+    }
+
+    if (!Number.isInteger(pageNumber) || pageNumber <= 0) {
+      setValidationError('페이지는 1 이상의 숫자로 입력해주세요.');
+      return;
+    }
+
+    setValidationError(null);
+    createQuoteMutation.mutate(
+      {
+        bookTitle: trimmedBook,
+        author: author.trim(),
+        pageNumber,
+        quoteText: trimmedQuote,
+        memo: memo.trim() ? memo.trim() : undefined,
+        folderId: selectedFolderId ?? undefined,
+        registerType: initialMethod,
+        ocrSource: canUseOcrSource ? ocrSource : undefined,
+      },
+      {
+        onSuccess: () => {
+          onSaved();
+        },
+      },
+    );
+  };
+
+  const handleCreateFolder = () => {
+    const trimmedName = newFolderName.trim();
+    if (!trimmedName) {
+      setFolderError('폴더 이름을 입력해주세요.');
+      return;
+    }
+    if (trimmedName.length > 20) {
+      setFolderError('폴더 이름은 20자 이하로 입력해주세요.');
+      return;
+    }
+
+    setFolderError(null);
+    createFolderMutation.mutate(
+      { folderName: trimmedName },
+      {
+        onSuccess: async (createdFolder) => {
+          await foldersQuery.refetch();
+          setSelectedFolderId(createdFolder.folderId);
+          setNewFolderName('');
+          setIsCreatingFolder(false);
+        },
+      },
+    );
+  };
 
   return (
     <SafeAreaView style={styles.formSafeArea}>
@@ -27,6 +119,8 @@ export function QuoteFormScreen({ onBack, initialMethod, ocrFilled }: Props) {
       <ScrollView contentContainerStyle={styles.formBody} showsVerticalScrollIndicator={false}>
         <Text style={styles.formLabel}>책 제목</Text>
         <TextInput style={styles.formInput} value={book} onChangeText={setBook} placeholder="책 제목을 입력하세요" />
+        <Text style={styles.formLabel}>저자</Text>
+        <TextInput style={styles.formInput} value={author} onChangeText={setAuthor} placeholder="저자를 입력하세요" />
         <Text style={styles.formLabel}>페이지</Text>
         <TextInput
           style={styles.formInput}
@@ -51,21 +145,80 @@ export function QuoteFormScreen({ onBack, initialMethod, ocrFilled }: Props) {
           multiline
           placeholder="이 문장이 만든 생각을 자유롭게 적어보세요"
         />
-        <Text style={styles.formLabel}>붙인 상태</Text>
+        <Text style={styles.formLabel}>폴더 선택</Text>
+        <View style={styles.tagRow}>
+          {foldersQuery.isLoading ? (
+            <Text style={styles.helperText}>폴더를 불러오는 중...</Text>
+          ) : foldersQuery.isError ? (
+            <View style={styles.inlineRow}>
+              <Text style={styles.errorTextInline}>폴더 조회에 실패했어요.</Text>
+              <TouchableOpacity onPress={() => void foldersQuery.refetch()}>
+                <Text style={styles.retryText}>다시 시도</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (foldersQuery.data ?? []).length === 0 ? (
+            <Text style={styles.helperText}>등록된 폴더가 없어요.</Text>
+          ) : (
+            <>
+              {(foldersQuery.data ?? []).map((folder) => {
+                const selected = selectedFolderId === folder.folderId;
+                return (
+                  <TouchableOpacity
+                    key={folder.folderId}
+                    style={selected ? styles.tagChipActive : styles.tagChip}
+                    onPress={() => setSelectedFolderId((prev) => (prev === folder.folderId ? null : folder.folderId))}
+                  >
+                    <Text style={selected ? styles.tagChipTextActive : styles.tagChipText}>
+                      {folder.folderName}
+                      {typeof folder.quoteCount === 'number' ? ` (${folder.quoteCount})` : ''}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+              <TouchableOpacity style={styles.tagChip} onPress={() => setIsCreatingFolder((prev) => !prev)}>
+                <Text style={styles.tagChipText}>+ 새 폴더</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+        {isCreatingFolder ? (
+          <View style={styles.createFolderContainer}>
+            <TextInput
+              style={styles.formInput}
+              value={newFolderName}
+              onChangeText={setNewFolderName}
+              placeholder="새 폴더 이름 (최대 20자)"
+              maxLength={20}
+            />
+            <TouchableOpacity
+              style={[styles.createFolderButton, createFolderMutation.isPending && styles.submitButtonDisabled]}
+              disabled={createFolderMutation.isPending}
+              onPress={handleCreateFolder}
+            >
+              {createFolderMutation.isPending ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.createFolderButtonText}>폴더 생성</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : null}
+        {folderError ? <Text style={styles.errorText}>{folderError}</Text> : null}
+        {createFolderError ? <Text style={styles.errorText}>{createFolderError}</Text> : null}
+        <Text style={styles.formLabel}>등록 방식</Text>
         <View style={styles.tagRow}>
           <View style={styles.tagChipActive}>
             <Text style={styles.tagChipTextActive}>{methodLabel}</Text>
           </View>
-          <View style={styles.tagChip}>
-            <Text style={styles.tagChipText}>나중에 보기</Text>
-          </View>
-          <View style={styles.tagChip}>
-            <Text style={styles.tagChipText}>사유중</Text>
-          </View>
         </View>
+        {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
       </ScrollView>
-      <TouchableOpacity style={styles.submitButton}>
-        <Text style={styles.submitButtonText}>문장 저장하기</Text>
+      <TouchableOpacity style={[styles.submitButton, isSubmitDisabled && styles.submitButtonDisabled]} disabled={isSubmitDisabled} onPress={handleSubmit}>
+        {createQuoteMutation.isPending ? (
+          <ActivityIndicator color="#fff" size="small" />
+        ) : (
+          <Text style={styles.submitButtonText}>문장 저장하기</Text>
+        )}
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -135,5 +288,49 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  submitButtonDisabled: {
+    opacity: 0.7,
+  },
   submitButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  errorText: {
+    marginTop: 10,
+    color: '#b14f4f',
+    fontSize: 12,
+  },
+  helperText: {
+    color: '#7f766a',
+    fontSize: 12,
+  },
+  inlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  errorTextInline: {
+    color: '#b14f4f',
+    fontSize: 12,
+  },
+  retryText: {
+    color: '#8d7353',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  createFolderContainer: {
+    marginTop: 8,
+    gap: 8,
+  },
+  createFolderButton: {
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: '#8d7353',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+  },
+  createFolderButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
 });

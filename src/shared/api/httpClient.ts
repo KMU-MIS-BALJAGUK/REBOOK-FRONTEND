@@ -22,8 +22,12 @@ export async function getJson<TResponse>(path: string, options: RequestOptions =
   return requestJson<TResponse>('GET', path, options, false);
 }
 
+export async function deleteJson<TResponse>(path: string, options: RequestOptions = {}): Promise<TResponse> {
+  return requestJson<TResponse>('DELETE', path, options, false);
+}
+
 async function requestJson<TResponse>(
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'DELETE',
   path: string,
   options: RequestOptions,
   hasRetriedAfterRefresh: boolean,

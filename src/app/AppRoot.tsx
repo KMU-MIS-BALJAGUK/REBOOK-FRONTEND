@@ -1,5 +1,5 @@
 import React from 'react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppFlow } from './useAppFlow';
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
 import { HomeScreen } from '../features/home/HomeScreen';
@@ -11,6 +11,8 @@ import { CameraCaptureScreen } from '../features/quote/screens/CameraCaptureScre
 import { GalleryPickerScreen } from '../features/quote/screens/GalleryPickerScreen';
 import { OcrPreviewScreen } from '../features/quote/screens/OcrPreviewScreen';
 import { QuoteFormScreen } from '../features/quote/screens/QuoteFormScreen';
+import { useQuoteImagePresignedUrl } from '../features/quote/hooks/useQuoteImagePresignedUrl';
+import { useQuoteImageOcr } from '../features/quote/hooks/useQuoteImageOcr';
 import { useAppleLogin } from '../features/onboarding/hooks/useAppleLogin';
 import { useAiStyles } from '../features/onboarding/hooks/useAiStyles';
 import { useSaveNickname } from '../features/onboarding/hooks/useSaveNickname';
@@ -19,6 +21,14 @@ import { useSaveAiStyle } from '../features/onboarding/hooks/useSaveAiStyle';
 import { useCompleteOnboarding } from '../features/onboarding/hooks/useCompleteOnboarding';
 import { hydrateSession, setSession } from '../shared/auth/authSession';
 import { toUserMessage } from '../shared/utils/apiError';
+import { QuoteOcrBlock } from '../features/quote/model/quoteOcr.types';
+
+type OcrQuoteContext = {
+  imageId: number;
+  ocrId: number;
+  fullText: string;
+  blockIds: number[];
+};
 
 export default function AppRoot() {
   const { state, actions } = useAppFlow();
@@ -28,7 +38,11 @@ export default function AppRoot() {
   const saveFirstBookMutation = useSaveFirstBook();
   const saveAiStyleMutation = useSaveAiStyle();
   const completeOnboardingMutation = useCompleteOnboarding();
+  const quoteImagePresignedUrlMutation = useQuoteImagePresignedUrl();
+  const quoteImageOcrMutation = useQuoteImageOcr();
   const { setAuthSession } = actions;
+  const [ocrPreviewBlocks, setOcrPreviewBlocks] = useState<QuoteOcrBlock[] | undefined>(undefined);
+  const [ocrQuoteContext, setOcrQuoteContext] = useState<OcrQuoteContext | undefined>(undefined);
 
   useEffect(() => {
     const syncSession = async () => {
@@ -107,11 +121,103 @@ export default function AppRoot() {
   }
 
   if (state.screen === 'camera-capture') {
-    return <CameraCaptureScreen onBack={() => actions.setScreen('quote-method')} onCapture={() => actions.setScreen('ocr-preview')} />;
+    return (
+      <CameraCaptureScreen
+        onBack={() => actions.setScreen('quote-method')}
+        isUploading={quoteImagePresignedUrlMutation.isPending || quoteImageOcrMutation.isPending}
+        uploadError={
+          quoteImagePresignedUrlMutation.isError
+            ? toUserMessage(quoteImagePresignedUrlMutation.error)
+            : quoteImageOcrMutation.isError
+              ? toUserMessage(quoteImageOcrMutation.error)
+              : null
+        }
+        onCapture={() => {
+          setOcrPreviewBlocks(undefined);
+          setOcrQuoteContext(undefined);
+          quoteImagePresignedUrlMutation.mutate(
+            {
+              fileName: `camera-${Date.now()}.jpg`,
+              contentType: 'image/jpeg',
+              fileSize: 345678,
+              purpose: 'QUOTE_OCR',
+            },
+            {
+              onSuccess: (presigned) => {
+                quoteImageOcrMutation.mutate(
+                  {
+                    imageId: presigned.imageId,
+                    imageUrl: presigned.publicUrl,
+                  },
+                  {
+                    onSuccess: (ocr) => {
+                      setOcrPreviewBlocks(ocr.blocks);
+                      setOcrQuoteContext({
+                        imageId: ocr.imageId,
+                        ocrId: ocr.ocrId,
+                        fullText: ocr.fullText,
+                        blockIds: ocr.blocks.filter((block) => block.selected).map((block) => block.blockId),
+                      });
+                      actions.setScreen('ocr-preview');
+                    },
+                  },
+                );
+              },
+            },
+          );
+        }}
+      />
+    );
   }
 
   if (state.screen === 'gallery-picker') {
-    return <GalleryPickerScreen onBack={() => actions.setScreen('quote-method')} onPick={() => actions.setScreen('ocr-preview')} />;
+    return (
+      <GalleryPickerScreen
+        onBack={() => actions.setScreen('quote-method')}
+        isUploading={quoteImagePresignedUrlMutation.isPending || quoteImageOcrMutation.isPending}
+        uploadError={
+          quoteImagePresignedUrlMutation.isError
+            ? toUserMessage(quoteImagePresignedUrlMutation.error)
+            : quoteImageOcrMutation.isError
+              ? toUserMessage(quoteImageOcrMutation.error)
+              : null
+        }
+        onPick={() => {
+          setOcrPreviewBlocks(undefined);
+          setOcrQuoteContext(undefined);
+          quoteImagePresignedUrlMutation.mutate(
+            {
+              fileName: `gallery-${Date.now()}.webp`,
+              contentType: 'image/webp',
+              fileSize: 345678,
+              purpose: 'QUOTE_OCR',
+            },
+            {
+              onSuccess: (presigned) => {
+                quoteImageOcrMutation.mutate(
+                  {
+                    imageId: presigned.imageId,
+                    imageUrl: presigned.publicUrl,
+                  },
+                  {
+                    onSuccess: (ocr) => {
+                      setOcrPreviewBlocks(ocr.blocks);
+                      setOcrQuoteContext({
+                        imageId: ocr.imageId,
+                        ocrId: ocr.ocrId,
+                        fullText: ocr.fullText,
+                        blockIds: ocr.blocks.filter((block) => block.selected).map((block) => block.blockId),
+                      });
+                      actions.setScreen('ocr-preview');
+                    },
+                  },
+                );
+              },
+            },
+          );
+        }}
+      />
+    );
   }
 
   if (state.screen === 'ocr-preview') {
@@ -119,6 +225,7 @@ export default function AppRoot() {
       <OcrPreviewScreen
         onBack={() => actions.setScreen(state.registerType === 'camera' ? 'camera-capture' : 'gallery-picker')}
         onNext={() => actions.setScreen('quote-form')}
+        blocks={ocrPreviewBlocks}
       />
     );
   }
@@ -127,8 +234,20 @@ export default function AppRoot() {
     return (
       <QuoteFormScreen
         onBack={() => actions.setScreen('home')}
+        onSaved={() => actions.setScreen('home')}
         initialMethod={state.registerType}
-        ocrFilled={state.registerType === 'camera' || state.registerType === 'gallery'}
+        initialQuoteText={
+          state.registerType === 'camera' || state.registerType === 'gallery' ? (ocrQuoteContext?.fullText ?? '') : ''
+        }
+        ocrSource={
+          ocrQuoteContext
+            ? {
+                imageId: ocrQuoteContext.imageId,
+                ocrId: ocrQuoteContext.ocrId,
+                blockIds: ocrQuoteContext.blockIds,
+              }
+            : undefined
+        }
       />
     );
   }

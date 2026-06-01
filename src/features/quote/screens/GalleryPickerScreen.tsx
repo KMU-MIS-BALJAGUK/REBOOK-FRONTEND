@@ -4,9 +4,11 @@ import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-na
 type Props = {
   onBack: () => void;
   onPick: () => void;
+  isUploading: boolean;
+  uploadError: string | null;
 };
 
-export function GalleryPickerScreen({ onBack, onPick }: Props) {
+export function GalleryPickerScreen({ onBack, onPick, isUploading, uploadError }: Props) {
   return (
     <SafeAreaView style={styles.gallerySafeArea}>
       <View style={styles.galleryTopBar}>
@@ -18,11 +20,12 @@ export function GalleryPickerScreen({ onBack, onPick }: Props) {
       </View>
       <View style={styles.galleryGrid}>
         {[...Array(15)].map((_, index) => (
-          <TouchableOpacity key={index} style={styles.galleryCell} onPress={onPick}>
-            <Text style={styles.galleryCellText}>IMG {index + 1}</Text>
+          <TouchableOpacity key={index} style={styles.galleryCell} onPress={onPick} disabled={isUploading}>
+            <Text style={styles.galleryCellText}>{isUploading ? '업로드 중...' : `IMG ${index + 1}`}</Text>
           </TouchableOpacity>
         ))}
       </View>
+      {uploadError ? <Text style={styles.errorText}>{uploadError}</Text> : null}
     </SafeAreaView>
   );
 }
@@ -50,4 +53,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   galleryCellText: { fontSize: 10, color: '#675f55' },
+  errorText: { color: '#b25555', fontSize: 12, textAlign: 'center', marginTop: 8 },
 });

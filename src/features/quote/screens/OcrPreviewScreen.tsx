@@ -1,13 +1,22 @@
 import React from 'react';
 import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { OCR_SAMPLE_LINES } from '../model/mockData';
+import { QuoteOcrBlock } from '../model/quoteOcr.types';
 
 type Props = {
   onBack: () => void;
   onNext: () => void;
+  blocks?: QuoteOcrBlock[];
 };
 
-export function OcrPreviewScreen({ onBack, onNext }: Props) {
+export function OcrPreviewScreen({ onBack, onNext, blocks }: Props) {
+  const displayBlocks = blocks ?? OCR_SAMPLE_LINES.map((text, index) => ({
+    blockId: index + 1,
+    text,
+    selected: index === 1,
+    bbox: { x: 0, y: 0, width: 1, height: 0.1 },
+  }));
+
   return (
     <SafeAreaView style={styles.formSafeArea}>
       <View style={styles.formHeader}>
@@ -18,9 +27,11 @@ export function OcrPreviewScreen({ onBack, onNext }: Props) {
         <View style={styles.formHeaderRight} />
       </View>
       <View style={styles.ocrCard}>
-        <Text style={styles.ocrTextMuted}>{OCR_SAMPLE_LINES[0]}</Text>
-        <Text style={styles.ocrTextHighlight}>{OCR_SAMPLE_LINES[1]}</Text>
-        <Text style={styles.ocrTextMuted}>{OCR_SAMPLE_LINES[2]}</Text>
+        {displayBlocks.map((block) => (
+          <Text key={block.blockId} style={block.selected ? styles.ocrTextHighlight : styles.ocrTextMuted}>
+            {block.text}
+          </Text>
+        ))}
       </View>
       <TouchableOpacity style={styles.ocrNextButton} onPress={onNext}>
         <Text style={styles.ocrNextText}>다음</Text>
