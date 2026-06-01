@@ -4,6 +4,7 @@ import { useMyProfile } from './hooks/useMyProfile';
 import { toUserMessage } from '../../shared/utils/apiError';
 import { useUpdateMyNickname } from './hooks/useUpdateMyNickname';
 import { useUpdateMyBio } from './hooks/useUpdateMyBio';
+import { useMyInsights } from './hooks/useMyInsights';
 
 type Props = {
   nickname: string;
@@ -14,13 +15,6 @@ type Props = {
 
 type ViewMode = 'main' | 'settings';
 
-const statCards = [
-  { label: '저장한 문장', value: '142' },
-  { label: '독서록 수', value: '28' },
-  { label: '작성한 게시글', value: '15' },
-  { label: 'AI 대화 횟수', value: '67' },
-];
-
 export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressAiChat }: Props) {
   const [mode, setMode] = useState<ViewMode>('main');
   const [isNicknameEditVisible, setIsNicknameEditVisible] = useState(false);
@@ -30,12 +24,20 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
   const [nicknameError, setNicknameError] = useState<string | null>(null);
   const [bioError, setBioError] = useState<string | null>(null);
   const myProfileQuery = useMyProfile();
+  const myInsightsQuery = useMyInsights();
   const updateNicknameMutation = useUpdateMyNickname();
   const updateBioMutation = useUpdateMyBio();
   const profile = myProfileQuery.data;
+  const insights = myInsightsQuery.data;
   const displayName = profile?.nickname?.trim() || (nickname.trim() ? nickname : '독서가');
   const displayBio = profile?.bio?.trim() || '책과 함께 성장하는 중';
   const displayInitial = profile?.initial?.trim() || '나';
+  const statCards = [
+    { label: '저장한 문장', value: String(insights?.savedQuoteCount ?? 0) },
+    { label: '등록한 책', value: String(insights?.registeredBookCount ?? 0) },
+    { label: '작성한 게시글', value: String(insights?.writtenPostCount ?? 0) },
+    { label: 'AI 대화 횟수', value: String(insights?.aiConversationCount ?? 0) },
+  ];
 
   const handleOpenNicknameEdit = () => {
     setNicknameInput(displayName);
@@ -185,24 +187,27 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
           </View>
 
           <Text style={styles.sectionTitle}>내 독서 분석</Text>
+          {myInsightsQuery.isLoading ? <Text style={styles.desc}>독서 분석을 불러오는 중...</Text> : null}
+          {myInsightsQuery.isError ? <Text style={styles.errorText}>{toUserMessage(myInsightsQuery.error)}</Text> : null}
           <View style={styles.analysisCard}>
             <Text style={styles.analysisLabel}>자주 작성한 감정</Text>
-            <Text style={styles.analysisValue}>💛 설렘 (45회)</Text>
+            <Text style={styles.analysisValue}>
+              {insights ? `${insights.favoriteEmotion.emoji} ${insights.favoriteEmotion.label} (${insights.favoriteEmotion.count}회)` : '-'}
+            </Text>
             <Text style={styles.analysisLabel}>많이 저장된 키워드</Text>
             <View style={styles.tagRow}>
-              <Tag text="성장" />
-              <Tag text="관계" />
-              <Tag text="사유" />
-              <Tag text="시간" />
+              {(insights?.topKeywords ?? []).length > 0
+                ? (insights?.topKeywords ?? []).map((keyword) => <Tag key={keyword} text={keyword} />)
+                : <Text style={styles.analysisValue}>키워드 없음</Text>}
             </View>
             <View style={styles.analysisMetaRow}>
               <View>
                 <Text style={styles.analysisLabel}>많이 읽은 분야</Text>
-                <Text style={styles.analysisMetaStrong}>소설</Text>
+                <Text style={styles.analysisMetaStrong}>{insights?.favoriteGenre.label ?? '-'}</Text>
               </View>
               <View>
-                <Text style={styles.analysisLabel}>이번 달 남긴 문장</Text>
-                <Text style={styles.analysisMetaStrong}>23개</Text>
+                <Text style={styles.analysisLabel}>이번 달 저장 문장</Text>
+                <Text style={styles.analysisMetaStrong}>{insights ? `${insights.savedQuotesThisMonth}개` : '-'}</Text>
               </View>
             </View>
           </View>
