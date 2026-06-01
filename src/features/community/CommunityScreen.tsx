@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useMyCommunityBooks } from './hooks/useMyCommunityBooks';
+import { usePopularCommunityBooks } from './hooks/usePopularCommunityBooks';
 import { toUserMessage } from '../../shared/utils/apiError';
 
 type Props = {
@@ -25,6 +26,17 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
   );
   const myBookItems = myBooksQuery.data?.items ?? [];
   const myBookCount = myBooksQuery.data?.totalCount ?? 0;
+  const popularBooksQuery = usePopularCommunityBooks(
+    useMemo(
+      () => ({
+        size: 10,
+        period: 'WEEK' as const,
+        sort: 'HOT' as const,
+      }),
+      [],
+    ),
+  );
+  const popularBookItems = popularBooksQuery.data?.items ?? [];
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -95,7 +107,34 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
             : null}
 
           <Text style={styles.sectionTitleLarge}>인기 책 커뮤니티</Text>
-          <View style={styles.smallCard}><Text style={styles.smallCardTitle}>다음 API 연동 예정</Text></View>
+          {popularBooksQuery.isLoading ? <Text style={styles.infoText}>인기 책을 불러오는 중...</Text> : null}
+          {!popularBooksQuery.isLoading && popularBooksQuery.isError ? (
+            <View style={styles.stateWrap}>
+              <Text style={styles.errorText}>{toUserMessage(popularBooksQuery.error)}</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={() => void popularBooksQuery.refetch()}>
+                <Text style={styles.retryButtonText}>다시 시도</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+          {!popularBooksQuery.isLoading && !popularBooksQuery.isError && popularBookItems.length === 0 ? (
+            <Text style={styles.infoText}>인기 책이 아직 없어요.</Text>
+          ) : null}
+          {!popularBooksQuery.isLoading && !popularBooksQuery.isError
+            ? popularBookItems.map((book) => (
+                <View key={`popular-${book.bookId}`} style={styles.smallCard}>
+                  <View style={styles.popularBookRow}>
+                    <View style={styles.popularCoverPlaceholder}>
+                      <Text style={styles.coverText}>표지</Text>
+                    </View>
+                    <View style={styles.bookContent}>
+                      <Text style={styles.bookTitle} numberOfLines={1}>{book.title}</Text>
+                      <Text style={styles.bookAuthor}>{book.author}</Text>
+                      <Text style={styles.bookMeta}>읽는 중 {book.readerCount}명 · 새 글 {book.recentPostCount}</Text>
+                    </View>
+                  </View>
+                </View>
+              ))
+            : null}
         </ScrollView>
 
         <View style={styles.bottomNav}>
@@ -198,7 +237,7 @@ const styles = StyleSheet.create({
   previewLabel: { fontSize: 10, color: '#7b7369', fontWeight: '700', marginBottom: 4 },
   previewText: { fontSize: 12, color: '#2f2921', lineHeight: 18 },
   smallCard: {
-    height: 58,
+    minHeight: 92,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#ece4d9',
@@ -208,6 +247,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   smallCardTitle: { fontSize: 12, color: '#3f362d', fontWeight: '600' },
+  popularBookRow: { flexDirection: 'row', alignItems: 'center' },
+  popularCoverPlaceholder: {
+    width: 50,
+    height: 62,
+    borderRadius: 8,
+    backgroundColor: '#eee8de',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
   bottomNav: {
     height: 48,
     borderTopWidth: 1,
