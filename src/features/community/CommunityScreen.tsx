@@ -12,6 +12,7 @@ import { useToggleDiscussionLike } from './hooks/useToggleDiscussionLike';
 import { useDiscussionComments } from './hooks/useDiscussionComments';
 import { useCreateDiscussionComment } from './hooks/useCreateDiscussionComment';
 import { toUserMessage } from '../../shared/utils/apiError';
+import { useCommunityBookPolls } from './hooks/useCommunityBookPolls';
 
 type Props = {
   nickname: string;
@@ -92,6 +93,17 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
     ),
   );
   const createCommentMutation = useCreateDiscussionComment(selectedDiscussionId);
+  const pollsQuery = useCommunityBookPolls(
+    selectedBookId,
+    useMemo(
+      () => ({
+        size: 10,
+        sort: 'LATEST' as const,
+        onlyActive: false,
+      }),
+      [],
+    ),
+  );
 
   const handleCreateDiscussion = () => {
     if (createDiscussionMutation.isPending) {
@@ -405,7 +417,42 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                         : null}
                     </>
                   ) : (
-                    <Text style={styles.infoText}>준비 중인 탭입니다.</Text>
+                    <>
+                      {pollsQuery.isLoading ? <Text style={styles.infoText}>투표 목록을 불러오는 중...</Text> : null}
+                      {!pollsQuery.isLoading && pollsQuery.isError ? (
+                        <View style={styles.stateWrap}>
+                          <Text style={styles.errorText}>{toUserMessage(pollsQuery.error)}</Text>
+                          <TouchableOpacity style={styles.retryButton} onPress={() => void pollsQuery.refetch()}>
+                            <Text style={styles.retryButtonText}>다시 시도</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : null}
+                      {!pollsQuery.isLoading && !pollsQuery.isError && (pollsQuery.data?.items ?? []).length === 0 ? (
+                        <Text style={styles.infoText}>등록된 투표가 아직 없어요.</Text>
+                      ) : null}
+                      {!pollsQuery.isLoading && !pollsQuery.isError
+                        ? (pollsQuery.data?.items ?? []).map((poll) => (
+                            <View key={poll.pollId} style={styles.pollCard}>
+                              <Text style={styles.pollQuestion}>{poll.question}</Text>
+                              <View style={styles.pollOptionsRow}>
+                                <View style={styles.pollOptionBox}>
+                                  <Text style={styles.pollOptionPercentage}>{poll.optionA.percentage}%</Text>
+                                  <Text style={styles.pollOptionLabel}>{poll.optionA.label}</Text>
+                                  <Text style={styles.pollOptionMeta}>{poll.optionA.voteCount}명</Text>
+                                </View>
+                                <Text style={styles.pollVsText}>vs</Text>
+                                <View style={styles.pollOptionBox}>
+                                  <Text style={styles.pollOptionPercentage}>{poll.optionB.percentage}%</Text>
+                                  <Text style={styles.pollOptionLabel}>{poll.optionB.label}</Text>
+                                  <Text style={styles.pollOptionMeta}>{poll.optionB.voteCount}명</Text>
+                                </View>
+                              </View>
+                              <Text style={styles.pollTotalVotes}>총 {poll.totalVoteCount}명 참여 중</Text>
+                              {!poll.isVoted ? <Text style={styles.pollPendingText}>아직 참여하지 않은 투표입니다.</Text> : null}
+                            </View>
+                          ))
+                        : null}
+                    </>
                   )}
                 </>
               ) : null}
@@ -862,6 +909,31 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   discussionCreateButtonText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  pollCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e8dfd2',
+    backgroundColor: '#faf7f2',
+    padding: 10,
+    marginBottom: 8,
+  },
+  pollQuestion: { color: '#312b23', fontSize: 14, fontWeight: '700', marginBottom: 8 },
+  pollOptionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  pollOptionBox: {
+    flex: 1,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e8dfd2',
+    backgroundColor: '#f7f2ea',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  pollVsText: { color: '#8d7353', fontSize: 12, fontWeight: '700', marginHorizontal: 8 },
+  pollOptionPercentage: { color: '#8d7353', fontSize: 18, fontWeight: '700' },
+  pollOptionLabel: { color: '#312b23', fontSize: 12, fontWeight: '600', marginTop: 2 },
+  pollOptionMeta: { color: '#7c7266', fontSize: 11, marginTop: 2 },
+  pollTotalVotes: { color: '#6c6256', fontSize: 12, fontWeight: '600' },
+  pollPendingText: { color: '#7c7266', fontSize: 11, marginTop: 4 },
   inputLabel: { color: '#6c6256', fontSize: 12, fontWeight: '700', marginBottom: 6, marginTop: 2 },
   categoryRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   categoryChip: {

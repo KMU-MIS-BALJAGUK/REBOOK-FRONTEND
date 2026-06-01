@@ -156,3 +156,32 @@ export type CreateDiscussionCommentRequestDto = {
 };
 
 export type CreateDiscussionCommentResponseDto = CommunityDiscussionCommentItemDto;
+
+export type CommunityBookPollOptionDto = {
+  optionId: number;
+  label: string;
+  voteCount: number;
+  percentage: number;
+};
+
+export type CommunityBookPollItemDto = {
+  pollId: number;
+  bookId: number;
+  question: string;
+  optionA: CommunityBookPollOptionDto;
+  optionB: CommunityBookPollOptionDto;
+  totalVoteCount: number;
+  myVoteOptionId: number | null;
+  isVoted: boolean;
+  createdAt: string;
+};
+
+export type CommunityBookPollsResponseDto = {
+  bookId: number;
+  items: CommunityBookPollItemDto[];
+  pageInfo: {
+    nextCursor: string | null;
+    hasNext: boolean;
+    size: number;
+  };
+};

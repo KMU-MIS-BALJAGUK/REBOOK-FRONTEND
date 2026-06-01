@@ -12,6 +12,7 @@ import {
   CreateCommunityDiscussionRequestDto,
   CommunityMyBooksResponseDto,
   CommunityPopularBooksResponseDto,
+  CommunityBookPollsResponseDto,
 } from '../model/communityBook.dto';
 import {
   buildCommunityBookDiscussionsQueryString,
@@ -31,6 +32,8 @@ import {
   toCommunityBookDetailResult,
   toCommunityMyBooksResult,
   toCommunityPopularBooksResult,
+  buildCommunityBookPollsQueryString,
+  toCommunityBookPollsResult,
 } from '../model/communityBook.mapper';
 import {
   CommunityBookDiscussionsQuery,
@@ -50,6 +53,8 @@ import {
   CommunityMyBooksResult,
   CommunityPopularBooksQuery,
   CommunityPopularBooksResult,
+  CommunityBookPollsQuery,
+  CommunityBookPollsResult,
 } from '../model/communityBook.types';
 
 export async function getMyCommunityBooks(params: CommunityMyBooksQuery): Promise<CommunityMyBooksResult> {
@@ -148,4 +153,14 @@ export async function createDiscussionComment(
     },
   );
   return toCreateDiscussionCommentResult(response);
+}
+
+export async function getCommunityBookPolls(
+  bookId: number,
+  params: CommunityBookPollsQuery,
+): Promise<CommunityBookPollsResult> {
+  const query = buildCommunityBookPollsQueryString(params);
+  const path = query ? `/api/v1/community/books/${bookId}/polls?${query}` : `/api/v1/community/books/${bookId}/polls`;
+  const response = await getJson<CommunityBookPollsResponseDto>(path, { auth: true });
+  return toCommunityBookPollsResult(response);
 }

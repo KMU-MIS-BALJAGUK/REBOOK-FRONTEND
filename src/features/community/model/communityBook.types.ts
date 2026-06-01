@@ -195,3 +195,41 @@ export type CreateDiscussionCommentInput = {
 };
 
 export type CreateDiscussionCommentResult = CommunityDiscussionCommentItem;
+
+export type CommunityBookPollsSort = 'LATEST';
+
+export type CommunityBookPollsQuery = {
+  cursor?: string;
+  size?: number;
+  sort?: CommunityBookPollsSort;
+  onlyActive?: boolean;
+};
+
+export type CommunityBookPollOption = {
+  optionId: number;
+  label: string;
+  voteCount: number;
+  percentage: number;
+};
+
+export type CommunityBookPollItem = {
+  pollId: number;
+  bookId: number;
+  question: string;
+  optionA: CommunityBookPollOption;
+  optionB: CommunityBookPollOption;
+  totalVoteCount: number;
+  myVoteOptionId: number | null;
+  isVoted: boolean;
+  createdAt: string;
+};
+
+export type CommunityBookPollsResult = {
+  bookId: number;
+  items: CommunityBookPollItem[];
+  pageInfo: {
+    nextCursor: string | null;
+    hasNext: boolean;
+    size: number;
+  };
+};
