@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-
-type CommunityViewMode = 'feed' | 'vote' | 'result';
+import React, { useMemo, useState } from 'react';
+import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useMyCommunityBooks } from './hooks/useMyCommunityBooks';
+import { toUserMessage } from '../../shared/utils/apiError';
 
 type Props = {
   nickname: string;
@@ -10,15 +10,21 @@ type Props = {
   onPressMyPage: () => void;
 };
 
-const posts = [
-  { id: '1', title: '나는 부지런할 때 더 행복해질까?', meta: '72 · 13 · 4' },
-  { id: '2', title: '문장을 기록하면 감정이 오래 남나요?', meta: '43 · 7 · 2' },
-  { id: '3', title: '독서할 때 메모 습관 공유해요.', meta: '21 · 3 · 1' },
-];
-
 export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressMyPage }: Props) {
-  const [mode, setMode] = useState<CommunityViewMode>('feed');
+  const [searchKeyword, setSearchKeyword] = useState('');
   const displayName = nickname.trim() ? nickname : 'User';
+  const trimmedKeyword = searchKeyword.trim();
+  const myBooksQuery = useMyCommunityBooks(
+    useMemo(
+      () => ({
+        size: 10,
+        q: trimmedKeyword || undefined,
+      }),
+      [trimmedKeyword],
+    ),
+  );
+  const myBookItems = myBooksQuery.data?.items ?? [];
+  const myBookCount = myBooksQuery.data?.totalCount ?? 0;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -29,62 +35,67 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
         <View style={styles.searchRow}>
           <View style={styles.searchPill}>
             <Text style={styles.searchIcon}>⌕</Text>
-            <Text style={styles.searchText}>커뮤니티 글 검색해보세요</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="책 제목으로 검색"
+              placeholderTextColor="#9f968a"
+              value={searchKeyword}
+              onChangeText={setSearchKeyword}
+            />
           </View>
           <View style={styles.badgeButton}>
-            <Text style={styles.badgeButtonText}>14</Text>
+            <Text style={styles.badgeButtonText}>나</Text>
           </View>
-        </View>
-
-        <View style={styles.modeRow}>
-          <ModeButton label="피드" active={mode === 'feed'} onPress={() => setMode('feed')} />
-          <ModeButton label="투표" active={mode === 'vote'} onPress={() => setMode('vote')} />
-          <ModeButton label="결과" active={mode === 'result'} onPress={() => setMode('result')} />
         </View>
 
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-          <View style={styles.heroCard}>
-            <Text style={styles.heroTag}>오늘의 투표</Text>
-            <Text style={styles.heroTitle}>일기처럼 문장을 기록하면 더 오래 기억될까요?</Text>
-            <Text style={styles.heroSub}>투표에 참여하고 다양한 생각을 확인해보세요</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitleLarge}>내가 읽고 있는 책</Text>
+            <Text style={styles.sectionCountText}>{myBookCount}권</Text>
           </View>
 
-          {mode !== 'feed' && (
-            <View style={styles.voteRow}>
-              <VoteChip label="찬성" active={mode === 'vote'} />
-              <VoteChip label="잘 모르겠어" active={false} />
-              <VoteChip label="반대" active={mode === 'result'} />
-            </View>
-          )}
+          {myBooksQuery.isLoading ? (
+            <Text style={styles.infoText}>책 목록을 불러오는 중...</Text>
+          ) : null}
 
-          {mode === 'result' && (
-            <View style={styles.resultCard}>
-              <Text style={styles.resultQuestion}>문장 기록이 습관에 영향이 있나요?</Text>
-              <View style={styles.resultNumbers}>
-                <View style={styles.resultColumn}>
-                  <Text style={styles.resultPercent}>68%</Text>
-                  <Text style={styles.resultLabel}>기억이 선명해져요</Text>
+          {!myBooksQuery.isLoading && myBooksQuery.isError ? (
+            <View style={styles.stateWrap}>
+              <Text style={styles.errorText}>{toUserMessage(myBooksQuery.error)}</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={() => void myBooksQuery.refetch()}>
+                <Text style={styles.retryButtonText}>다시 시도</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {!myBooksQuery.isLoading && !myBooksQuery.isError && myBookItems.length === 0 ? (
+            <Text style={styles.infoText}>읽고 있는 책이 없어요.</Text>
+          ) : null}
+
+          {!myBooksQuery.isLoading && !myBooksQuery.isError
+            ? myBookItems.map((book) => (
+                <View key={book.bookId} style={styles.bookCard}>
+                  <View style={styles.bookRow}>
+                    <View style={styles.coverPlaceholder}>
+                      <Text style={styles.coverText}>표지</Text>
+                    </View>
+                    <View style={styles.bookContent}>
+                      <Text style={styles.bookTitle} numberOfLines={1}>{book.title}</Text>
+                      <Text style={styles.bookAuthor}>{book.author}</Text>
+                      <Text style={styles.bookMeta}>읽는 중 {book.readerCount}명 · 새 글 {book.recentPostCount}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.previewBox}>
+                    <Text style={styles.previewLabel}>↗ 많이 저장한 문장</Text>
+                    <Text style={styles.previewText} numberOfLines={1}>
+                      {book.savedQuotePreview ?? '아직 저장한 문장이 없어요.'}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.resultDivider} />
-                <View style={styles.resultColumn}>
-                  <Text style={styles.resultPercent}>32%</Text>
-                  <Text style={styles.resultLabel}>효과가 비슷해요</Text>
-                </View>
-              </View>
-            </View>
-          )}
+              ))
+            : null}
 
-          <Text style={styles.sectionTitle}>지금 인기 있는 글</Text>
-          {posts.map((post) => (
-            <View key={post.id} style={styles.postCard}>
-              <Text style={styles.postTitle}>{post.title}</Text>
-              <Text style={styles.postMeta}>{post.meta}</Text>
-            </View>
-          ))}
-
-          <Text style={styles.sectionTitle}>커뮤니티 둘러보기</Text>
-          <View style={styles.smallCard}><Text style={styles.smallCardTitle}>같이 읽는 문장</Text></View>
-          <View style={styles.smallCard}><Text style={styles.smallCardTitle}>이번 주 토론</Text></View>
+          <Text style={styles.sectionTitleLarge}>인기 책 커뮤니티</Text>
+          <View style={styles.smallCard}><Text style={styles.smallCardTitle}>다음 API 연동 예정</Text></View>
         </ScrollView>
 
         <View style={styles.bottomNav}>
@@ -110,24 +121,6 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
   );
 }
 
-type ModeButtonProps = { label: string; active: boolean; onPress: () => void };
-
-function ModeButton({ label, active, onPress }: ModeButtonProps) {
-  return (
-    <TouchableOpacity onPress={onPress} style={[styles.modeButton, active && styles.modeButtonActive]}>
-      <Text style={[styles.modeButtonText, active && styles.modeButtonTextActive]}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
-function VoteChip({ label, active }: { label: string; active: boolean }) {
-  return (
-    <View style={[styles.voteChip, active && styles.voteChipActive]}>
-      <Text style={[styles.voteChipText, active && styles.voteChipTextActive]}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#f6f3ee' },
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
@@ -145,7 +138,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   searchIcon: { fontSize: 13, color: '#948878', marginRight: 6 },
-  searchText: { fontSize: 11, color: '#9f968a' },
+  searchInput: { flex: 1, fontSize: 11, color: '#4a433a', paddingVertical: 0 },
   badgeButton: {
     width: 30,
     height: 30,
@@ -155,58 +148,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badgeButtonText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  modeRow: { flexDirection: 'row', gap: 6, marginBottom: 10 },
-  modeButton: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e4dbce',
-    backgroundColor: '#f4efe7',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  modeButtonActive: { backgroundColor: '#8d7353', borderColor: '#8d7353' },
-  modeButtonText: { color: '#7b7369', fontSize: 11, fontWeight: '600' },
-  modeButtonTextActive: { color: '#fff' },
   scroll: { flex: 1 },
-  heroCard: {
-    backgroundColor: '#f9f6f0',
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: 8 },
+  sectionTitleLarge: { fontSize: 12, color: '#4f463c', fontWeight: '700' },
+  sectionCountText: { fontSize: 12, color: '#8b8173', fontWeight: '600' },
+  infoText: { fontSize: 13, color: '#7b7369', marginBottom: 10 },
+  errorText: { fontSize: 13, color: '#b25555', marginBottom: 8 },
+  stateWrap: { marginBottom: 10 },
+  retryButton: {
+    alignSelf: 'flex-start',
     borderWidth: 1,
-    borderColor: '#ece4d9',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
-  },
-  heroTag: { fontSize: 10, color: '#8d7353', fontWeight: '700', marginBottom: 6 },
-  heroTitle: { fontSize: 13, color: '#322d27', lineHeight: 18, fontWeight: '600', marginBottom: 6 },
-  heroSub: { fontSize: 10, color: '#8b8173' },
-  voteRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
-  voteChip: {
+    borderColor: '#c8beaf',
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e4dbce',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     backgroundColor: '#f4efe7',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
   },
-  voteChipActive: { backgroundColor: '#8d7353', borderColor: '#8d7353' },
-  voteChipText: { fontSize: 11, color: '#7b7369' },
-  voteChipTextActive: { color: '#fff' },
-  resultCard: {
-    backgroundColor: '#f8f3ea',
-    borderWidth: 1,
-    borderColor: '#e7ddcf',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
-  },
-  resultQuestion: { fontSize: 12, color: '#40392f', marginBottom: 9 },
-  resultNumbers: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  resultColumn: { flex: 1, alignItems: 'center' },
-  resultDivider: { width: 1, height: 34, backgroundColor: '#e2d8c9' },
-  resultPercent: { fontSize: 18, color: '#8d7353', fontWeight: '700' },
-  resultLabel: { fontSize: 10, color: '#8a8173' },
-  sectionTitle: { fontSize: 12, color: '#4f463c', fontWeight: '700', marginTop: 6, marginBottom: 6 },
-  postCard: {
+  retryButtonText: { color: '#5f564b', fontSize: 12, fontWeight: '600' },
+  bookCard: {
     backgroundColor: '#f9f6f0',
     borderWidth: 1,
     borderColor: '#ece4d9',
@@ -214,8 +173,30 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
   },
-  postTitle: { fontSize: 12, color: '#322d27', lineHeight: 17, marginBottom: 5 },
-  postMeta: { fontSize: 10, color: '#8b8173' },
+  bookRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  coverPlaceholder: {
+    width: 60,
+    height: 76,
+    borderRadius: 10,
+    backgroundColor: '#eee8de',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  coverText: { color: '#847a6d', fontSize: 11, fontWeight: '600' },
+  bookContent: { flex: 1 },
+  bookTitle: { fontSize: 13, color: '#2f2921', fontWeight: '700', marginBottom: 4 },
+  bookAuthor: { fontSize: 11, color: '#6d6458', marginBottom: 6 },
+  bookMeta: { fontSize: 10, color: '#756b5f' },
+  previewBox: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e9dfd2',
+    backgroundColor: '#f4efe7',
+    padding: 10,
+  },
+  previewLabel: { fontSize: 10, color: '#7b7369', fontWeight: '700', marginBottom: 4 },
+  previewText: { fontSize: 12, color: '#2f2921', lineHeight: 18 },
   smallCard: {
     height: 58,
     borderRadius: 10,
