@@ -2,6 +2,7 @@ import { getJson, postJson } from '../../../shared/api/httpClient';
 import {
   CommunityBookDiscussionsResponseDto,
   CommunityDiscussionDetailResponseDto,
+  ToggleDiscussionLikeResponseDto,
   CommunityBookTopQuotesResponseDto,
   CommunityBookDetailResponseDto,
   CreateCommunityDiscussionResponseDto,
@@ -14,6 +15,7 @@ import {
   toCreateCommunityDiscussionRequestDto,
   toCreateCommunityDiscussionResult,
   toCommunityDiscussionDetailResult,
+  toToggleDiscussionLikeResult,
   toCommunityBookDiscussionsResult,
   buildCommunityBookTopQuotesQueryString,
   toCommunityBookTopQuotesResult,
@@ -29,6 +31,7 @@ import {
   CreateCommunityDiscussionInput,
   CreateCommunityDiscussionResult,
   CommunityDiscussionDetailResult,
+  ToggleDiscussionLikeResult,
   CommunityBookTopQuotesQuery,
   CommunityBookTopQuotesResult,
   CommunityBookDetailResult,
@@ -99,4 +102,12 @@ export async function getDiscussionDetail(discussionId: number): Promise<Communi
     { auth: true },
   );
   return toCommunityDiscussionDetailResult(response);
+}
+
+export async function toggleDiscussionLike(discussionId: number): Promise<ToggleDiscussionLikeResult> {
+  const response = await postJson<ToggleDiscussionLikeResponseDto>(
+    `/api/v1/community/discussions/${discussionId}/likes`,
+    { auth: true },
+  );
+  return toToggleDiscussionLikeResult(response);
 }

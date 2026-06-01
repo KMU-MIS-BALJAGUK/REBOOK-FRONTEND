@@ -154,3 +154,9 @@ export type CommunityDiscussionDetailResult = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type ToggleDiscussionLikeResult = {
+  discussionId: number;
+  myLike: boolean;
+  likeCount: number;
+};

@@ -121,3 +121,9 @@ export type CommunityDiscussionDetailResponseDto = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type ToggleDiscussionLikeResponseDto = {
+  discussionId: number;
+  myLike: boolean;
+  likeCount: number;
+};

@@ -1,6 +1,7 @@
 import {
   CommunityBookDiscussionsResponseDto,
   CommunityDiscussionDetailResponseDto,
+  ToggleDiscussionLikeResponseDto,
   CreateCommunityDiscussionRequestDto,
   CreateCommunityDiscussionResponseDto,
   CommunityBookTopQuotesResponseDto,
@@ -14,6 +15,7 @@ import {
   CreateCommunityDiscussionInput,
   CreateCommunityDiscussionResult,
   CommunityDiscussionDetailResult,
+  ToggleDiscussionLikeResult,
   CommunityBookTopQuotesQuery,
   CommunityBookTopQuotesResult,
   CommunityBookDetailResult,
@@ -201,5 +203,13 @@ export function toCommunityDiscussionDetailResult(
     },
     createdAt: dto.createdAt,
     updatedAt: dto.updatedAt,
+  };
+}
+
+export function toToggleDiscussionLikeResult(dto: ToggleDiscussionLikeResponseDto): ToggleDiscussionLikeResult {
+  return {
+    discussionId: dto.discussionId,
+    myLike: dto.myLike,
+    likeCount: dto.likeCount,
   };
 }

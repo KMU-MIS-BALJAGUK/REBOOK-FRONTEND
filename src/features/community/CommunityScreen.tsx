@@ -8,6 +8,7 @@ import { useBookDiscussions } from './hooks/useBookDiscussions';
 import { useCreateBookDiscussion } from './hooks/useCreateBookDiscussion';
 import { CommunityDiscussionCategory } from './model/communityBook.types';
 import { useDiscussionDetail } from './hooks/useDiscussionDetail';
+import { useToggleDiscussionLike } from './hooks/useToggleDiscussionLike';
 import { toUserMessage } from '../../shared/utils/apiError';
 
 type Props = {
@@ -75,6 +76,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
   );
   const createDiscussionMutation = useCreateBookDiscussion(selectedBookId);
   const discussionDetailQuery = useDiscussionDetail(selectedDiscussionId);
+  const toggleDiscussionLikeMutation = useToggleDiscussionLike();
 
   const handleCreateDiscussion = () => {
     const title = newDiscussionTitle.trim();
@@ -334,7 +336,25 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                               </View>
                               <Text style={styles.discussionTitle}>{item.title}</Text>
                               <Text style={styles.discussionPreview}>{item.preview}</Text>
-                              <Text style={styles.discussionMeta}>댓글 {item.commentCount} · 좋아요 {item.likeCount}</Text>
+                              <View style={styles.discussionActionRow}>
+                                <Text style={styles.discussionMeta}>댓글 {item.commentCount}</Text>
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    toggleDiscussionLikeMutation.mutate(item.discussionId, {
+                                      onSuccess: async () => {
+                                        await discussionsQuery.refetch();
+                                        if (selectedDiscussionId === item.discussionId) {
+                                          await discussionDetailQuery.refetch();
+                                        }
+                                      },
+                                    });
+                                  }}
+                                >
+                                  <Text style={styles.likeInlineText}>
+                                    {item.myLike ? '♥' : '♡'} {item.likeCount}
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
                             </TouchableOpacity>
                           ))
                         : null}
@@ -384,7 +404,17 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                     <Text style={styles.discussionMeta}>
                       작성자 {discussionDetailQuery.data.writer.nickname} · 댓글 {discussionDetailQuery.data.commentCount}
                     </Text>
-                    <TouchableOpacity style={styles.likeButton}>
+                    <TouchableOpacity
+                      style={styles.likeButton}
+                      onPress={() => {
+                        toggleDiscussionLikeMutation.mutate(discussionDetailQuery.data.discussionId, {
+                          onSuccess: async () => {
+                            await discussionDetailQuery.refetch();
+                            await discussionsQuery.refetch();
+                          },
+                        });
+                      }}
+                    >
                       <Text style={styles.likeButtonText}>
                         {discussionDetailQuery.data.myLike ? '좋아요 취소' : '좋아요'} ({discussionDetailQuery.data.likeCount})
                       </Text>
@@ -679,6 +709,12 @@ const styles = StyleSheet.create({
   discussionTitle: { color: '#312b23', fontSize: 15, fontWeight: '700', marginBottom: 6 },
   discussionPreview: { color: '#696055', fontSize: 13, lineHeight: 18, marginBottom: 8 },
   discussionMeta: { color: '#7c7266', fontSize: 11 },
+  discussionActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  likeInlineText: { color: '#8d7353', fontSize: 12, fontWeight: '700' },
   likeButton: {
     marginTop: 8,
     alignSelf: 'flex-start',
