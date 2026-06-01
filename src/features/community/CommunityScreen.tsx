@@ -13,6 +13,7 @@ import { useDiscussionComments } from './hooks/useDiscussionComments';
 import { useCreateDiscussionComment } from './hooks/useCreateDiscussionComment';
 import { toUserMessage } from '../../shared/utils/apiError';
 import { useCommunityBookPolls } from './hooks/useCommunityBookPolls';
+import { useCreateCommunityBookPoll } from './hooks/useCreateCommunityBookPoll';
 
 type Props = {
   nickname: string;
@@ -33,6 +34,11 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
   const [createDiscussionError, setCreateDiscussionError] = useState<string | null>(null);
   const [newCommentContent, setNewCommentContent] = useState('');
   const [createCommentError, setCreateCommentError] = useState<string | null>(null);
+  const [isCreatePollVisible, setIsCreatePollVisible] = useState(false);
+  const [newPollQuestion, setNewPollQuestion] = useState('');
+  const [newPollOptionA, setNewPollOptionA] = useState('');
+  const [newPollOptionB, setNewPollOptionB] = useState('');
+  const [createPollError, setCreatePollError] = useState<string | null>(null);
   const displayName = nickname.trim() ? nickname : 'User';
   const trimmedKeyword = searchKeyword.trim();
   const myBooksQuery = useMyCommunityBooks(
@@ -104,6 +110,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
       [],
     ),
   );
+  const createPollMutation = useCreateCommunityBookPoll(selectedBookId);
 
   const handleCreateDiscussion = () => {
     if (createDiscussionMutation.isPending) {
@@ -161,6 +168,43 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
           await discussionCommentsQuery.refetch();
           await discussionDetailQuery.refetch();
           await discussionsQuery.refetch();
+        },
+      },
+    );
+  };
+
+  const handleCreatePoll = () => {
+    if (createPollMutation.isPending) {
+      return;
+    }
+
+    const question = newPollQuestion.trim();
+    const optionA = newPollOptionA.trim();
+    const optionB = newPollOptionB.trim();
+
+    if (!question) {
+      setCreatePollError('질문을 입력해주세요.');
+      return;
+    }
+    if (!optionA || !optionB) {
+      setCreatePollError('선택지 2개를 모두 입력해주세요.');
+      return;
+    }
+
+    setCreatePollError(null);
+    createPollMutation.mutate(
+      {
+        question,
+        optionA,
+        optionB,
+      },
+      {
+        onSuccess: async () => {
+          setIsCreatePollVisible(false);
+          setNewPollQuestion('');
+          setNewPollOptionA('');
+          setNewPollOptionB('');
+          await pollsQuery.refetch();
         },
       },
     );
@@ -418,6 +462,11 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                     </>
                   ) : (
                     <>
+                      <View style={styles.pollHeaderRow}>
+                        <TouchableOpacity style={styles.pollCreateButton} onPress={() => setIsCreatePollVisible(true)}>
+                          <Text style={styles.pollCreateButtonText}>투표 생성</Text>
+                        </TouchableOpacity>
+                      </View>
                       {pollsQuery.isLoading ? <Text style={styles.infoText}>투표 목록을 불러오는 중...</Text> : null}
                       {!pollsQuery.isLoading && pollsQuery.isError ? (
                         <View style={styles.stateWrap}>
@@ -624,6 +673,55 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                 >
                   <Text style={styles.confirmButtonText}>
                     {createDiscussionMutation.isPending ? '작성 중...' : '작성 완료'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal visible={isCreatePollVisible} transparent animationType="fade" onRequestClose={() => setIsCreatePollVisible(false)}>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>투표 생성</Text>
+              <Text style={styles.inputLabel}>질문</Text>
+              <TextInput
+                style={styles.textArea}
+                value={newPollQuestion}
+                onChangeText={setNewPollQuestion}
+                multiline
+                placeholder="투표 질문을 입력하세요"
+                placeholderTextColor="#9f968a"
+              />
+              <Text style={styles.inputLabel}>선택지 A</Text>
+              <TextInput
+                style={styles.inputBox}
+                value={newPollOptionA}
+                onChangeText={setNewPollOptionA}
+                placeholder="예: 공감한다"
+                placeholderTextColor="#9f968a"
+              />
+              <Text style={styles.inputLabel}>선택지 B</Text>
+              <TextInput
+                style={styles.inputBox}
+                value={newPollOptionB}
+                onChangeText={setNewPollOptionB}
+                placeholder="예: 공감하지 않는다"
+                placeholderTextColor="#9f968a"
+              />
+              {createPollError ? <Text style={styles.errorText}>{createPollError}</Text> : null}
+              {createPollMutation.isError ? <Text style={styles.errorText}>{toUserMessage(createPollMutation.error)}</Text> : null}
+              <View style={styles.createFooterRow}>
+                <TouchableOpacity style={styles.cancelButton} onPress={() => setIsCreatePollVisible(false)}>
+                  <Text style={styles.cancelButtonText}>취소</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.confirmButton}
+                  onPress={handleCreatePoll}
+                  disabled={createPollMutation.isPending}
+                >
+                  <Text style={styles.confirmButtonText}>
+                    {createPollMutation.isPending ? '생성 중...' : '생성 완료'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -913,6 +1011,20 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   discussionCreateButtonText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  pollHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 8,
+  },
+  pollCreateButton: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#8d7353',
+    backgroundColor: '#8d7353',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  pollCreateButtonText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   pollCard: {
     borderRadius: 12,
     borderWidth: 1,

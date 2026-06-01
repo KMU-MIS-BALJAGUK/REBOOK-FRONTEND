@@ -233,3 +233,11 @@ export type CommunityBookPollsResult = {
     size: number;
   };
 };
+
+export type CreateCommunityBookPollInput = {
+  question: string;
+  optionA: string;
+  optionB: string;
+};
+
+export type CreateCommunityBookPollResult = CommunityBookPollItem;

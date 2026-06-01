@@ -185,3 +185,11 @@ export type CommunityBookPollsResponseDto = {
     size: number;
   };
 };
+
+export type CreateCommunityBookPollRequestDto = {
+  question: string;
+  optionA: string;
+  optionB: string;
+};
+
+export type CreateCommunityBookPollResponseDto = CommunityBookPollItemDto;

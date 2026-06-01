@@ -3,6 +3,8 @@ import {
   CommunityDiscussionDetailResponseDto,
   CommunityDiscussionCommentsResponseDto,
   CommunityBookPollsResponseDto,
+  CreateCommunityBookPollRequestDto,
+  CreateCommunityBookPollResponseDto,
   CreateDiscussionCommentRequestDto,
   CreateDiscussionCommentResponseDto,
   ToggleDiscussionLikeResponseDto,
@@ -23,6 +25,8 @@ import {
   CommunityDiscussionCommentsResult,
   CommunityBookPollsQuery,
   CommunityBookPollsResult,
+  CreateCommunityBookPollInput,
+  CreateCommunityBookPollResult,
   CreateDiscussionCommentInput,
   CreateDiscussionCommentResult,
   ToggleDiscussionLikeResult,
@@ -320,5 +324,39 @@ export function toCommunityBookPollsResult(dto: CommunityBookPollsResponseDto): 
       hasNext: dto.pageInfo.hasNext,
       size: dto.pageInfo.size,
     },
+  };
+}
+
+export function toCreateCommunityBookPollRequestDto(
+  input: CreateCommunityBookPollInput,
+): CreateCommunityBookPollRequestDto {
+  return {
+    question: input.question.trim(),
+    optionA: input.optionA.trim(),
+    optionB: input.optionB.trim(),
+  };
+}
+
+export function toCreateCommunityBookPollResult(dto: CreateCommunityBookPollResponseDto): CreateCommunityBookPollResult {
+  return {
+    pollId: dto.pollId,
+    bookId: dto.bookId,
+    question: dto.question,
+    optionA: {
+      optionId: dto.optionA.optionId,
+      label: dto.optionA.label,
+      voteCount: dto.optionA.voteCount,
+      percentage: dto.optionA.percentage,
+    },
+    optionB: {
+      optionId: dto.optionB.optionId,
+      label: dto.optionB.label,
+      voteCount: dto.optionB.voteCount,
+      percentage: dto.optionB.percentage,
+    },
+    totalVoteCount: dto.totalVoteCount,
+    myVoteOptionId: dto.myVoteOptionId,
+    isVoted: dto.isVoted,
+    createdAt: dto.createdAt,
   };
 }
