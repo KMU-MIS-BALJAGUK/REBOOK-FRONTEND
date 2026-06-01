@@ -12,6 +12,10 @@ import {
   CreateCommunityDiscussionRequestDto,
   CommunityMyBooksResponseDto,
   CommunityPopularBooksResponseDto,
+  CommunityBookPollsResponseDto,
+  CreateCommunityBookPollRequestDto,
+  CreateCommunityBookPollResponseDto,
+  CommunitySearchBooksResponseDto,
 } from '../model/communityBook.dto';
 import {
   buildCommunityBookDiscussionsQueryString,
@@ -31,6 +35,12 @@ import {
   toCommunityBookDetailResult,
   toCommunityMyBooksResult,
   toCommunityPopularBooksResult,
+  buildCommunityBookPollsQueryString,
+  toCommunityBookPollsResult,
+  toCreateCommunityBookPollRequestDto,
+  toCreateCommunityBookPollResult,
+  buildCommunitySearchBooksQueryString,
+  toCommunitySearchBooksResult,
 } from '../model/communityBook.mapper';
 import {
   CommunityBookDiscussionsQuery,
@@ -50,6 +60,12 @@ import {
   CommunityMyBooksResult,
   CommunityPopularBooksQuery,
   CommunityPopularBooksResult,
+  CommunityBookPollsQuery,
+  CommunityBookPollsResult,
+  CreateCommunityBookPollInput,
+  CreateCommunityBookPollResult,
+  CommunitySearchBooksQuery,
+  CommunitySearchBooksResult,
 } from '../model/communityBook.types';
 
 export async function getMyCommunityBooks(params: CommunityMyBooksQuery): Promise<CommunityMyBooksResult> {
@@ -148,4 +164,32 @@ export async function createDiscussionComment(
     },
   );
   return toCreateDiscussionCommentResult(response);
+}
+
+export async function getCommunityBookPolls(
+  bookId: number,
+  params: CommunityBookPollsQuery,
+): Promise<CommunityBookPollsResult> {
+  const query = buildCommunityBookPollsQueryString(params);
+  const path = query ? `/api/v1/community/books/${bookId}/polls?${query}` : `/api/v1/community/books/${bookId}/polls`;
+  const response = await getJson<CommunityBookPollsResponseDto>(path, { auth: true });
+  return toCommunityBookPollsResult(response);
+}
+
+export async function createCommunityBookPoll(
+  bookId: number,
+  input: CreateCommunityBookPollInput,
+): Promise<CreateCommunityBookPollResult> {
+  const dto: CreateCommunityBookPollRequestDto = toCreateCommunityBookPollRequestDto(input);
+  const response = await postJson<CreateCommunityBookPollResponseDto>(`/api/v1/community/books/${bookId}/polls`, {
+    auth: true,
+    body: dto,
+  });
+  return toCreateCommunityBookPollResult(response);
+}
+
+export async function searchCommunityBooks(params: CommunitySearchBooksQuery): Promise<CommunitySearchBooksResult> {
+  const query = buildCommunitySearchBooksQueryString(params);
+  const response = await getJson<CommunitySearchBooksResponseDto>(`/api/v1/community/books/search?${query}`, { auth: true });
+  return toCommunitySearchBooksResult(response);
 }

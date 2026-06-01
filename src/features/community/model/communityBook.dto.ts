@@ -156,3 +156,61 @@ export type CreateDiscussionCommentRequestDto = {
 };
 
 export type CreateDiscussionCommentResponseDto = CommunityDiscussionCommentItemDto;
+
+export type CommunityBookPollOptionDto = {
+  optionId: number;
+  label: string;
+  voteCount: number;
+  percentage: number;
+};
+
+export type CommunityBookPollItemDto = {
+  pollId: number;
+  bookId: number;
+  question: string;
+  optionA: CommunityBookPollOptionDto;
+  optionB: CommunityBookPollOptionDto;
+  totalVoteCount: number;
+  myVoteOptionId: number | null;
+  isVoted: boolean;
+  createdAt: string;
+};
+
+export type CommunityBookPollsResponseDto = {
+  bookId: number;
+  items: CommunityBookPollItemDto[];
+  pageInfo: {
+    nextCursor: string | null;
+    hasNext: boolean;
+    size: number;
+  };
+};
+
+export type CreateCommunityBookPollRequestDto = {
+  question: string;
+  optionA: string;
+  optionB: string;
+};
+
+export type CreateCommunityBookPollResponseDto = CommunityBookPollItemDto;
+
+export type CommunityBookSearchSortDto = 'RELEVANCE';
+
+export type CommunitySearchBookItemDto = {
+  bookId: number;
+  title: string;
+  author: string;
+  coverImageUrl: string;
+  readerCount: number;
+  quoteCount: number;
+};
+
+export type CommunitySearchBooksResponseDto = {
+  keyword: string;
+  items: CommunitySearchBookItemDto[];
+  pageInfo: {
+    nextCursor: string | null;
+    hasNext: boolean;
+    size: number;
+  };
+};

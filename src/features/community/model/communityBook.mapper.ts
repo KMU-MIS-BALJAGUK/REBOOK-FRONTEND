@@ -2,6 +2,9 @@ import {
   CommunityBookDiscussionsResponseDto,
   CommunityDiscussionDetailResponseDto,
   CommunityDiscussionCommentsResponseDto,
+  CommunityBookPollsResponseDto,
+  CreateCommunityBookPollRequestDto,
+  CreateCommunityBookPollResponseDto,
   CreateDiscussionCommentRequestDto,
   CreateDiscussionCommentResponseDto,
   ToggleDiscussionLikeResponseDto,
@@ -11,6 +14,7 @@ import {
   CommunityBookDetailResponseDto,
   CommunityMyBooksResponseDto,
   CommunityPopularBooksResponseDto,
+  CommunitySearchBooksResponseDto,
 } from './communityBook.dto';
 import {
   CommunityBookDiscussionsQuery,
@@ -20,6 +24,10 @@ import {
   CommunityDiscussionDetailResult,
   CommunityDiscussionCommentsQuery,
   CommunityDiscussionCommentsResult,
+  CommunityBookPollsQuery,
+  CommunityBookPollsResult,
+  CreateCommunityBookPollInput,
+  CreateCommunityBookPollResult,
   CreateDiscussionCommentInput,
   CreateDiscussionCommentResult,
   ToggleDiscussionLikeResult,
@@ -30,6 +38,8 @@ import {
   CommunityMyBooksResult,
   CommunityPopularBooksQuery,
   CommunityPopularBooksResult,
+  CommunitySearchBooksQuery,
+  CommunitySearchBooksResult,
 } from './communityBook.types';
 
 export function buildCommunityMyBooksQueryString(params: CommunityMyBooksQuery): string {
@@ -276,5 +286,108 @@ export function toCreateDiscussionCommentResult(
     likeCount: dto.likeCount,
     myLike: dto.myLike,
     createdAt: dto.createdAt,
+  };
+}
+
+export function buildCommunityBookPollsQueryString(params: CommunityBookPollsQuery): string {
+  const query = new URLSearchParams();
+  if (params.cursor) query.set('cursor', params.cursor);
+  if (typeof params.size === 'number') query.set('size', String(params.size));
+  if (params.sort) query.set('sort', params.sort);
+  if (typeof params.onlyActive === 'boolean') query.set('onlyActive', String(params.onlyActive));
+  return query.toString();
+}
+
+export function toCommunityBookPollsResult(dto: CommunityBookPollsResponseDto): CommunityBookPollsResult {
+  return {
+    bookId: dto.bookId,
+    items: dto.items.map((item) => ({
+      pollId: item.pollId,
+      bookId: item.bookId,
+      question: item.question,
+      optionA: {
+        optionId: item.optionA.optionId,
+        label: item.optionA.label,
+        voteCount: item.optionA.voteCount,
+        percentage: item.optionA.percentage,
+      },
+      optionB: {
+        optionId: item.optionB.optionId,
+        label: item.optionB.label,
+        voteCount: item.optionB.voteCount,
+        percentage: item.optionB.percentage,
+      },
+      totalVoteCount: item.totalVoteCount,
+      myVoteOptionId: item.myVoteOptionId,
+      isVoted: item.isVoted,
+      createdAt: item.createdAt,
+    })),
+    pageInfo: {
+      nextCursor: dto.pageInfo.nextCursor,
+      hasNext: dto.pageInfo.hasNext,
+      size: dto.pageInfo.size,
+    },
+  };
+}
+
+export function toCreateCommunityBookPollRequestDto(
+  input: CreateCommunityBookPollInput,
+): CreateCommunityBookPollRequestDto {
+  return {
+    question: input.question.trim(),
+    optionA: input.optionA.trim(),
+    optionB: input.optionB.trim(),
+  };
+}
+
+export function toCreateCommunityBookPollResult(dto: CreateCommunityBookPollResponseDto): CreateCommunityBookPollResult {
+  return {
+    pollId: dto.pollId,
+    bookId: dto.bookId,
+    question: dto.question,
+    optionA: {
+      optionId: dto.optionA.optionId,
+      label: dto.optionA.label,
+      voteCount: dto.optionA.voteCount,
+      percentage: dto.optionA.percentage,
+    },
+    optionB: {
+      optionId: dto.optionB.optionId,
+      label: dto.optionB.label,
+      voteCount: dto.optionB.voteCount,
+      percentage: dto.optionB.percentage,
+    },
+    totalVoteCount: dto.totalVoteCount,
+    myVoteOptionId: dto.myVoteOptionId,
+    isVoted: dto.isVoted,
+    createdAt: dto.createdAt,
+  };
+}
+
+export function buildCommunitySearchBooksQueryString(params: CommunitySearchBooksQuery): string {
+  const query = new URLSearchParams();
+  query.set('q', params.q);
+  if (params.cursor) query.set('cursor', params.cursor);
+  if (typeof params.size === 'number') query.set('size', String(params.size));
+  if (params.sort) query.set('sort', params.sort);
+  return query.toString();
+}
+
+export function toCommunitySearchBooksResult(dto: CommunitySearchBooksResponseDto): CommunitySearchBooksResult {
+  return {
+    keyword: dto.keyword,
+    items: dto.items.map((item) => ({
+      bookId: item.bookId,
+      title: item.title,
+      author: item.author,
+      coverImageUrl: item.coverImageUrl,
+      readerCount: item.readerCount,
+      quoteCount: item.quoteCount,
+    })),
+    pageInfo: {
+      nextCursor: dto.pageInfo.nextCursor,
+      hasNext: dto.pageInfo.hasNext,
+      size: dto.pageInfo.size,
+    },
   };
 }

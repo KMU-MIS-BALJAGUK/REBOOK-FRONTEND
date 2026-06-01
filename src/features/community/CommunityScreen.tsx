@@ -12,6 +12,9 @@ import { useToggleDiscussionLike } from './hooks/useToggleDiscussionLike';
 import { useDiscussionComments } from './hooks/useDiscussionComments';
 import { useCreateDiscussionComment } from './hooks/useCreateDiscussionComment';
 import { toUserMessage } from '../../shared/utils/apiError';
+import { useCommunityBookPolls } from './hooks/useCommunityBookPolls';
+import { useCreateCommunityBookPoll } from './hooks/useCreateCommunityBookPoll';
+import { useSearchCommunityBooks } from './hooks/useSearchCommunityBooks';
 
 type Props = {
   nickname: string;
@@ -32,15 +35,19 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
   const [createDiscussionError, setCreateDiscussionError] = useState<string | null>(null);
   const [newCommentContent, setNewCommentContent] = useState('');
   const [createCommentError, setCreateCommentError] = useState<string | null>(null);
+  const [isCreatePollVisible, setIsCreatePollVisible] = useState(false);
+  const [newPollQuestion, setNewPollQuestion] = useState('');
+  const [newPollOptionA, setNewPollOptionA] = useState('');
+  const [newPollOptionB, setNewPollOptionB] = useState('');
+  const [createPollError, setCreatePollError] = useState<string | null>(null);
   const displayName = nickname.trim() ? nickname : 'User';
   const trimmedKeyword = searchKeyword.trim();
   const myBooksQuery = useMyCommunityBooks(
     useMemo(
       () => ({
         size: 10,
-        q: trimmedKeyword || undefined,
       }),
-      [trimmedKeyword],
+      [],
     ),
   );
   const myBookItems = myBooksQuery.data?.items ?? [];
@@ -92,6 +99,30 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
     ),
   );
   const createCommentMutation = useCreateDiscussionComment(selectedDiscussionId);
+  const pollsQuery = useCommunityBookPolls(
+    selectedBookId,
+    useMemo(
+      () => ({
+        size: 10,
+        sort: 'LATEST' as const,
+        onlyActive: false,
+      }),
+      [],
+    ),
+  );
+  const createPollMutation = useCreateCommunityBookPoll(selectedBookId);
+  const searchBooksQuery = useSearchCommunityBooks(
+    useMemo(
+      () => ({
+        q: trimmedKeyword,
+        size: 10,
+        sort: 'RELEVANCE' as const,
+      }),
+      [trimmedKeyword],
+    ),
+    trimmedKeyword.length > 0,
+  );
+  const searchBookItems = searchBooksQuery.data?.items ?? [];
 
   const handleCreateDiscussion = () => {
     if (createDiscussionMutation.isPending) {
@@ -154,6 +185,43 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
     );
   };
 
+  const handleCreatePoll = () => {
+    if (createPollMutation.isPending) {
+      return;
+    }
+
+    const question = newPollQuestion.trim();
+    const optionA = newPollOptionA.trim();
+    const optionB = newPollOptionB.trim();
+
+    if (!question) {
+      setCreatePollError('질문을 입력해주세요.');
+      return;
+    }
+    if (!optionA || !optionB) {
+      setCreatePollError('선택지 2개를 모두 입력해주세요.');
+      return;
+    }
+
+    setCreatePollError(null);
+    createPollMutation.mutate(
+      {
+        question,
+        optionA,
+        optionB,
+      },
+      {
+        onSuccess: async () => {
+          setIsCreatePollVisible(false);
+          setNewPollQuestion('');
+          setNewPollOptionA('');
+          setNewPollOptionB('');
+          await pollsQuery.refetch();
+        },
+      },
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
@@ -177,6 +245,55 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
         </View>
 
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+          {trimmedKeyword ? (
+            <>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitleLarge}>검색된 책 커뮤니티</Text>
+              </View>
+              {searchBooksQuery.isLoading ? <Text style={styles.infoText}>검색 결과를 불러오는 중...</Text> : null}
+              {!searchBooksQuery.isLoading && searchBooksQuery.isError ? (
+                <View style={styles.stateWrap}>
+                  <Text style={styles.errorText}>{toUserMessage(searchBooksQuery.error)}</Text>
+                  <TouchableOpacity style={styles.retryButton} onPress={() => void searchBooksQuery.refetch()}>
+                    <Text style={styles.retryButtonText}>다시 시도</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+              {!searchBooksQuery.isLoading && !searchBooksQuery.isError && searchBookItems.length === 0 ? (
+                <Text style={styles.infoText}>검색 결과가 없어요.</Text>
+              ) : null}
+              {!searchBooksQuery.isLoading && !searchBooksQuery.isError
+                ? searchBookItems.map((book) => (
+                    <TouchableOpacity
+                      key={`search-${book.bookId}`}
+                      style={styles.bookCard}
+                      onPress={() => {
+                        setDetailTab('TOP_QUOTES');
+                        setSelectedBookId(book.bookId);
+                      }}
+                    >
+                      <View style={styles.bookRow}>
+                        <View style={styles.coverPlaceholder}>
+                          <Text style={styles.coverText}>표지</Text>
+                        </View>
+                        <View style={styles.bookContent}>
+                          <Text style={styles.bookTitle} numberOfLines={1}>{book.title}</Text>
+                          <Text style={styles.bookAuthor}>{book.author}</Text>
+                          <Text style={styles.bookMeta}>읽는 중 {book.readerCount}명 · 저장 문장 {book.quoteCount}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.previewBox}>
+                        <Text style={styles.previewLabel}>↗ 저장된 문장</Text>
+                        <Text style={styles.previewText} numberOfLines={1}>
+                          총 {book.quoteCount}개의 문장이 저장되었어요.
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                : null}
+            </>
+          ) : null}
+
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitleLarge}>내가 읽고 있는 책</Text>
             <Text style={styles.sectionCountText}>{myBookCount}권</Text>
@@ -405,7 +522,51 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                         : null}
                     </>
                   ) : (
-                    <Text style={styles.infoText}>준비 중인 탭입니다.</Text>
+                    <>
+                      <View style={styles.pollHeaderRow}>
+                        <TouchableOpacity style={styles.pollCreateButton} onPress={() => setIsCreatePollVisible(true)}>
+                          <Text style={styles.pollCreateButtonText}>투표 생성</Text>
+                        </TouchableOpacity>
+                      </View>
+                      {pollsQuery.isLoading ? <Text style={styles.infoText}>투표 목록을 불러오는 중...</Text> : null}
+                      {!pollsQuery.isLoading && pollsQuery.isError ? (
+                        <View style={styles.stateWrap}>
+                          <Text style={styles.errorText}>{toUserMessage(pollsQuery.error)}</Text>
+                          <TouchableOpacity style={styles.retryButton} onPress={() => void pollsQuery.refetch()}>
+                            <Text style={styles.retryButtonText}>다시 시도</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : null}
+                      {!pollsQuery.isLoading && !pollsQuery.isError && (pollsQuery.data?.items ?? []).length === 0 ? (
+                        <Text style={styles.infoText}>등록된 투표가 아직 없어요.</Text>
+                      ) : null}
+                      {!pollsQuery.isLoading && !pollsQuery.isError
+                        ? (pollsQuery.data?.items ?? []).map((poll) => (
+                            <View key={poll.pollId} style={styles.pollCard}>
+                              <Text style={styles.pollQuestion}>{poll.question}</Text>
+                              <View style={styles.pollOptionsWrap}>
+                                <View style={styles.pollOptionsRow}>
+                                  <View style={[styles.pollOptionBox, styles.pollOptionBoxLeft]}>
+                                    <Text style={styles.pollOptionPercentage}>{poll.optionA.percentage}%</Text>
+                                    <Text style={styles.pollOptionLabel}>{poll.optionA.label}</Text>
+                                    <Text style={styles.pollOptionMeta}>{poll.optionA.voteCount}명</Text>
+                                  </View>
+                                  <View style={styles.pollOptionBox}>
+                                    <Text style={styles.pollOptionPercentage}>{poll.optionB.percentage}%</Text>
+                                    <Text style={styles.pollOptionLabel}>{poll.optionB.label}</Text>
+                                    <Text style={styles.pollOptionMeta}>{poll.optionB.voteCount}명</Text>
+                                  </View>
+                                </View>
+                                <View style={styles.pollVsBadge}>
+                                  <Text style={styles.pollVsText}>VS</Text>
+                                </View>
+                              </View>
+                              <Text style={styles.pollTotalVotes}>총 {poll.totalVoteCount}명 참여 중</Text>
+                              {!poll.isVoted ? <Text style={styles.pollPendingText}>아직 참여하지 않은 투표입니다.</Text> : null}
+                            </View>
+                          ))
+                        : null}
+                    </>
                   )}
                 </>
               ) : null}
@@ -573,6 +734,55 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                 >
                   <Text style={styles.confirmButtonText}>
                     {createDiscussionMutation.isPending ? '작성 중...' : '작성 완료'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal visible={isCreatePollVisible} transparent animationType="fade" onRequestClose={() => setIsCreatePollVisible(false)}>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>투표 생성</Text>
+              <Text style={styles.inputLabel}>질문</Text>
+              <TextInput
+                style={styles.textArea}
+                value={newPollQuestion}
+                onChangeText={setNewPollQuestion}
+                multiline
+                placeholder="투표 질문을 입력하세요"
+                placeholderTextColor="#9f968a"
+              />
+              <Text style={styles.inputLabel}>선택지 A</Text>
+              <TextInput
+                style={styles.inputBox}
+                value={newPollOptionA}
+                onChangeText={setNewPollOptionA}
+                placeholder="예: 공감한다"
+                placeholderTextColor="#9f968a"
+              />
+              <Text style={styles.inputLabel}>선택지 B</Text>
+              <TextInput
+                style={styles.inputBox}
+                value={newPollOptionB}
+                onChangeText={setNewPollOptionB}
+                placeholder="예: 공감하지 않는다"
+                placeholderTextColor="#9f968a"
+              />
+              {createPollError ? <Text style={styles.errorText}>{createPollError}</Text> : null}
+              {createPollMutation.isError ? <Text style={styles.errorText}>{toUserMessage(createPollMutation.error)}</Text> : null}
+              <View style={styles.createFooterRow}>
+                <TouchableOpacity style={styles.cancelButton} onPress={() => setIsCreatePollVisible(false)}>
+                  <Text style={styles.cancelButtonText}>취소</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.confirmButton}
+                  onPress={handleCreatePoll}
+                  disabled={createPollMutation.isPending}
+                >
+                  <Text style={styles.confirmButtonText}>
+                    {createPollMutation.isPending ? '생성 중...' : '생성 완료'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -862,6 +1072,68 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   discussionCreateButtonText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  pollHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 8,
+  },
+  pollCreateButton: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#8d7353',
+    backgroundColor: '#8d7353',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  pollCreateButtonText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  pollCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ddd4c7',
+    backgroundColor: '#f6f2eb',
+    paddingHorizontal: 14,
+    paddingTop: 18,
+    paddingBottom: 16,
+    marginBottom: 10,
+  },
+  pollQuestion: { color: '#302a23', fontSize: 18, fontWeight: '700', marginBottom: 14, letterSpacing: -0.2 },
+  pollOptionsWrap: { position: 'relative', marginBottom: 18 },
+  pollOptionsRow: { flexDirection: 'row', alignItems: 'stretch', justifyContent: 'space-between', gap: 12 },
+  pollOptionBox: {
+    flex: 1,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#ddd3c5',
+    backgroundColor: '#f4efe8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 140,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+  },
+  pollOptionBoxLeft: {
+    borderColor: '#9b7f5e',
+    backgroundColor: '#f7f4ee',
+  },
+  pollVsBadge: {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginLeft: -30,
+    marginTop: -30,
+    backgroundColor: '#ab9474',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pollVsText: { color: '#fff', fontSize: 30, fontWeight: '700', letterSpacing: -0.2 },
+  pollOptionPercentage: { color: '#8f7352', fontSize: 46, fontWeight: '700', lineHeight: 50, letterSpacing: -1 },
+  pollOptionLabel: { color: '#302a23', fontSize: 17, fontWeight: '700', marginTop: 2, letterSpacing: -0.2 },
+  pollOptionMeta: { color: '#8c8378', fontSize: 13, fontWeight: '500', marginTop: 4 },
+  pollTotalVotes: { color: '#7b7268', fontSize: 15, textAlign: 'center', fontWeight: '500' },
+  pollPendingText: { color: '#7c7266', fontSize: 11, marginTop: 6, textAlign: 'center' },
   inputLabel: { color: '#6c6256', fontSize: 12, fontWeight: '700', marginBottom: 6, marginTop: 2 },
   categoryRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   categoryChip: {

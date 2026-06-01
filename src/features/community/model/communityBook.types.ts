@@ -195,3 +195,77 @@ export type CreateDiscussionCommentInput = {
 };
 
 export type CreateDiscussionCommentResult = CommunityDiscussionCommentItem;
+
+export type CommunityBookPollsSort = 'LATEST';
+
+export type CommunityBookPollsQuery = {
+  cursor?: string;
+  size?: number;
+  sort?: CommunityBookPollsSort;
+  onlyActive?: boolean;
+};
+
+export type CommunityBookPollOption = {
+  optionId: number;
+  label: string;
+  voteCount: number;
+  percentage: number;
+};
+
+export type CommunityBookPollItem = {
+  pollId: number;
+  bookId: number;
+  question: string;
+  optionA: CommunityBookPollOption;
+  optionB: CommunityBookPollOption;
+  totalVoteCount: number;
+  myVoteOptionId: number | null;
+  isVoted: boolean;
+  createdAt: string;
+};
+
+export type CommunityBookPollsResult = {
+  bookId: number;
+  items: CommunityBookPollItem[];
+  pageInfo: {
+    nextCursor: string | null;
+    hasNext: boolean;
+    size: number;
+  };
+};
+
+export type CreateCommunityBookPollInput = {
+  question: string;
+  optionA: string;
+  optionB: string;
+};
+
+export type CreateCommunityBookPollResult = CommunityBookPollItem;
+
+export type CommunityBookSearchSort = 'RELEVANCE';
+
+export type CommunitySearchBooksQuery = {
+  q: string;
+  cursor?: string;
+  size?: number;
+  sort?: CommunityBookSearchSort;
+};
+
+export type CommunitySearchBookItem = {
+  bookId: number;
+  title: string;
+  author: string;
+  coverImageUrl: string;
+  readerCount: number;
+  quoteCount: number;
+};
+
+export type CommunitySearchBooksResult = {
+  keyword: string;
+  items: CommunitySearchBookItem[];
+  pageInfo: {
+    nextCursor: string | null;
+    hasNext: boolean;
+    size: number;
+  };
+};
