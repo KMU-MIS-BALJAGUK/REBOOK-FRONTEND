@@ -1,10 +1,28 @@
 import {
+  CommunityBookDiscussionsResponseDto,
+  CommunityDiscussionDetailResponseDto,
+  CommunityDiscussionCommentsResponseDto,
+  CreateDiscussionCommentRequestDto,
+  CreateDiscussionCommentResponseDto,
+  ToggleDiscussionLikeResponseDto,
+  CreateCommunityDiscussionRequestDto,
+  CreateCommunityDiscussionResponseDto,
   CommunityBookTopQuotesResponseDto,
   CommunityBookDetailResponseDto,
   CommunityMyBooksResponseDto,
   CommunityPopularBooksResponseDto,
 } from './communityBook.dto';
 import {
+  CommunityBookDiscussionsQuery,
+  CommunityBookDiscussionsResult,
+  CreateCommunityDiscussionInput,
+  CreateCommunityDiscussionResult,
+  CommunityDiscussionDetailResult,
+  CommunityDiscussionCommentsQuery,
+  CommunityDiscussionCommentsResult,
+  CreateDiscussionCommentInput,
+  CreateDiscussionCommentResult,
+  ToggleDiscussionLikeResult,
   CommunityBookTopQuotesQuery,
   CommunityBookTopQuotesResult,
   CommunityBookDetailResult,
@@ -106,5 +124,157 @@ export function toCommunityBookTopQuotesResult(dto: CommunityBookTopQuotesRespon
       hasNext: dto.pageInfo.hasNext,
       size: dto.pageInfo.size,
     },
+  };
+}
+
+export function buildCommunityBookDiscussionsQueryString(params: CommunityBookDiscussionsQuery): string {
+  const query = new URLSearchParams();
+  if (params.category) query.set('category', params.category);
+  if (params.sort) query.set('sort', params.sort);
+  if (params.cursor) query.set('cursor', params.cursor);
+  if (typeof params.size === 'number') query.set('size', String(params.size));
+  return query.toString();
+}
+
+export function toCommunityBookDiscussionsResult(dto: CommunityBookDiscussionsResponseDto): CommunityBookDiscussionsResult {
+  return {
+    bookId: dto.bookId,
+    selectedCategory: dto.selectedCategory,
+    sort: dto.sort,
+    items: dto.items.map((item) => ({
+      discussionId: item.discussionId,
+      bookId: item.bookId,
+      category: item.category,
+      categoryLabel: item.categoryLabel,
+      title: item.title,
+      preview: item.preview,
+      likeCount: item.likeCount,
+      commentCount: item.commentCount,
+      myLike: item.myLike,
+      createdAt: item.createdAt,
+    })),
+    pageInfo: {
+      nextCursor: dto.pageInfo.nextCursor,
+      hasNext: dto.pageInfo.hasNext,
+      size: dto.pageInfo.size,
+    },
+  };
+}
+
+export function toCreateCommunityDiscussionRequestDto(
+  input: CreateCommunityDiscussionInput,
+): CreateCommunityDiscussionRequestDto {
+  return {
+    category: input.category,
+    title: input.title.trim(),
+    content: input.content.trim(),
+  };
+}
+
+export function toCreateCommunityDiscussionResult(
+  dto: CreateCommunityDiscussionResponseDto,
+): CreateCommunityDiscussionResult {
+  return {
+    discussionId: dto.discussionId,
+    bookId: dto.bookId,
+    category: dto.category,
+    categoryLabel: dto.categoryLabel,
+    title: dto.title,
+    preview: dto.preview,
+    likeCount: dto.likeCount,
+    commentCount: dto.commentCount,
+    myLike: dto.myLike,
+    createdAt: dto.createdAt,
+  };
+}
+
+export function toCommunityDiscussionDetailResult(
+  dto: CommunityDiscussionDetailResponseDto,
+): CommunityDiscussionDetailResult {
+  return {
+    discussionId: dto.discussionId,
+    bookId: dto.bookId,
+    bookTitle: dto.bookTitle,
+    bookAuthor: dto.bookAuthor,
+    bookCoverImageUrl: dto.bookCoverImageUrl,
+    category: dto.category,
+    categoryLabel: dto.categoryLabel,
+    title: dto.title,
+    content: dto.content,
+    likeCount: dto.likeCount,
+    commentCount: dto.commentCount,
+    myLike: dto.myLike,
+    writer: {
+      userId: dto.writer.userId,
+      nickname: dto.writer.nickname,
+    },
+    createdAt: dto.createdAt,
+    updatedAt: dto.updatedAt,
+  };
+}
+
+export function toToggleDiscussionLikeResult(dto: ToggleDiscussionLikeResponseDto): ToggleDiscussionLikeResult {
+  return {
+    discussionId: dto.discussionId,
+    myLike: dto.myLike,
+    likeCount: dto.likeCount,
+  };
+}
+
+export function buildCommunityDiscussionCommentsQueryString(params: CommunityDiscussionCommentsQuery): string {
+  const query = new URLSearchParams();
+  if (params.cursor) query.set('cursor', params.cursor);
+  if (typeof params.size === 'number') query.set('size', String(params.size));
+  if (params.sort) query.set('sort', params.sort);
+  return query.toString();
+}
+
+export function toCommunityDiscussionCommentsResult(
+  dto: CommunityDiscussionCommentsResponseDto,
+): CommunityDiscussionCommentsResult {
+  return {
+    discussionId: dto.discussionId,
+    items: dto.items.map((item) => ({
+      commentId: item.commentId,
+      discussionId: item.discussionId,
+      content: item.content,
+      writer: {
+        userId: item.writer.userId,
+        nickname: item.writer.nickname,
+      },
+      likeCount: item.likeCount,
+      myLike: item.myLike,
+      createdAt: item.createdAt,
+    })),
+    pageInfo: {
+      nextCursor: dto.pageInfo.nextCursor,
+      hasNext: dto.pageInfo.hasNext,
+      size: dto.pageInfo.size,
+    },
+  };
+}
+
+export function toCreateDiscussionCommentRequestDto(
+  input: CreateDiscussionCommentInput,
+): CreateDiscussionCommentRequestDto {
+  return {
+    content: input.content.trim(),
+  };
+}
+
+export function toCreateDiscussionCommentResult(
+  dto: CreateDiscussionCommentResponseDto,
+): CreateDiscussionCommentResult {
+  return {
+    commentId: dto.commentId,
+    discussionId: dto.discussionId,
+    content: dto.content,
+    writer: {
+      userId: dto.writer.userId,
+      nickname: dto.writer.nickname,
+    },
+    likeCount: dto.likeCount,
+    myLike: dto.myLike,
+    createdAt: dto.createdAt,
   };
 }

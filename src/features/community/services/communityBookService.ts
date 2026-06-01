@@ -1,11 +1,29 @@
-import { getJson } from '../../../shared/api/httpClient';
+import { getJson, postJson } from '../../../shared/api/httpClient';
 import {
+  CommunityBookDiscussionsResponseDto,
+  CommunityDiscussionDetailResponseDto,
+  CommunityDiscussionCommentsResponseDto,
+  CreateDiscussionCommentResponseDto,
+  CreateDiscussionCommentRequestDto,
+  ToggleDiscussionLikeResponseDto,
   CommunityBookTopQuotesResponseDto,
   CommunityBookDetailResponseDto,
+  CreateCommunityDiscussionResponseDto,
+  CreateCommunityDiscussionRequestDto,
   CommunityMyBooksResponseDto,
   CommunityPopularBooksResponseDto,
 } from '../model/communityBook.dto';
 import {
+  buildCommunityBookDiscussionsQueryString,
+  toCreateCommunityDiscussionRequestDto,
+  toCreateCommunityDiscussionResult,
+  toCommunityDiscussionDetailResult,
+  buildCommunityDiscussionCommentsQueryString,
+  toCommunityDiscussionCommentsResult,
+  toCreateDiscussionCommentRequestDto,
+  toCreateDiscussionCommentResult,
+  toToggleDiscussionLikeResult,
+  toCommunityBookDiscussionsResult,
   buildCommunityBookTopQuotesQueryString,
   toCommunityBookTopQuotesResult,
   buildCommunityMyBooksQueryString,
@@ -15,6 +33,16 @@ import {
   toCommunityPopularBooksResult,
 } from '../model/communityBook.mapper';
 import {
+  CommunityBookDiscussionsQuery,
+  CommunityBookDiscussionsResult,
+  CreateCommunityDiscussionInput,
+  CreateCommunityDiscussionResult,
+  CommunityDiscussionDetailResult,
+  CommunityDiscussionCommentsQuery,
+  CommunityDiscussionCommentsResult,
+  CreateDiscussionCommentInput,
+  CreateDiscussionCommentResult,
+  ToggleDiscussionLikeResult,
   CommunityBookTopQuotesQuery,
   CommunityBookTopQuotesResult,
   CommunityBookDetailResult,
@@ -53,4 +81,71 @@ export async function getCommunityBookTopQuotes(
     : `/api/v1/community/books/${bookId}/top-quotes`;
   const response = await getJson<CommunityBookTopQuotesResponseDto>(path, { auth: true });
   return toCommunityBookTopQuotesResult(response);
+}
+
+export async function getBookDiscussions(
+  bookId: number,
+  params: CommunityBookDiscussionsQuery,
+): Promise<CommunityBookDiscussionsResult> {
+  const query = buildCommunityBookDiscussionsQueryString(params);
+  const path = query
+    ? `/api/v1/community/books/${bookId}/discussions?${query}`
+    : `/api/v1/community/books/${bookId}/discussions`;
+  const response = await getJson<CommunityBookDiscussionsResponseDto>(path, { auth: true });
+  return toCommunityBookDiscussionsResult(response);
+}
+
+export async function createBookDiscussion(
+  bookId: number,
+  input: CreateCommunityDiscussionInput,
+): Promise<CreateCommunityDiscussionResult> {
+  const dto: CreateCommunityDiscussionRequestDto = toCreateCommunityDiscussionRequestDto(input);
+  const response = await postJson<CreateCommunityDiscussionResponseDto>(`/api/v1/community/books/${bookId}/discussions`, {
+    auth: true,
+    body: dto,
+  });
+  return toCreateCommunityDiscussionResult(response);
+}
+
+export async function getDiscussionDetail(discussionId: number): Promise<CommunityDiscussionDetailResult> {
+  const response = await getJson<CommunityDiscussionDetailResponseDto>(
+    `/api/v1/community/discussions/${discussionId}`,
+    { auth: true },
+  );
+  return toCommunityDiscussionDetailResult(response);
+}
+
+export async function toggleDiscussionLike(discussionId: number): Promise<ToggleDiscussionLikeResult> {
+  const response = await postJson<ToggleDiscussionLikeResponseDto>(
+    `/api/v1/community/discussions/${discussionId}/likes`,
+    { auth: true },
+  );
+  return toToggleDiscussionLikeResult(response);
+}
+
+export async function getDiscussionComments(
+  discussionId: number,
+  params: CommunityDiscussionCommentsQuery,
+): Promise<CommunityDiscussionCommentsResult> {
+  const query = buildCommunityDiscussionCommentsQueryString(params);
+  const path = query
+    ? `/api/v1/community/discussions/${discussionId}/comments?${query}`
+    : `/api/v1/community/discussions/${discussionId}/comments`;
+  const response = await getJson<CommunityDiscussionCommentsResponseDto>(path, { auth: true });
+  return toCommunityDiscussionCommentsResult(response);
+}
+
+export async function createDiscussionComment(
+  discussionId: number,
+  input: CreateDiscussionCommentInput,
+): Promise<CreateDiscussionCommentResult> {
+  const dto: CreateDiscussionCommentRequestDto = toCreateDiscussionCommentRequestDto(input);
+  const response = await postJson<CreateDiscussionCommentResponseDto>(
+    `/api/v1/community/discussions/${discussionId}/comments`,
+    {
+      auth: true,
+      body: dto,
+    },
+  );
+  return toCreateDiscussionCommentResult(response);
 }
