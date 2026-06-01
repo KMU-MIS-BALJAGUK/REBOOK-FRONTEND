@@ -10,6 +10,7 @@ import { CommunityDiscussionCategory } from './model/communityBook.types';
 import { useDiscussionDetail } from './hooks/useDiscussionDetail';
 import { useToggleDiscussionLike } from './hooks/useToggleDiscussionLike';
 import { useDiscussionComments } from './hooks/useDiscussionComments';
+import { useCreateDiscussionComment } from './hooks/useCreateDiscussionComment';
 import { toUserMessage } from '../../shared/utils/apiError';
 
 type Props = {
@@ -29,6 +30,8 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
   const [newDiscussionTitle, setNewDiscussionTitle] = useState('');
   const [newDiscussionContent, setNewDiscussionContent] = useState('');
   const [createDiscussionError, setCreateDiscussionError] = useState<string | null>(null);
+  const [newCommentContent, setNewCommentContent] = useState('');
+  const [createCommentError, setCreateCommentError] = useState<string | null>(null);
   const displayName = nickname.trim() ? nickname : 'User';
   const trimmedKeyword = searchKeyword.trim();
   const myBooksQuery = useMyCommunityBooks(
@@ -88,6 +91,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
       [],
     ),
   );
+  const createCommentMutation = useCreateDiscussionComment(selectedDiscussionId);
 
   const handleCreateDiscussion = () => {
     const title = newDiscussionTitle.trim();
@@ -115,6 +119,27 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
           setNewDiscussionTitle('');
           setNewDiscussionContent('');
           setNewDiscussionCategory('QUESTION');
+          await discussionsQuery.refetch();
+        },
+      },
+    );
+  };
+
+  const handleCreateComment = () => {
+    const content = newCommentContent.trim();
+    if (!content) {
+      setCreateCommentError('댓글 내용을 입력해주세요.');
+      return;
+    }
+
+    setCreateCommentError(null);
+    createCommentMutation.mutate(
+      { content },
+      {
+        onSuccess: async () => {
+          setNewCommentContent('');
+          await discussionCommentsQuery.refetch();
+          await discussionDetailQuery.refetch();
           await discussionsQuery.refetch();
         },
       },
@@ -460,8 +485,16 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                       style={styles.inputBox}
                       placeholder="댓글을 입력하세요"
                       placeholderTextColor="#9f968a"
-                      editable={false}
+                      value={newCommentContent}
+                      onChangeText={setNewCommentContent}
                     />
+                    {createCommentError ? <Text style={styles.errorText}>{createCommentError}</Text> : null}
+                    {createCommentMutation.isError ? <Text style={styles.errorText}>{toUserMessage(createCommentMutation.error)}</Text> : null}
+                    <TouchableOpacity style={styles.commentSubmitButton} onPress={handleCreateComment}>
+                      <Text style={styles.commentSubmitButtonText}>
+                        {createCommentMutation.isPending ? '작성 중...' : '댓글 작성'}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 </>
               ) : null}
@@ -779,6 +812,15 @@ const styles = StyleSheet.create({
   commentWriter: { color: '#5f564b', fontSize: 11, fontWeight: '700', marginBottom: 4 },
   commentContent: { color: '#312b23', fontSize: 13, lineHeight: 18, marginBottom: 4 },
   commentMeta: { color: '#7c7266', fontSize: 11 },
+  commentSubmitButton: {
+    alignSelf: 'flex-end',
+    borderRadius: 8,
+    backgroundColor: '#8d7353',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginTop: 2,
+  },
+  commentSubmitButtonText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   discussionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',

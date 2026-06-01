@@ -2,6 +2,8 @@ import {
   CommunityBookDiscussionsResponseDto,
   CommunityDiscussionDetailResponseDto,
   CommunityDiscussionCommentsResponseDto,
+  CreateDiscussionCommentRequestDto,
+  CreateDiscussionCommentResponseDto,
   ToggleDiscussionLikeResponseDto,
   CreateCommunityDiscussionRequestDto,
   CreateCommunityDiscussionResponseDto,
@@ -18,6 +20,8 @@ import {
   CommunityDiscussionDetailResult,
   CommunityDiscussionCommentsQuery,
   CommunityDiscussionCommentsResult,
+  CreateDiscussionCommentInput,
+  CreateDiscussionCommentResult,
   ToggleDiscussionLikeResult,
   CommunityBookTopQuotesQuery,
   CommunityBookTopQuotesResult,
@@ -247,5 +251,30 @@ export function toCommunityDiscussionCommentsResult(
       hasNext: dto.pageInfo.hasNext,
       size: dto.pageInfo.size,
     },
+  };
+}
+
+export function toCreateDiscussionCommentRequestDto(
+  input: CreateDiscussionCommentInput,
+): CreateDiscussionCommentRequestDto {
+  return {
+    content: input.content.trim(),
+  };
+}
+
+export function toCreateDiscussionCommentResult(
+  dto: CreateDiscussionCommentResponseDto,
+): CreateDiscussionCommentResult {
+  return {
+    commentId: dto.commentId,
+    discussionId: dto.discussionId,
+    content: dto.content,
+    writer: {
+      userId: dto.writer.userId,
+      nickname: dto.writer.nickname,
+    },
+    likeCount: dto.likeCount,
+    myLike: dto.myLike,
+    createdAt: dto.createdAt,
   };
 }

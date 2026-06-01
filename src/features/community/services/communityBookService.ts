@@ -3,6 +3,8 @@ import {
   CommunityBookDiscussionsResponseDto,
   CommunityDiscussionDetailResponseDto,
   CommunityDiscussionCommentsResponseDto,
+  CreateDiscussionCommentResponseDto,
+  CreateDiscussionCommentRequestDto,
   ToggleDiscussionLikeResponseDto,
   CommunityBookTopQuotesResponseDto,
   CommunityBookDetailResponseDto,
@@ -18,6 +20,8 @@ import {
   toCommunityDiscussionDetailResult,
   buildCommunityDiscussionCommentsQueryString,
   toCommunityDiscussionCommentsResult,
+  toCreateDiscussionCommentRequestDto,
+  toCreateDiscussionCommentResult,
   toToggleDiscussionLikeResult,
   toCommunityBookDiscussionsResult,
   buildCommunityBookTopQuotesQueryString,
@@ -36,6 +40,8 @@ import {
   CommunityDiscussionDetailResult,
   CommunityDiscussionCommentsQuery,
   CommunityDiscussionCommentsResult,
+  CreateDiscussionCommentInput,
+  CreateDiscussionCommentResult,
   ToggleDiscussionLikeResult,
   CommunityBookTopQuotesQuery,
   CommunityBookTopQuotesResult,
@@ -127,4 +133,19 @@ export async function getDiscussionComments(
     : `/api/v1/community/discussions/${discussionId}/comments`;
   const response = await getJson<CommunityDiscussionCommentsResponseDto>(path, { auth: true });
   return toCommunityDiscussionCommentsResult(response);
+}
+
+export async function createDiscussionComment(
+  discussionId: number,
+  input: CreateDiscussionCommentInput,
+): Promise<CreateDiscussionCommentResult> {
+  const dto: CreateDiscussionCommentRequestDto = toCreateDiscussionCommentRequestDto(input);
+  const response = await postJson<CreateDiscussionCommentResponseDto>(
+    `/api/v1/community/discussions/${discussionId}/comments`,
+    {
+      auth: true,
+      body: dto,
+    },
+  );
+  return toCreateDiscussionCommentResult(response);
 }

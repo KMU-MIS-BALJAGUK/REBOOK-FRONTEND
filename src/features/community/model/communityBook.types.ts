@@ -189,3 +189,9 @@ export type CommunityDiscussionCommentsResult = {
     size: number;
   };
 };
+
+export type CreateDiscussionCommentInput = {
+  content: string;
+};
+
+export type CreateDiscussionCommentResult = CommunityDiscussionCommentItem;

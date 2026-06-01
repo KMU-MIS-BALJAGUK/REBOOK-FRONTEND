@@ -150,3 +150,9 @@ export type CommunityDiscussionCommentsResponseDto = {
     size: number;
   };
 };
+
+export type CreateDiscussionCommentRequestDto = {
+  content: string;
+};
+
+export type CreateDiscussionCommentResponseDto = CommunityDiscussionCommentItemDto;
