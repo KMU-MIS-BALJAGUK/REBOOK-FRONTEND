@@ -14,6 +14,7 @@ import { useCreateDiscussionComment } from './hooks/useCreateDiscussionComment';
 import { toUserMessage } from '../../shared/utils/apiError';
 import { useCommunityBookPolls } from './hooks/useCommunityBookPolls';
 import { useCreateCommunityBookPoll } from './hooks/useCreateCommunityBookPoll';
+import { useSearchCommunityBooks } from './hooks/useSearchCommunityBooks';
 
 type Props = {
   nickname: string;
@@ -45,9 +46,8 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
     useMemo(
       () => ({
         size: 10,
-        q: trimmedKeyword || undefined,
       }),
-      [trimmedKeyword],
+      [],
     ),
   );
   const myBookItems = myBooksQuery.data?.items ?? [];
@@ -111,6 +111,18 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
     ),
   );
   const createPollMutation = useCreateCommunityBookPoll(selectedBookId);
+  const searchBooksQuery = useSearchCommunityBooks(
+    useMemo(
+      () => ({
+        q: trimmedKeyword,
+        size: 10,
+        sort: 'RELEVANCE' as const,
+      }),
+      [trimmedKeyword],
+    ),
+    trimmedKeyword.length > 0,
+  );
+  const searchBookItems = searchBooksQuery.data?.items ?? [];
 
   const handleCreateDiscussion = () => {
     if (createDiscussionMutation.isPending) {
@@ -233,6 +245,55 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
         </View>
 
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+          {trimmedKeyword ? (
+            <>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitleLarge}>검색된 책 커뮤니티</Text>
+              </View>
+              {searchBooksQuery.isLoading ? <Text style={styles.infoText}>검색 결과를 불러오는 중...</Text> : null}
+              {!searchBooksQuery.isLoading && searchBooksQuery.isError ? (
+                <View style={styles.stateWrap}>
+                  <Text style={styles.errorText}>{toUserMessage(searchBooksQuery.error)}</Text>
+                  <TouchableOpacity style={styles.retryButton} onPress={() => void searchBooksQuery.refetch()}>
+                    <Text style={styles.retryButtonText}>다시 시도</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+              {!searchBooksQuery.isLoading && !searchBooksQuery.isError && searchBookItems.length === 0 ? (
+                <Text style={styles.infoText}>검색 결과가 없어요.</Text>
+              ) : null}
+              {!searchBooksQuery.isLoading && !searchBooksQuery.isError
+                ? searchBookItems.map((book) => (
+                    <TouchableOpacity
+                      key={`search-${book.bookId}`}
+                      style={styles.bookCard}
+                      onPress={() => {
+                        setDetailTab('TOP_QUOTES');
+                        setSelectedBookId(book.bookId);
+                      }}
+                    >
+                      <View style={styles.bookRow}>
+                        <View style={styles.coverPlaceholder}>
+                          <Text style={styles.coverText}>표지</Text>
+                        </View>
+                        <View style={styles.bookContent}>
+                          <Text style={styles.bookTitle} numberOfLines={1}>{book.title}</Text>
+                          <Text style={styles.bookAuthor}>{book.author}</Text>
+                          <Text style={styles.bookMeta}>읽는 중 {book.readerCount}명 · 저장 문장 {book.quoteCount}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.previewBox}>
+                        <Text style={styles.previewLabel}>↗ 저장된 문장</Text>
+                        <Text style={styles.previewText} numberOfLines={1}>
+                          총 {book.quoteCount}개의 문장이 저장되었어요.
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                : null}
+            </>
+          ) : null}
+
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitleLarge}>내가 읽고 있는 책</Text>
             <Text style={styles.sectionCountText}>{myBookCount}권</Text>

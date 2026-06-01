@@ -15,6 +15,7 @@ import {
   CommunityBookPollsResponseDto,
   CreateCommunityBookPollRequestDto,
   CreateCommunityBookPollResponseDto,
+  CommunitySearchBooksResponseDto,
 } from '../model/communityBook.dto';
 import {
   buildCommunityBookDiscussionsQueryString,
@@ -38,6 +39,8 @@ import {
   toCommunityBookPollsResult,
   toCreateCommunityBookPollRequestDto,
   toCreateCommunityBookPollResult,
+  buildCommunitySearchBooksQueryString,
+  toCommunitySearchBooksResult,
 } from '../model/communityBook.mapper';
 import {
   CommunityBookDiscussionsQuery,
@@ -61,6 +64,8 @@ import {
   CommunityBookPollsResult,
   CreateCommunityBookPollInput,
   CreateCommunityBookPollResult,
+  CommunitySearchBooksQuery,
+  CommunitySearchBooksResult,
 } from '../model/communityBook.types';
 
 export async function getMyCommunityBooks(params: CommunityMyBooksQuery): Promise<CommunityMyBooksResult> {
@@ -181,4 +186,10 @@ export async function createCommunityBookPoll(
     body: dto,
   });
   return toCreateCommunityBookPollResult(response);
+}
+
+export async function searchCommunityBooks(params: CommunitySearchBooksQuery): Promise<CommunitySearchBooksResult> {
+  const query = buildCommunitySearchBooksQueryString(params);
+  const response = await getJson<CommunitySearchBooksResponseDto>(`/api/v1/community/books/search?${query}`, { auth: true });
+  return toCommunitySearchBooksResult(response);
 }

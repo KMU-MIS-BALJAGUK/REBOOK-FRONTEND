@@ -241,3 +241,31 @@ export type CreateCommunityBookPollInput = {
 };
 
 export type CreateCommunityBookPollResult = CommunityBookPollItem;
+
+export type CommunityBookSearchSort = 'RELEVANCE';
+
+export type CommunitySearchBooksQuery = {
+  q: string;
+  cursor?: string;
+  size?: number;
+  sort?: CommunityBookSearchSort;
+};
+
+export type CommunitySearchBookItem = {
+  bookId: number;
+  title: string;
+  author: string;
+  coverImageUrl: string;
+  readerCount: number;
+  quoteCount: number;
+};
+
+export type CommunitySearchBooksResult = {
+  keyword: string;
+  items: CommunitySearchBookItem[];
+  pageInfo: {
+    nextCursor: string | null;
+    hasNext: boolean;
+    size: number;
+  };
+};

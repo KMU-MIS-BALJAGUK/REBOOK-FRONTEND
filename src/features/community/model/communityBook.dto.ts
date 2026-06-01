@@ -193,3 +193,24 @@ export type CreateCommunityBookPollRequestDto = {
 };
 
 export type CreateCommunityBookPollResponseDto = CommunityBookPollItemDto;
+
+export type CommunityBookSearchSortDto = 'RELEVANCE';
+
+export type CommunitySearchBookItemDto = {
+  bookId: number;
+  title: string;
+  author: string;
+  coverImageUrl: string;
+  readerCount: number;
+  quoteCount: number;
+};
+
+export type CommunitySearchBooksResponseDto = {
+  keyword: string;
+  items: CommunitySearchBookItemDto[];
+  pageInfo: {
+    nextCursor: string | null;
+    hasNext: boolean;
+    size: number;
+  };
+};

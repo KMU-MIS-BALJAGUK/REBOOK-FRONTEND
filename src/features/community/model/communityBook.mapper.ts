@@ -14,6 +14,7 @@ import {
   CommunityBookDetailResponseDto,
   CommunityMyBooksResponseDto,
   CommunityPopularBooksResponseDto,
+  CommunitySearchBooksResponseDto,
 } from './communityBook.dto';
 import {
   CommunityBookDiscussionsQuery,
@@ -37,6 +38,8 @@ import {
   CommunityMyBooksResult,
   CommunityPopularBooksQuery,
   CommunityPopularBooksResult,
+  CommunitySearchBooksQuery,
+  CommunitySearchBooksResult,
 } from './communityBook.types';
 
 export function buildCommunityMyBooksQueryString(params: CommunityMyBooksQuery): string {
@@ -358,5 +361,33 @@ export function toCreateCommunityBookPollResult(dto: CreateCommunityBookPollResp
     myVoteOptionId: dto.myVoteOptionId,
     isVoted: dto.isVoted,
     createdAt: dto.createdAt,
+  };
+}
+
+export function buildCommunitySearchBooksQueryString(params: CommunitySearchBooksQuery): string {
+  const query = new URLSearchParams();
+  query.set('q', params.q);
+  if (params.cursor) query.set('cursor', params.cursor);
+  if (typeof params.size === 'number') query.set('size', String(params.size));
+  if (params.sort) query.set('sort', params.sort);
+  return query.toString();
+}
+
+export function toCommunitySearchBooksResult(dto: CommunitySearchBooksResponseDto): CommunitySearchBooksResult {
+  return {
+    keyword: dto.keyword,
+    items: dto.items.map((item) => ({
+      bookId: item.bookId,
+      title: item.title,
+      author: item.author,
+      coverImageUrl: item.coverImageUrl,
+      readerCount: item.readerCount,
+      quoteCount: item.quoteCount,
+    })),
+    pageInfo: {
+      nextCursor: dto.pageInfo.nextCursor,
+      hasNext: dto.pageInfo.hasNext,
+      size: dto.pageInfo.size,
+    },
   };
 }
