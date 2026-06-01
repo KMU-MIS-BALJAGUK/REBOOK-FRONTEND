@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useMyCommunityBooks } from './hooks/useMyCommunityBooks';
 import { usePopularCommunityBooks } from './hooks/usePopularCommunityBooks';
 import { useCommunityBookDetail } from './hooks/useCommunityBookDetail';
@@ -94,6 +94,10 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
   const createCommentMutation = useCreateDiscussionComment(selectedDiscussionId);
 
   const handleCreateDiscussion = () => {
+    if (createDiscussionMutation.isPending) {
+      return;
+    }
+
     const title = newDiscussionTitle.trim();
     const content = newDiscussionContent.trim();
 
@@ -126,6 +130,10 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
   };
 
   const handleCreateComment = () => {
+    if (createCommentMutation.isPending) {
+      return;
+    }
+
     const content = newCommentContent.trim();
     if (!content) {
       setCreateCommentError('댓글 내용을 입력해주세요.');
@@ -375,7 +383,8 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                               <View style={styles.discussionActionRow}>
                                 <Text style={styles.discussionMeta}>댓글 {item.commentCount}</Text>
                                 <TouchableOpacity
-                                  onPress={() => {
+                                  onPress={(e) => {
+                                    e.stopPropagation();
                                     toggleDiscussionLikeMutation.mutate(item.discussionId, {
                                       onSuccess: async () => {
                                         await discussionsQuery.refetch();
@@ -472,15 +481,20 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                     (discussionCommentsQuery.data?.items ?? []).length === 0 ? (
                       <Text style={styles.infoText}>등록된 댓글이 아직 없어요.</Text>
                     ) : null}
-                    {!discussionCommentsQuery.isLoading && !discussionCommentsQuery.isError
-                      ? (discussionCommentsQuery.data?.items ?? []).map((comment) => (
-                          <View key={comment.commentId} style={styles.commentItemCard}>
+                    {!discussionCommentsQuery.isLoading && !discussionCommentsQuery.isError ? (
+                      <FlatList
+                        data={discussionCommentsQuery.data?.items ?? []}
+                        keyExtractor={(comment) => String(comment.commentId)}
+                        style={styles.commentList}
+                        renderItem={({ item: comment }) => (
+                          <View style={styles.commentItemCard}>
                             <Text style={styles.commentWriter}>{comment.writer.nickname}</Text>
                             <Text style={styles.commentContent}>{comment.content}</Text>
                             <Text style={styles.commentMeta}>좋아요 {comment.likeCount}</Text>
                           </View>
-                        ))
-                      : null}
+                        )}
+                      />
+                    ) : null}
                     <TextInput
                       style={styles.inputBox}
                       placeholder="댓글을 입력하세요"
@@ -490,7 +504,11 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                     />
                     {createCommentError ? <Text style={styles.errorText}>{createCommentError}</Text> : null}
                     {createCommentMutation.isError ? <Text style={styles.errorText}>{toUserMessage(createCommentMutation.error)}</Text> : null}
-                    <TouchableOpacity style={styles.commentSubmitButton} onPress={handleCreateComment}>
+                    <TouchableOpacity
+                      style={styles.commentSubmitButton}
+                      onPress={handleCreateComment}
+                      disabled={createCommentMutation.isPending}
+                    >
                       <Text style={styles.commentSubmitButtonText}>
                         {createCommentMutation.isPending ? '작성 중...' : '댓글 작성'}
                       </Text>
@@ -548,7 +566,11 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                 <TouchableOpacity style={styles.cancelButton} onPress={() => setIsCreateDiscussionVisible(false)}>
                   <Text style={styles.cancelButtonText}>취소</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.confirmButton} onPress={handleCreateDiscussion}>
+                <TouchableOpacity
+                  style={styles.confirmButton}
+                  onPress={handleCreateDiscussion}
+                  disabled={createDiscussionMutation.isPending}
+                >
                   <Text style={styles.confirmButtonText}>
                     {createDiscussionMutation.isPending ? '작성 중...' : '작성 완료'}
                   </Text>
@@ -704,6 +726,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e8dfd2',
     padding: 16,
+    maxHeight: '88%',
   },
   modalTitle: { fontSize: 16, color: '#2f2a24', fontWeight: '700', marginBottom: 10 },
   detailHeaderCard: {
@@ -801,6 +824,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   commentSectionTitle: { color: '#312b23', fontSize: 13, fontWeight: '700', marginBottom: 8 },
+  commentList: {
+    maxHeight: 240,
+    marginBottom: 4,
+  },
   commentItemCard: {
     borderRadius: 10,
     borderWidth: 1,
