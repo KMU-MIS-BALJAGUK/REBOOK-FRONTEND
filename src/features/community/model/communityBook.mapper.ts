@@ -1,6 +1,7 @@
 import {
   CommunityBookDiscussionsResponseDto,
   CommunityDiscussionDetailResponseDto,
+  CommunityDiscussionCommentsResponseDto,
   ToggleDiscussionLikeResponseDto,
   CreateCommunityDiscussionRequestDto,
   CreateCommunityDiscussionResponseDto,
@@ -15,6 +16,8 @@ import {
   CreateCommunityDiscussionInput,
   CreateCommunityDiscussionResult,
   CommunityDiscussionDetailResult,
+  CommunityDiscussionCommentsQuery,
+  CommunityDiscussionCommentsResult,
   ToggleDiscussionLikeResult,
   CommunityBookTopQuotesQuery,
   CommunityBookTopQuotesResult,
@@ -211,5 +214,38 @@ export function toToggleDiscussionLikeResult(dto: ToggleDiscussionLikeResponseDt
     discussionId: dto.discussionId,
     myLike: dto.myLike,
     likeCount: dto.likeCount,
+  };
+}
+
+export function buildCommunityDiscussionCommentsQueryString(params: CommunityDiscussionCommentsQuery): string {
+  const query = new URLSearchParams();
+  if (params.cursor) query.set('cursor', params.cursor);
+  if (typeof params.size === 'number') query.set('size', String(params.size));
+  if (params.sort) query.set('sort', params.sort);
+  return query.toString();
+}
+
+export function toCommunityDiscussionCommentsResult(
+  dto: CommunityDiscussionCommentsResponseDto,
+): CommunityDiscussionCommentsResult {
+  return {
+    discussionId: dto.discussionId,
+    items: dto.items.map((item) => ({
+      commentId: item.commentId,
+      discussionId: item.discussionId,
+      content: item.content,
+      writer: {
+        userId: item.writer.userId,
+        nickname: item.writer.nickname,
+      },
+      likeCount: item.likeCount,
+      myLike: item.myLike,
+      createdAt: item.createdAt,
+    })),
+    pageInfo: {
+      nextCursor: dto.pageInfo.nextCursor,
+      hasNext: dto.pageInfo.hasNext,
+      size: dto.pageInfo.size,
+    },
   };
 }

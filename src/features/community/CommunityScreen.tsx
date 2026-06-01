@@ -9,6 +9,7 @@ import { useCreateBookDiscussion } from './hooks/useCreateBookDiscussion';
 import { CommunityDiscussionCategory } from './model/communityBook.types';
 import { useDiscussionDetail } from './hooks/useDiscussionDetail';
 import { useToggleDiscussionLike } from './hooks/useToggleDiscussionLike';
+import { useDiscussionComments } from './hooks/useDiscussionComments';
 import { toUserMessage } from '../../shared/utils/apiError';
 
 type Props = {
@@ -77,6 +78,16 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
   const createDiscussionMutation = useCreateBookDiscussion(selectedBookId);
   const discussionDetailQuery = useDiscussionDetail(selectedDiscussionId);
   const toggleDiscussionLikeMutation = useToggleDiscussionLike();
+  const discussionCommentsQuery = useDiscussionComments(
+    selectedDiscussionId,
+    useMemo(
+      () => ({
+        size: 20,
+        sort: 'LATEST' as const,
+      }),
+      [],
+    ),
+  );
 
   const handleCreateDiscussion = () => {
     const title = newDiscussionTitle.trim();
@@ -422,7 +433,29 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                   </View>
                   <View style={styles.commentSectionCard}>
                     <Text style={styles.commentSectionTitle}>댓글</Text>
-                    <Text style={styles.infoText}>댓글 목록/작성 API 연동 예정</Text>
+                    {discussionCommentsQuery.isLoading ? <Text style={styles.infoText}>댓글을 불러오는 중...</Text> : null}
+                    {!discussionCommentsQuery.isLoading && discussionCommentsQuery.isError ? (
+                      <View style={styles.stateWrap}>
+                        <Text style={styles.errorText}>{toUserMessage(discussionCommentsQuery.error)}</Text>
+                        <TouchableOpacity style={styles.retryButton} onPress={() => void discussionCommentsQuery.refetch()}>
+                          <Text style={styles.retryButtonText}>다시 시도</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : null}
+                    {!discussionCommentsQuery.isLoading &&
+                    !discussionCommentsQuery.isError &&
+                    (discussionCommentsQuery.data?.items ?? []).length === 0 ? (
+                      <Text style={styles.infoText}>등록된 댓글이 아직 없어요.</Text>
+                    ) : null}
+                    {!discussionCommentsQuery.isLoading && !discussionCommentsQuery.isError
+                      ? (discussionCommentsQuery.data?.items ?? []).map((comment) => (
+                          <View key={comment.commentId} style={styles.commentItemCard}>
+                            <Text style={styles.commentWriter}>{comment.writer.nickname}</Text>
+                            <Text style={styles.commentContent}>{comment.content}</Text>
+                            <Text style={styles.commentMeta}>좋아요 {comment.likeCount}</Text>
+                          </View>
+                        ))
+                      : null}
                     <TextInput
                       style={styles.inputBox}
                       placeholder="댓글을 입력하세요"
@@ -735,6 +768,17 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   commentSectionTitle: { color: '#312b23', fontSize: 13, fontWeight: '700', marginBottom: 8 },
+  commentItemCard: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e8dfd2',
+    backgroundColor: '#f7f2ea',
+    padding: 8,
+    marginBottom: 8,
+  },
+  commentWriter: { color: '#5f564b', fontSize: 11, fontWeight: '700', marginBottom: 4 },
+  commentContent: { color: '#312b23', fontSize: 13, lineHeight: 18, marginBottom: 4 },
+  commentMeta: { color: '#7c7266', fontSize: 11 },
   discussionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',

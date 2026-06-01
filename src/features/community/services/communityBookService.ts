@@ -2,6 +2,7 @@ import { getJson, postJson } from '../../../shared/api/httpClient';
 import {
   CommunityBookDiscussionsResponseDto,
   CommunityDiscussionDetailResponseDto,
+  CommunityDiscussionCommentsResponseDto,
   ToggleDiscussionLikeResponseDto,
   CommunityBookTopQuotesResponseDto,
   CommunityBookDetailResponseDto,
@@ -15,6 +16,8 @@ import {
   toCreateCommunityDiscussionRequestDto,
   toCreateCommunityDiscussionResult,
   toCommunityDiscussionDetailResult,
+  buildCommunityDiscussionCommentsQueryString,
+  toCommunityDiscussionCommentsResult,
   toToggleDiscussionLikeResult,
   toCommunityBookDiscussionsResult,
   buildCommunityBookTopQuotesQueryString,
@@ -31,6 +34,8 @@ import {
   CreateCommunityDiscussionInput,
   CreateCommunityDiscussionResult,
   CommunityDiscussionDetailResult,
+  CommunityDiscussionCommentsQuery,
+  CommunityDiscussionCommentsResult,
   ToggleDiscussionLikeResult,
   CommunityBookTopQuotesQuery,
   CommunityBookTopQuotesResult,
@@ -110,4 +115,16 @@ export async function toggleDiscussionLike(discussionId: number): Promise<Toggle
     { auth: true },
   );
   return toToggleDiscussionLikeResult(response);
+}
+
+export async function getDiscussionComments(
+  discussionId: number,
+  params: CommunityDiscussionCommentsQuery,
+): Promise<CommunityDiscussionCommentsResult> {
+  const query = buildCommunityDiscussionCommentsQueryString(params);
+  const path = query
+    ? `/api/v1/community/discussions/${discussionId}/comments?${query}`
+    : `/api/v1/community/discussions/${discussionId}/comments`;
+  const response = await getJson<CommunityDiscussionCommentsResponseDto>(path, { auth: true });
+  return toCommunityDiscussionCommentsResult(response);
 }

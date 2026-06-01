@@ -127,3 +127,26 @@ export type ToggleDiscussionLikeResponseDto = {
   myLike: boolean;
   likeCount: number;
 };
+
+export type CommunityDiscussionCommentItemDto = {
+  commentId: number;
+  discussionId: number;
+  content: string;
+  writer: {
+    userId: number;
+    nickname: string;
+  };
+  likeCount: number;
+  myLike: boolean;
+  createdAt: string;
+};
+
+export type CommunityDiscussionCommentsResponseDto = {
+  discussionId: number;
+  items: CommunityDiscussionCommentItemDto[];
+  pageInfo: {
+    nextCursor: string | null;
+    hasNext: boolean;
+    size: number;
+  };
+};

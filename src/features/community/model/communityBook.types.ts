@@ -160,3 +160,32 @@ export type ToggleDiscussionLikeResult = {
   myLike: boolean;
   likeCount: number;
 };
+
+export type CommunityDiscussionCommentsQuery = {
+  cursor?: string;
+  size?: number;
+  sort?: 'LATEST';
+};
+
+export type CommunityDiscussionCommentItem = {
+  commentId: number;
+  discussionId: number;
+  content: string;
+  writer: {
+    userId: number;
+    nickname: string;
+  };
+  likeCount: number;
+  myLike: boolean;
+  createdAt: string;
+};
+
+export type CommunityDiscussionCommentsResult = {
+  discussionId: number;
+  items: CommunityDiscussionCommentItem[];
+  pageInfo: {
+    nextCursor: string | null;
+    hasNext: boolean;
+    size: number;
+  };
+};
