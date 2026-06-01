@@ -38,3 +38,11 @@ export type CommunityPopularBooksResponseDto = {
     size: number;
   };
 };
+
+export type CommunityBookDetailResponseDto = {
+  bookId: number;
+  title: string;
+  author: string;
+  coverImageUrl: string;
+  readerCount: number;
+};

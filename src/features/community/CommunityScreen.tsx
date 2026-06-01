@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useMyCommunityBooks } from './hooks/useMyCommunityBooks';
 import { usePopularCommunityBooks } from './hooks/usePopularCommunityBooks';
+import { useCommunityBookDetail } from './hooks/useCommunityBookDetail';
 import { toUserMessage } from '../../shared/utils/apiError';
 
 type Props = {
@@ -13,6 +14,7 @@ type Props = {
 
 export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressMyPage }: Props) {
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
   const displayName = nickname.trim() ? nickname : 'User';
   const trimmedKeyword = searchKeyword.trim();
   const myBooksQuery = useMyCommunityBooks(
@@ -37,6 +39,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
     ),
   );
   const popularBookItems = popularBooksQuery.data?.items ?? [];
+  const bookDetailQuery = useCommunityBookDetail(selectedBookId);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -85,7 +88,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
 
           {!myBooksQuery.isLoading && !myBooksQuery.isError
             ? myBookItems.map((book) => (
-                <View key={book.bookId} style={styles.bookCard}>
+                <TouchableOpacity key={book.bookId} style={styles.bookCard} onPress={() => setSelectedBookId(book.bookId)}>
                   <View style={styles.bookRow}>
                     <View style={styles.coverPlaceholder}>
                       <Text style={styles.coverText}>표지</Text>
@@ -102,7 +105,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                       {book.savedQuotePreview ?? '아직 저장한 문장이 없어요.'}
                     </Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))
             : null}
 
@@ -121,7 +124,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
           ) : null}
           {!popularBooksQuery.isLoading && !popularBooksQuery.isError
             ? popularBookItems.map((book) => (
-                <View key={`popular-${book.bookId}`} style={styles.smallCard}>
+                <TouchableOpacity key={`popular-${book.bookId}`} style={styles.smallCard} onPress={() => setSelectedBookId(book.bookId)}>
                   <View style={styles.popularBookRow}>
                     <View style={styles.popularCoverPlaceholder}>
                       <Text style={styles.coverText}>표지</Text>
@@ -132,10 +135,44 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                       <Text style={styles.bookMeta}>읽는 중 {book.readerCount}명 · 새 글 {book.recentPostCount}</Text>
                     </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))
             : null}
         </ScrollView>
+
+        <Modal visible={selectedBookId !== null} transparent animationType="fade" onRequestClose={() => setSelectedBookId(null)}>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>책별 커뮤니티</Text>
+              {bookDetailQuery.isLoading ? <Text style={styles.infoText}>책 정보를 불러오는 중...</Text> : null}
+              {!bookDetailQuery.isLoading && bookDetailQuery.isError ? (
+                <View style={styles.stateWrap}>
+                  <Text style={styles.errorText}>{toUserMessage(bookDetailQuery.error)}</Text>
+                  <TouchableOpacity style={styles.retryButton} onPress={() => void bookDetailQuery.refetch()}>
+                    <Text style={styles.retryButtonText}>다시 시도</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+              {!bookDetailQuery.isLoading && !bookDetailQuery.isError && bookDetailQuery.data ? (
+                <View style={styles.detailHeaderCard}>
+                  <View style={styles.bookRow}>
+                    <View style={styles.coverPlaceholder}>
+                      <Text style={styles.coverText}>표지</Text>
+                    </View>
+                    <View style={styles.bookContent}>
+                      <Text style={styles.bookTitle} numberOfLines={1}>{bookDetailQuery.data.title}</Text>
+                      <Text style={styles.bookAuthor}>{bookDetailQuery.data.author}</Text>
+                      <Text style={styles.bookMeta}>지금 {bookDetailQuery.data.readerCount}명이 읽고 있어요</Text>
+                    </View>
+                  </View>
+                </View>
+              ) : null}
+              <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedBookId(null)}>
+                <Text style={styles.closeButtonText}>닫기</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         <View style={styles.bottomNav}>
           <TouchableOpacity style={styles.bottomItem} onPress={onPressHome}>
@@ -271,4 +308,34 @@ const styles = StyleSheet.create({
   bottomIcon: { fontSize: 14, color: '#8f8578', marginBottom: 1 },
   bottomLabel: { fontSize: 10, color: '#92897d' },
   bottomLabelActive: { fontSize: 10, color: '#8d7353', fontWeight: '700' },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(32, 26, 20, 0.45)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  modalCard: {
+    backgroundColor: '#f9f6f0',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e8dfd2',
+    padding: 16,
+  },
+  modalTitle: { fontSize: 16, color: '#2f2a24', fontWeight: '700', marginBottom: 10 },
+  detailHeaderCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e8dfd2',
+    backgroundColor: '#f7f2ea',
+    padding: 12,
+    marginBottom: 12,
+  },
+  closeButton: {
+    alignSelf: 'flex-end',
+    borderRadius: 10,
+    backgroundColor: '#8d7353',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  closeButtonText: { color: '#fff', fontSize: 12, fontWeight: '700' },
 });

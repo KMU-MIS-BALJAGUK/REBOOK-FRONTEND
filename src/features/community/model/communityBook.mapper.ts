@@ -1,5 +1,10 @@
-import { CommunityMyBooksResponseDto, CommunityPopularBooksResponseDto } from './communityBook.dto';
 import {
+  CommunityBookDetailResponseDto,
+  CommunityMyBooksResponseDto,
+  CommunityPopularBooksResponseDto,
+} from './communityBook.dto';
+import {
+  CommunityBookDetailResult,
   CommunityMyBooksQuery,
   CommunityMyBooksResult,
   CommunityPopularBooksQuery,
@@ -61,5 +66,15 @@ export function toCommunityPopularBooksResult(dto: CommunityPopularBooksResponse
       hasNext: dto.pageInfo.hasNext,
       size: dto.pageInfo.size,
     },
+  };
+}
+
+export function toCommunityBookDetailResult(dto: CommunityBookDetailResponseDto): CommunityBookDetailResult {
+  return {
+    bookId: dto.bookId,
+    title: dto.title,
+    author: dto.author,
+    coverImageUrl: dto.coverImageUrl,
+    readerCount: dto.readerCount,
   };
 }

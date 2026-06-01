@@ -54,3 +54,11 @@ export type CommunityPopularBooksResult = {
     size: number;
   };
 };
+
+export type CommunityBookDetailResult = {
+  bookId: number;
+  title: string;
+  author: string;
+  coverImageUrl: string;
+  readerCount: number;
+};
