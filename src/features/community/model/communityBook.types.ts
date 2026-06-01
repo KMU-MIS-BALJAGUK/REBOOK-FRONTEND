@@ -62,3 +62,31 @@ export type CommunityBookDetailResult = {
   coverImageUrl: string;
   readerCount: number;
 };
+
+export type CommunityBookTopQuotesPeriod = 'ALL' | 'WEEK' | 'MONTH';
+export type CommunityBookTopQuotesSort = 'SAVED_DESC';
+
+export type CommunityBookTopQuotesQuery = {
+  cursor?: string;
+  size?: number;
+  period?: CommunityBookTopQuotesPeriod;
+  sort?: CommunityBookTopQuotesSort;
+};
+
+export type CommunityBookTopQuoteItem = {
+  rank: number;
+  quoteId: number;
+  quoteText: string;
+  savedCount: number;
+};
+
+export type CommunityBookTopQuotesResult = {
+  bookId: number;
+  period: CommunityBookTopQuotesPeriod;
+  items: CommunityBookTopQuoteItem[];
+  pageInfo: {
+    nextCursor: string | null;
+    hasNext: boolean;
+    size: number;
+  };
+};

@@ -3,6 +3,7 @@ import { Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput
 import { useMyCommunityBooks } from './hooks/useMyCommunityBooks';
 import { usePopularCommunityBooks } from './hooks/usePopularCommunityBooks';
 import { useCommunityBookDetail } from './hooks/useCommunityBookDetail';
+import { useCommunityBookTopQuotes } from './hooks/useCommunityBookTopQuotes';
 import { toUserMessage } from '../../shared/utils/apiError';
 
 type Props = {
@@ -15,6 +16,7 @@ type Props = {
 export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressMyPage }: Props) {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
+  const [detailTab, setDetailTab] = useState<'TOP_QUOTES' | 'DISCUSSION' | 'VOTE'>('TOP_QUOTES');
   const displayName = nickname.trim() ? nickname : 'User';
   const trimmedKeyword = searchKeyword.trim();
   const myBooksQuery = useMyCommunityBooks(
@@ -40,6 +42,17 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
   );
   const popularBookItems = popularBooksQuery.data?.items ?? [];
   const bookDetailQuery = useCommunityBookDetail(selectedBookId);
+  const topQuotesQuery = useCommunityBookTopQuotes(
+    selectedBookId,
+    useMemo(
+      () => ({
+        size: 3,
+        period: 'ALL' as const,
+        sort: 'SAVED_DESC' as const,
+      }),
+      [],
+    ),
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -88,7 +101,14 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
 
           {!myBooksQuery.isLoading && !myBooksQuery.isError
             ? myBookItems.map((book) => (
-                <TouchableOpacity key={book.bookId} style={styles.bookCard} onPress={() => setSelectedBookId(book.bookId)}>
+                <TouchableOpacity
+                  key={book.bookId}
+                  style={styles.bookCard}
+                  onPress={() => {
+                    setDetailTab('TOP_QUOTES');
+                    setSelectedBookId(book.bookId);
+                  }}
+                >
                   <View style={styles.bookRow}>
                     <View style={styles.coverPlaceholder}>
                       <Text style={styles.coverText}>표지</Text>
@@ -124,7 +144,14 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
           ) : null}
           {!popularBooksQuery.isLoading && !popularBooksQuery.isError
             ? popularBookItems.map((book) => (
-                <TouchableOpacity key={`popular-${book.bookId}`} style={styles.smallCard} onPress={() => setSelectedBookId(book.bookId)}>
+                <TouchableOpacity
+                  key={`popular-${book.bookId}`}
+                  style={styles.smallCard}
+                  onPress={() => {
+                    setDetailTab('TOP_QUOTES');
+                    setSelectedBookId(book.bookId);
+                  }}
+                >
                   <View style={styles.popularBookRow}>
                     <View style={styles.popularCoverPlaceholder}>
                       <Text style={styles.coverText}>표지</Text>
@@ -154,18 +181,78 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                 </View>
               ) : null}
               {!bookDetailQuery.isLoading && !bookDetailQuery.isError && bookDetailQuery.data ? (
-                <View style={styles.detailHeaderCard}>
-                  <View style={styles.bookRow}>
-                    <View style={styles.coverPlaceholder}>
-                      <Text style={styles.coverText}>표지</Text>
+                <>
+                  <View style={styles.detailHeaderCard}>
+                    <View style={styles.bookRow}>
+                      <View style={styles.coverPlaceholder}>
+                        <Text style={styles.coverText}>표지</Text>
+                      </View>
+                      <View style={styles.bookContent}>
+                        <Text style={styles.bookTitle} numberOfLines={1}>{bookDetailQuery.data.title}</Text>
+                        <Text style={styles.bookAuthor}>{bookDetailQuery.data.author}</Text>
+                        <Text style={styles.bookMeta}>지금 {bookDetailQuery.data.readerCount}명이 읽고 있어요</Text>
+                      </View>
                     </View>
-                    <View style={styles.bookContent}>
-                      <Text style={styles.bookTitle} numberOfLines={1}>{bookDetailQuery.data.title}</Text>
-                      <Text style={styles.bookAuthor}>{bookDetailQuery.data.author}</Text>
-                      <Text style={styles.bookMeta}>지금 {bookDetailQuery.data.readerCount}명이 읽고 있어요</Text>
-                    </View>
+                    <Text style={styles.detailHelperText}>같은 책을 읽은 사람들은 어떤 문장을 남겼을까요?</Text>
                   </View>
-                </View>
+                  <View style={styles.detailTabRow}>
+                    <TouchableOpacity
+                      style={[styles.detailTabButton, detailTab === 'TOP_QUOTES' && styles.detailTabButtonActive]}
+                      onPress={() => setDetailTab('TOP_QUOTES')}
+                    >
+                      <Text style={[styles.detailTabButtonText, detailTab === 'TOP_QUOTES' && styles.detailTabButtonTextActive]}>
+                        많이 저장한 문장
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.detailTabButton, detailTab === 'DISCUSSION' && styles.detailTabButtonActive]}
+                      onPress={() => setDetailTab('DISCUSSION')}
+                    >
+                      <Text style={[styles.detailTabButtonText, detailTab === 'DISCUSSION' && styles.detailTabButtonTextActive]}>
+                        토론
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.detailTabButton, detailTab === 'VOTE' && styles.detailTabButtonActive]}
+                      onPress={() => setDetailTab('VOTE')}
+                    >
+                      <Text style={[styles.detailTabButtonText, detailTab === 'VOTE' && styles.detailTabButtonTextActive]}>
+                        투표
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  {detailTab === 'TOP_QUOTES' ? (
+                    <>
+                      {topQuotesQuery.isLoading ? <Text style={styles.infoText}>많이 저장한 문장을 불러오는 중...</Text> : null}
+                      {!topQuotesQuery.isLoading && topQuotesQuery.isError ? (
+                        <View style={styles.stateWrap}>
+                          <Text style={styles.errorText}>{toUserMessage(topQuotesQuery.error)}</Text>
+                          <TouchableOpacity style={styles.retryButton} onPress={() => void topQuotesQuery.refetch()}>
+                            <Text style={styles.retryButtonText}>다시 시도</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : null}
+                      {!topQuotesQuery.isLoading && !topQuotesQuery.isError && (topQuotesQuery.data?.items ?? []).length === 0 ? (
+                        <Text style={styles.infoText}>많이 저장한 문장이 아직 없어요.</Text>
+                      ) : null}
+                      {!topQuotesQuery.isLoading && !topQuotesQuery.isError
+                        ? (topQuotesQuery.data?.items ?? []).map((item) => (
+                            <View key={item.quoteId} style={styles.quoteRankCard}>
+                              <View style={styles.rankBadge}>
+                                <Text style={styles.rankBadgeText}>{item.rank}</Text>
+                              </View>
+                              <View style={styles.rankContent}>
+                                <Text style={styles.rankQuoteText} numberOfLines={1}>{item.quoteText}</Text>
+                                <Text style={styles.rankMetaText}>저장 {item.savedCount}회</Text>
+                              </View>
+                            </View>
+                          ))
+                        : null}
+                    </>
+                  ) : (
+                    <Text style={styles.infoText}>준비 중인 탭입니다.</Text>
+                  )}
+                </>
               ) : null}
               <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedBookId(null)}>
                 <Text style={styles.closeButtonText}>닫기</Text>
@@ -330,6 +417,47 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
   },
+  detailHelperText: { fontSize: 12, color: '#7d7366' },
+  detailTabRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  detailTabButton: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e3d9cb',
+    backgroundColor: '#f4efe7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  detailTabButtonActive: {
+    backgroundColor: '#8d7353',
+    borderColor: '#8d7353',
+  },
+  detailTabButtonText: { fontSize: 11, color: '#6c6256', fontWeight: '600' },
+  detailTabButtonTextActive: { color: '#fff' },
+  quoteRankCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e8dfd2',
+    backgroundColor: '#faf7f2',
+    padding: 10,
+    marginBottom: 8,
+  },
+  rankBadge: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#efe8dd',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  rankBadgeText: { color: '#7d6f5e', fontSize: 13, fontWeight: '700' },
+  rankContent: { flex: 1 },
+  rankQuoteText: { color: '#312b23', fontSize: 13, marginBottom: 4 },
+  rankMetaText: { color: '#7c7266', fontSize: 11 },
   closeButton: {
     alignSelf: 'flex-end',
     borderRadius: 10,

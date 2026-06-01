@@ -46,3 +46,21 @@ export type CommunityBookDetailResponseDto = {
   coverImageUrl: string;
   readerCount: number;
 };
+
+export type CommunityBookTopQuoteItemDto = {
+  rank: number;
+  quoteId: number;
+  quoteText: string;
+  savedCount: number;
+};
+
+export type CommunityBookTopQuotesResponseDto = {
+  bookId: number;
+  period: 'ALL' | 'WEEK' | 'MONTH';
+  items: CommunityBookTopQuoteItemDto[];
+  pageInfo: {
+    nextCursor: string | null;
+    hasNext: boolean;
+    size: number;
+  };
+};
