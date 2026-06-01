@@ -1,10 +1,13 @@
 import {
+  CommunityBookDiscussionsResponseDto,
   CommunityBookTopQuotesResponseDto,
   CommunityBookDetailResponseDto,
   CommunityMyBooksResponseDto,
   CommunityPopularBooksResponseDto,
 } from './communityBook.dto';
 import {
+  CommunityBookDiscussionsQuery,
+  CommunityBookDiscussionsResult,
   CommunityBookTopQuotesQuery,
   CommunityBookTopQuotesResult,
   CommunityBookDetailResult,
@@ -100,6 +103,40 @@ export function toCommunityBookTopQuotesResult(dto: CommunityBookTopQuotesRespon
       quoteId: item.quoteId,
       quoteText: item.quoteText,
       savedCount: item.savedCount,
+    })),
+    pageInfo: {
+      nextCursor: dto.pageInfo.nextCursor,
+      hasNext: dto.pageInfo.hasNext,
+      size: dto.pageInfo.size,
+    },
+  };
+}
+
+export function buildCommunityBookDiscussionsQueryString(params: CommunityBookDiscussionsQuery): string {
+  const query = new URLSearchParams();
+  if (params.category) query.set('category', params.category);
+  if (params.sort) query.set('sort', params.sort);
+  if (params.cursor) query.set('cursor', params.cursor);
+  if (typeof params.size === 'number') query.set('size', String(params.size));
+  return query.toString();
+}
+
+export function toCommunityBookDiscussionsResult(dto: CommunityBookDiscussionsResponseDto): CommunityBookDiscussionsResult {
+  return {
+    bookId: dto.bookId,
+    selectedCategory: dto.selectedCategory,
+    sort: dto.sort,
+    items: dto.items.map((item) => ({
+      discussionId: item.discussionId,
+      bookId: item.bookId,
+      category: item.category,
+      categoryLabel: item.categoryLabel,
+      title: item.title,
+      preview: item.preview,
+      likeCount: item.likeCount,
+      commentCount: item.commentCount,
+      myLike: item.myLike,
+      createdAt: item.createdAt,
     })),
     pageInfo: {
       nextCursor: dto.pageInfo.nextCursor,

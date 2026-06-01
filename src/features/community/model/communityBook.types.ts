@@ -90,3 +90,38 @@ export type CommunityBookTopQuotesResult = {
     size: number;
   };
 };
+
+export type CommunityDiscussionCategory = 'QUESTION' | 'INTERPRETATION' | 'IMPRESSION';
+export type CommunityDiscussionSort = 'LATEST' | 'HOT';
+
+export type CommunityBookDiscussionsQuery = {
+  category?: CommunityDiscussionCategory;
+  sort?: CommunityDiscussionSort;
+  cursor?: string;
+  size?: number;
+};
+
+export type CommunityBookDiscussionItem = {
+  discussionId: number;
+  bookId: number;
+  category: CommunityDiscussionCategory;
+  categoryLabel: string;
+  title: string;
+  preview: string;
+  likeCount: number;
+  commentCount: number;
+  myLike: boolean;
+  createdAt: string;
+};
+
+export type CommunityBookDiscussionsResult = {
+  bookId: number;
+  selectedCategory: CommunityDiscussionCategory | null;
+  sort: CommunityDiscussionSort;
+  items: CommunityBookDiscussionItem[];
+  pageInfo: {
+    nextCursor: string | null;
+    hasNext: boolean;
+    size: number;
+  };
+};

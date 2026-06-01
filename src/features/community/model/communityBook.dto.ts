@@ -64,3 +64,31 @@ export type CommunityBookTopQuotesResponseDto = {
     size: number;
   };
 };
+
+export type CommunityDiscussionCategoryDto = 'QUESTION' | 'INTERPRETATION' | 'IMPRESSION';
+export type CommunityDiscussionSortDto = 'LATEST' | 'HOT';
+
+export type CommunityBookDiscussionItemDto = {
+  discussionId: number;
+  bookId: number;
+  category: CommunityDiscussionCategoryDto;
+  categoryLabel: string;
+  title: string;
+  preview: string;
+  likeCount: number;
+  commentCount: number;
+  myLike: boolean;
+  createdAt: string;
+};
+
+export type CommunityBookDiscussionsResponseDto = {
+  bookId: number;
+  selectedCategory: CommunityDiscussionCategoryDto | null;
+  sort: CommunityDiscussionSortDto;
+  items: CommunityBookDiscussionItemDto[];
+  pageInfo: {
+    nextCursor: string | null;
+    hasNext: boolean;
+    size: number;
+  };
+};

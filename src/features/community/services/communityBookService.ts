@@ -1,11 +1,14 @@
 import { getJson } from '../../../shared/api/httpClient';
 import {
+  CommunityBookDiscussionsResponseDto,
   CommunityBookTopQuotesResponseDto,
   CommunityBookDetailResponseDto,
   CommunityMyBooksResponseDto,
   CommunityPopularBooksResponseDto,
 } from '../model/communityBook.dto';
 import {
+  buildCommunityBookDiscussionsQueryString,
+  toCommunityBookDiscussionsResult,
   buildCommunityBookTopQuotesQueryString,
   toCommunityBookTopQuotesResult,
   buildCommunityMyBooksQueryString,
@@ -15,6 +18,8 @@ import {
   toCommunityPopularBooksResult,
 } from '../model/communityBook.mapper';
 import {
+  CommunityBookDiscussionsQuery,
+  CommunityBookDiscussionsResult,
   CommunityBookTopQuotesQuery,
   CommunityBookTopQuotesResult,
   CommunityBookDetailResult,
@@ -53,4 +58,16 @@ export async function getCommunityBookTopQuotes(
     : `/api/v1/community/books/${bookId}/top-quotes`;
   const response = await getJson<CommunityBookTopQuotesResponseDto>(path, { auth: true });
   return toCommunityBookTopQuotesResult(response);
+}
+
+export async function getBookDiscussions(
+  bookId: number,
+  params: CommunityBookDiscussionsQuery,
+): Promise<CommunityBookDiscussionsResult> {
+  const query = buildCommunityBookDiscussionsQueryString(params);
+  const path = query
+    ? `/api/v1/community/books/${bookId}/discussions?${query}`
+    : `/api/v1/community/books/${bookId}/discussions`;
+  const response = await getJson<CommunityBookDiscussionsResponseDto>(path, { auth: true });
+  return toCommunityBookDiscussionsResult(response);
 }

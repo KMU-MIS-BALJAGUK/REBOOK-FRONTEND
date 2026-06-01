@@ -4,6 +4,7 @@ import { useMyCommunityBooks } from './hooks/useMyCommunityBooks';
 import { usePopularCommunityBooks } from './hooks/usePopularCommunityBooks';
 import { useCommunityBookDetail } from './hooks/useCommunityBookDetail';
 import { useCommunityBookTopQuotes } from './hooks/useCommunityBookTopQuotes';
+import { useBookDiscussions } from './hooks/useBookDiscussions';
 import { toUserMessage } from '../../shared/utils/apiError';
 
 type Props = {
@@ -49,6 +50,16 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
         size: 3,
         period: 'ALL' as const,
         sort: 'SAVED_DESC' as const,
+      }),
+      [],
+    ),
+  );
+  const discussionsQuery = useBookDiscussions(
+    selectedBookId,
+    useMemo(
+      () => ({
+        sort: 'LATEST' as const,
+        size: 10,
       }),
       [],
     ),
@@ -245,6 +256,33 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                                 <Text style={styles.rankQuoteText} numberOfLines={1}>{item.quoteText}</Text>
                                 <Text style={styles.rankMetaText}>저장 {item.savedCount}회</Text>
                               </View>
+                            </View>
+                          ))
+                        : null}
+                    </>
+                  ) : detailTab === 'DISCUSSION' ? (
+                    <>
+                      {discussionsQuery.isLoading ? <Text style={styles.infoText}>토론 목록을 불러오는 중...</Text> : null}
+                      {!discussionsQuery.isLoading && discussionsQuery.isError ? (
+                        <View style={styles.stateWrap}>
+                          <Text style={styles.errorText}>{toUserMessage(discussionsQuery.error)}</Text>
+                          <TouchableOpacity style={styles.retryButton} onPress={() => void discussionsQuery.refetch()}>
+                            <Text style={styles.retryButtonText}>다시 시도</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : null}
+                      {!discussionsQuery.isLoading && !discussionsQuery.isError && (discussionsQuery.data?.items ?? []).length === 0 ? (
+                        <Text style={styles.infoText}>등록된 토론이 아직 없어요.</Text>
+                      ) : null}
+                      {!discussionsQuery.isLoading && !discussionsQuery.isError
+                        ? (discussionsQuery.data?.items ?? []).map((item) => (
+                            <View key={item.discussionId} style={styles.discussionCard}>
+                              <View style={styles.discussionBadge}>
+                                <Text style={styles.discussionBadgeText}>{item.categoryLabel}</Text>
+                              </View>
+                              <Text style={styles.discussionTitle}>{item.title}</Text>
+                              <Text style={styles.discussionPreview}>{item.preview}</Text>
+                              <Text style={styles.discussionMeta}>댓글 {item.commentCount} · 좋아요 {item.likeCount}</Text>
                             </View>
                           ))
                         : null}
@@ -458,6 +496,26 @@ const styles = StyleSheet.create({
   rankContent: { flex: 1 },
   rankQuoteText: { color: '#312b23', fontSize: 13, marginBottom: 4 },
   rankMetaText: { color: '#7c7266', fontSize: 11 },
+  discussionCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e8dfd2',
+    backgroundColor: '#faf7f2',
+    padding: 10,
+    marginBottom: 8,
+  },
+  discussionBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: '#eef3e9',
+    marginBottom: 6,
+  },
+  discussionBadgeText: { color: '#7d8d73', fontSize: 10, fontWeight: '700' },
+  discussionTitle: { color: '#312b23', fontSize: 15, fontWeight: '700', marginBottom: 6 },
+  discussionPreview: { color: '#696055', fontSize: 13, lineHeight: 18, marginBottom: 8 },
+  discussionMeta: { color: '#7c7266', fontSize: 11 },
   closeButton: {
     alignSelf: 'flex-end',
     borderRadius: 10,
