@@ -24,8 +24,8 @@ function toHomeCardEmojiType(value: string): HomeCardEmojiType {
   throw new Error(`Invalid emoji type: ${value}`);
 }
 
-function toNullableHomeCardEmojiType(value: string | null): HomeCardEmojiType | null {
-  if (value === null) return null;
+function toNullableHomeCardEmojiType(value: string | null | undefined): HomeCardEmojiType | null {
+  if (value === null || typeof value === 'undefined') return null;
   return toHomeCardEmojiType(value);
 }
 

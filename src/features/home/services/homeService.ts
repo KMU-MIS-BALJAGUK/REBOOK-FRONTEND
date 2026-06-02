@@ -1,4 +1,5 @@
 import { getJson, postJson } from '../../../shared/api/httpClient';
+import { ApiError } from '../../../shared/utils/apiError';
 import {
   toHomeCardDetailResult,
   toHomeCardsFilterResult,
@@ -108,6 +109,30 @@ export async function getHomeCardsByFilter(params: HomeCardsFilterQuery): Promis
 
     return toHomeCardsFilterResult(response);
   } catch (error) {
+    if (error instanceof ApiError && error.status >= 500 && params.sort === 'MOST_REACTED') {
+      const fallbackParams: HomeCardsFilterQuery = {
+        ...params,
+        sort: 'LATEST',
+      };
+      const fallbackQuery = buildHomeCardsQueryString(fallbackParams);
+      const fallbackPath = `/api/v1/home/cards/filter?${fallbackQuery}`;
+
+      try {
+        const response = await getJson<HomeCardsFilterResponseDto>(fallbackPath, {
+          auth: true,
+        });
+
+        return toHomeCardsFilterResult(response);
+      } catch (fallbackError) {
+        throw wrapServiceError('getHomeCardsByFilter', '필터 카드 목록을 불러오지 못했어요.', fallbackError, {
+          path,
+          params,
+          fallbackPath,
+          fallbackParams,
+        });
+      }
+    }
+
     throw wrapServiceError('getHomeCardsByFilter', '필터 카드 목록을 불러오지 못했어요.', error, { path, params });
   }
 }

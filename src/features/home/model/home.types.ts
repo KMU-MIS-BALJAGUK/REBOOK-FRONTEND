@@ -2,7 +2,7 @@ export type HomeCardView = 'list' | 'grid';
 
 export type HomeCardSort = 'LATEST' | 'MOST_REACTED';
 export type HomeCardCategory = 'BOOK' | 'QUOTE' | 'MEMO';
-export type HomeCardsFilterMode = 'ALL' | 'BOOK' | 'FOLDER' | 'EMOTION';
+export type HomeCardsFilterCategory = 'ALL' | 'BOOK' | 'QUOTE' | 'MEMO';
 export type HomeCardEmojiType = 'HEART' | 'SMILE' | 'FIRE' | 'CLAP' | 'THINKING';
 
 export type HomeCardsQuery = {
@@ -17,7 +17,7 @@ export type HomeCardsSearchQuery = HomeCardsQuery & {
 };
 
 export type HomeCardsFilterQuery = HomeCardsQuery & {
-  category?: HomeCardsFilterMode;
+  category?: HomeCardsFilterCategory;
   contentCategory?: HomeCardCategory;
   emojiType?: HomeCardEmojiType;
   folderId?: number;

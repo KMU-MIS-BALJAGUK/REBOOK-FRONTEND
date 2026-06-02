@@ -9,7 +9,7 @@ export type EmojiCountDto = {
 
 export type ReactionSummaryDto = {
   totalCount: number;
-  myReaction: string | null;
+  myReaction?: string | null;
   counts: EmojiCountDto[];
 };
 

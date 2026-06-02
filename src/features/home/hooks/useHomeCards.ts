@@ -7,11 +7,15 @@ type UseHomeCardsParams = {
   sort?: HomeCardSort;
   size?: number;
   cursor?: string;
+  enabled?: boolean;
 };
 
 export function useHomeCards(params: UseHomeCardsParams) {
+  const { enabled = true, ...queryParams } = params;
+
   return useQuery<HomeCardsResult, Error>({
-    queryKey: ['home', 'cards', params],
-    queryFn: () => getHomeCards(params),
+    queryKey: ['home', 'cards', queryParams],
+    queryFn: () => getHomeCards(queryParams),
+    enabled,
   });
 }

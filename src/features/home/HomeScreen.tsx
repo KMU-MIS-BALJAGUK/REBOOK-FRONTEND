@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -38,6 +38,7 @@ type Props = {
 export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPressCommunity, onPressAiChat, onPressMyPage }: Props) {
   const [searchKeyword, setSearchKeyword] = useState<string>('');
   const [selectedEmojiType, setSelectedEmojiType] = useState<HomeCardEmojiType | undefined>(undefined);
+  const [selectedFolderId, setSelectedFolderId] = useState<number | undefined>(undefined);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [reactionPickerCardId, setReactionPickerCardId] = useState<number | null>(null);
   const [isFolderManageVisible, setIsFolderManageVisible] = useState(false);
@@ -51,21 +52,32 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
   const sort: HomeCardSort = useMemo(() => (tab === 'emotion' ? 'MOST_REACTED' : 'LATEST'), [tab]);
   const trimmedKeyword = searchKeyword.trim();
   const isSearchMode = trimmedKeyword.length > 0;
+  const isEmotionFallbackMode = tab === 'emotion' && typeof selectedEmojiType === 'undefined';
 
   const homeCardsQuery = useHomeCards({
     view: 'list',
     size: 20,
     sort: 'LATEST',
   });
+  const homeUnfilteredTabQuery = useHomeCards({
+    view: viewMode,
+    size: 20,
+    sort,
+    enabled: !isSearchMode && isEmotionFallbackMode,
+  });
   const homeFilterQuery = useHomeCardsFilter(
     {
       view: viewMode,
       size: 20,
       sort,
-      category: tab === 'book' ? 'BOOK' : tab === 'folder' ? 'FOLDER' : tab === 'emotion' ? 'EMOTION' : undefined,
+      category: tab === 'book' ? 'BOOK' : undefined,
       emojiType: tab === 'emotion' ? selectedEmojiType : undefined,
+      folderId: tab === 'folder' ? selectedFolderId : undefined,
     },
-    !isSearchMode && tab !== 'all',
+    !isSearchMode &&
+      tab !== 'all' &&
+      !isEmotionFallbackMode &&
+      (tab !== 'folder' || typeof selectedFolderId === 'number'),
   );
   const homeSearchQuery = useSearchHomeCards(
     {
@@ -83,10 +95,36 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
   const homeCreateFolderMutation = useHomeCreateFolder();
   const homeDeleteFolderMutation = useHomeDeleteFolder();
 
-  const activeQuery = isSearchMode ? homeSearchQuery : tab === 'all' ? homeCardsQuery : homeFilterQuery;
+  const activeQuery = isSearchMode
+    ? homeSearchQuery
+    : tab === 'all'
+      ? homeCardsQuery
+      : isEmotionFallbackMode
+        ? homeUnfilteredTabQuery
+        : homeFilterQuery;
 
   const displayName = nickname.trim() ? nickname : 'User';
   const list = activeQuery.data?.items ?? [];
+
+  useEffect(() => {
+    if (tab !== 'folder') {
+      return;
+    }
+
+    const folders = homeFoldersQuery.data ?? [];
+
+    if (folders.length === 0) {
+      if (typeof selectedFolderId !== 'undefined') {
+        setSelectedFolderId(undefined);
+      }
+      return;
+    }
+
+    const hasSelectedFolder = typeof selectedFolderId === 'number' && folders.some((folder) => folder.folderId === selectedFolderId);
+    if (!hasSelectedFolder) {
+      setSelectedFolderId(folders[0].folderId);
+    }
+  }, [homeFoldersQuery.data, selectedFolderId, tab]);
 
   const handleReact = (cardId: number, emojiType: HomeCardEmojiType) => {
     cardReactionMutation.mutate(
@@ -174,6 +212,43 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
             </TouchableOpacity>
           </View>
         ) : null}
+        {tab === 'folder' ? (
+          <>
+            {homeFoldersQuery.isLoading ? <Text style={styles.inlineInfoText}>폴더를 불러오는 중...</Text> : null}
+            {homeFoldersQuery.isError ? (
+              <View style={styles.inlineRow}>
+                <Text style={styles.inlineErrorText}>폴더를 불러오지 못했어요.</Text>
+                <TouchableOpacity style={styles.inlineRetryButton} onPress={() => void homeFoldersQuery.refetch()}>
+                  <Text style={styles.inlineRetryText}>재시도</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+            {!homeFoldersQuery.isLoading && !homeFoldersQuery.isError && (homeFoldersQuery.data ?? []).length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.folderChipRow}
+              >
+                {(homeFoldersQuery.data ?? []).map((folder) => (
+                  <TouchableOpacity
+                    key={`folder-chip-${folder.folderId}`}
+                    onPress={() => setSelectedFolderId(folder.folderId)}
+                    style={[styles.folderChip, selectedFolderId === folder.folderId && styles.folderChipActive]}
+                  >
+                    <Text
+                      style={[
+                        styles.folderChipText,
+                        selectedFolderId === folder.folderId && styles.folderChipTextActive,
+                      ]}
+                    >
+                      {folder.folderName}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            ) : null}
+          </>
+        ) : null}
 
         {tab === 'emotion' ? (
           <>
@@ -217,7 +292,16 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
           </View>
         ) : null}
 
-        {!activeQuery.isLoading && !activeQuery.isError && list.length === 0 ? (
+        {!activeQuery.isLoading && !activeQuery.isError && tab === 'folder' && !homeFoldersQuery.isLoading && !homeFoldersQuery.isError && (homeFoldersQuery.data ?? []).length === 0 ? (
+          <View style={styles.centerStateWrap}>
+            <Text style={styles.stateText}>등록된 폴더가 없어요. 폴더를 먼저 만들어주세요.</Text>
+          </View>
+        ) : null}
+
+        {!activeQuery.isLoading &&
+        !activeQuery.isError &&
+        list.length === 0 &&
+        !(tab === 'folder' && !homeFoldersQuery.isLoading && !homeFoldersQuery.isError && (homeFoldersQuery.data ?? []).length === 0) ? (
           <View style={styles.centerStateWrap}>
             <Text style={styles.stateText}>{isSearchMode ? '검색 결과가 없어요.' : '표시할 카드가 아직 없어요.'}</Text>
           </View>
@@ -463,7 +547,9 @@ function ListCard({ item, onPress, onLongPress }: { item: HomeCardItem; onPress:
       <Text style={styles.quoteTitle}>{item.bookTitle} · P.{item.pageNumber}</Text>
       <Text style={styles.quoteText}>{item.quoteText}</Text>
       <Text style={styles.quoteMeta}>{item.author}</Text>
-      <Text style={styles.quoteMark}>{item.reactionSummary.myReaction ? '🙂' : '·'}</Text>
+      <Text style={styles.quoteMark}>
+        {item.reactionSummary.myReaction ? emojiTypeToIcon(item.reactionSummary.myReaction) : '·'}
+      </Text>
     </Pressable>
   );
 }
@@ -474,6 +560,9 @@ function GridCard({ item, onPress, onLongPress }: { item: HomeCardItem; onPress:
       <Text style={styles.gridTitle} numberOfLines={1}>{item.bookTitle}</Text>
       <Text style={styles.gridPage}>P.{item.pageNumber}</Text>
       <Text style={styles.gridQuote} numberOfLines={3}>{item.quoteText}</Text>
+      <Text style={styles.gridReactionMark}>
+        {item.reactionSummary.myReaction ? emojiTypeToIcon(item.reactionSummary.myReaction) : '·'}
+      </Text>
     </Pressable>
   );
 }
@@ -528,6 +617,20 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   folderManageButtonText: { color: '#6f6557', fontSize: 11, fontWeight: '700' },
+  folderChipRow: { gap: 8, paddingBottom: 10 },
+  folderChip: {
+    minHeight: 34,
+    paddingHorizontal: 14,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: '#ded3c3',
+    backgroundColor: '#f4ede3',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  folderChipActive: { backgroundColor: '#8d7353', borderColor: '#8d7353' },
+  folderChipText: { color: '#6c6256', fontSize: 12, fontWeight: '600' },
+  folderChipTextActive: { color: '#fff' },
   inlineInfoText: { color: '#7b7369', fontSize: 12, marginBottom: 8 },
   inlineRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   inlineErrorText: { color: '#b25555', fontSize: 12 },
@@ -698,6 +801,7 @@ const styles = StyleSheet.create({
   gridTitle: { color: '#3f3830', fontWeight: '700', fontSize: 12, marginBottom: 4 },
   gridPage: { color: '#8b8173', fontSize: 10, marginBottom: 8 },
   gridQuote: { color: '#322d27', fontSize: 12, lineHeight: 18 },
+  gridReactionMark: { position: 'absolute', right: 10, bottom: 8, color: '#e6b545', fontSize: 11 },
   floatingButton: {
     position: 'absolute',
     right: 18,
