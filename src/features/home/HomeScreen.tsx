@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Modal,
   Pressable,
   SafeAreaView,
@@ -24,6 +25,7 @@ import { useHomeCreateFolder } from './hooks/useHomeCreateFolder';
 import { useHomeDeleteFolder } from './hooks/useHomeDeleteFolder';
 import { HomeCardEmojiType, HomeCardItem, HomeCardSort, HomeCardView } from './model/home.types';
 import { toUserMessage } from '../../shared/utils/apiError';
+import { API_BASE_URL } from '../../shared/constants/api';
 
 type Props = {
   nickname: string;
@@ -39,6 +41,7 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
   const [searchKeyword, setSearchKeyword] = useState<string>('');
   const [selectedEmojiType, setSelectedEmojiType] = useState<HomeCardEmojiType | undefined>(undefined);
   const [selectedFolderId, setSelectedFolderId] = useState<number | undefined>(undefined);
+  const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [reactionPickerCardId, setReactionPickerCardId] = useState<number | null>(null);
   const [isFolderManageVisible, setIsFolderManageVisible] = useState(false);
@@ -76,6 +79,7 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
     },
     !isSearchMode &&
       tab !== 'all' &&
+      tab !== 'book' &&
       !isEmotionFallbackMode &&
       (tab !== 'folder' || typeof selectedFolderId === 'number'),
   );
@@ -97,7 +101,7 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
 
   const activeQuery = isSearchMode
     ? homeSearchQuery
-    : tab === 'all'
+    : tab === 'all' || tab === 'book'
       ? homeCardsQuery
       : isEmotionFallbackMode
         ? homeUnfilteredTabQuery
@@ -105,6 +109,58 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
 
   const displayName = nickname.trim() ? nickname : 'User';
   const list = activeQuery.data?.items ?? [];
+  const bookShelfItems = useMemo(() => {
+    const items = homeCardsQuery.data?.items ?? [];
+    const grouped = new Map<
+      number,
+      {
+        bookId: number;
+        bookTitle: string;
+        author: string;
+        coverImageUrl: string;
+        latestCreatedAt: string;
+        items: HomeCardItem[];
+      }
+    >();
+
+    items.forEach((item) => {
+      const current = grouped.get(item.bookId);
+      if (current) {
+        current.items.push(item);
+        if (item.createdAt > current.latestCreatedAt) {
+          current.latestCreatedAt = item.createdAt;
+          current.bookTitle = item.bookTitle;
+          current.author = item.author;
+          current.coverImageUrl = item.coverImageUrl;
+        }
+        return;
+      }
+
+      grouped.set(item.bookId, {
+        bookId: item.bookId,
+        bookTitle: item.bookTitle,
+        author: item.author,
+        coverImageUrl: item.coverImageUrl,
+        latestCreatedAt: item.createdAt,
+        items: [item],
+      });
+    });
+
+    return Array.from(grouped.values()).sort((a, b) => b.latestCreatedAt.localeCompare(a.latestCreatedAt));
+  }, [homeCardsQuery.data?.items]);
+  const selectedBook = useMemo(
+    () => bookShelfItems.find((book) => book.bookId === selectedBookId) ?? null,
+    [bookShelfItems, selectedBookId],
+  );
+  const selectedBookCards = useMemo(() => {
+    if (selectedBookId === null) {
+      return [];
+    }
+
+    return (homeCardsQuery.data?.items ?? [])
+      .filter((item) => item.bookId === selectedBookId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }, [homeCardsQuery.data?.items, selectedBookId]);
 
   useEffect(() => {
     if (tab !== 'folder') {
@@ -125,6 +181,23 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
       setSelectedFolderId(folders[0].folderId);
     }
   }, [homeFoldersQuery.data, selectedFolderId, tab]);
+
+  useEffect(() => {
+    if (tab !== 'book') {
+      setSelectedBookId(null);
+    }
+  }, [tab]);
+
+  useEffect(() => {
+    if (tab !== 'book' || selectedBookId === null) {
+      return;
+    }
+
+    const hasSelectedBook = bookShelfItems.some((book) => book.bookId === selectedBookId);
+    if (!hasSelectedBook) {
+      setSelectedBookId(null);
+    }
+  }, [bookShelfItems, selectedBookId, tab]);
 
   const handleReact = (cardId: number, emojiType: HomeCardEmojiType) => {
     cardReactionMutation.mutate(
@@ -300,6 +373,76 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
 
         {!activeQuery.isLoading &&
         !activeQuery.isError &&
+        tab === 'book' &&
+        !isSearchMode &&
+        selectedBookId === null &&
+        bookShelfItems.length > 0 ? (
+          <View style={styles.bookShelfSection}>
+            <Text style={styles.bookShelfHint}>책 표지를 눌러 저장된 문장을 확인하세요.</Text>
+            <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false} contentContainerStyle={styles.bookShelfGrid}>
+              {bookShelfItems.map((book) => (
+                <BookShelfCard key={book.bookId} item={book} onPress={() => setSelectedBookId(book.bookId)} />
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
+
+        {!activeQuery.isLoading &&
+        !activeQuery.isError &&
+        tab === 'book' &&
+        !isSearchMode &&
+        selectedBookId !== null &&
+        selectedBook ? (
+          <View style={styles.bookSentenceSection}>
+            <View style={styles.bookSentenceHeader}>
+              <TouchableOpacity style={styles.bookSentenceBackButton} onPress={() => setSelectedBookId(null)}>
+                <Text style={styles.bookSentenceBackText}>← 책 표지</Text>
+              </TouchableOpacity>
+              <View style={styles.bookSentenceMeta}>
+                <Text style={styles.bookSentenceTitle}>{selectedBook.bookTitle}</Text>
+                <Text style={styles.bookSentenceAuthor}>{selectedBook.author}</Text>
+              </View>
+            </View>
+            <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false}>
+              {selectedBookCards.map((item) => (
+                <ListCard
+                  key={item.cardId}
+                  item={item}
+                  onPress={() => setSelectedCardId(item.cardId)}
+                  onLongPress={() => setReactionPickerCardId(item.cardId)}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
+
+        {!activeQuery.isLoading &&
+        !activeQuery.isError &&
+        tab === 'book' &&
+        !isSearchMode &&
+        selectedBookId === null &&
+        bookShelfItems.length === 0 ? (
+          <View style={styles.centerStateWrap}>
+            <Text style={styles.stateText}>저장된 책이 아직 없어요.</Text>
+          </View>
+        ) : null}
+
+        {!activeQuery.isLoading &&
+        !activeQuery.isError &&
+        tab === 'book' &&
+        !isSearchMode &&
+        selectedBookId !== null &&
+        selectedBookCards.length === 0 ? (
+          <View style={styles.centerStateWrap}>
+            <Text style={styles.stateText}>이 책에 저장된 문장이 아직 없어요.</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={() => setSelectedBookId(null)}>
+              <Text style={styles.retryButtonText}>책 목록으로</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {!activeQuery.isLoading &&
+        !activeQuery.isError &&
         list.length === 0 &&
         !(tab === 'folder' && !homeFoldersQuery.isLoading && !homeFoldersQuery.isError && (homeFoldersQuery.data ?? []).length === 0) ? (
           <View style={styles.centerStateWrap}>
@@ -307,7 +450,7 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
           </View>
         ) : null}
 
-        {!activeQuery.isLoading && !activeQuery.isError && list.length > 0 ? (
+        {!activeQuery.isLoading && !activeQuery.isError && list.length > 0 && !(tab === 'book' && !isSearchMode) ? (
           (isSearchMode ? 'list' : viewMode) === 'list' ? (
             <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false}>
               {list.map((item) => (
@@ -567,6 +710,78 @@ function GridCard({ item, onPress, onLongPress }: { item: HomeCardItem; onPress:
   );
 }
 
+function BookShelfCard({
+  item,
+  onPress,
+}: {
+  item: {
+    bookId: number;
+    bookTitle: string;
+    author: string;
+    coverImageUrl: string;
+    items: HomeCardItem[];
+  };
+  onPress: () => void;
+}) {
+  const [hasImageError, setHasImageError] = useState(false);
+  const resolvedCoverImageUrl = resolveRemoteImageUrl(item.coverImageUrl);
+
+  return (
+    <Pressable style={styles.bookShelfCard} onPress={onPress}>
+      <View style={styles.bookShelfCover}>
+        {!hasImageError && resolvedCoverImageUrl ? (
+          <Image
+            source={{ uri: resolvedCoverImageUrl }}
+            style={styles.bookShelfCoverImage}
+            resizeMode="cover"
+            onError={() => setHasImageError(true)}
+          />
+        ) : (
+          <View style={styles.bookShelfCoverFallback}>
+            <Text style={styles.bookShelfCoverFallbackLabel}>표지</Text>
+          </View>
+        )}
+        <View style={styles.bookShelfCountChip}>
+          <Text style={styles.bookShelfCountChipText}>{item.items.length}개</Text>
+        </View>
+      </View>
+      <View style={styles.bookShelfBody}>
+        <Text style={styles.bookShelfCardTitle} numberOfLines={1}>
+          {item.bookTitle}
+        </Text>
+        <Text style={styles.bookShelfCardAuthor} numberOfLines={1}>
+          {item.author}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function resolveRemoteImageUrl(url: string | null | undefined): string {
+  if (typeof url !== 'string') {
+    return '';
+  }
+
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  if (/^https?:\/\//i.test(trimmed) || /^data:/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith('//')) {
+    return `https:${trimmed}`;
+  }
+
+  if (trimmed.startsWith('/')) {
+    return `${API_BASE_URL}${trimmed}`;
+  }
+
+  return `${API_BASE_URL}/${trimmed}`;
+}
+
 const styles = StyleSheet.create({
   homeSafeArea: { flex: 1, backgroundColor: '#f6f3ee' },
   homeContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
@@ -802,6 +1017,72 @@ const styles = StyleSheet.create({
   gridPage: { color: '#8b8173', fontSize: 10, marginBottom: 8 },
   gridQuote: { color: '#322d27', fontSize: 12, lineHeight: 18 },
   gridReactionMark: { position: 'absolute', right: 10, bottom: 8, color: '#e6b545', fontSize: 11 },
+  bookShelfSection: { flex: 1 },
+  bookShelfHint: { color: '#7d7366', fontSize: 12, marginBottom: 10 },
+  bookShelfGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12, paddingBottom: 12 },
+  bookShelfCard: {
+    width: '48.5%',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ece4d8',
+    backgroundColor: '#f7f3ec',
+    overflow: 'hidden',
+  },
+  bookShelfCover: {
+    height: 170,
+    backgroundColor: '#e8e1d5',
+    position: 'relative',
+  },
+  bookShelfCoverImage: {
+    width: '100%',
+    height: '100%',
+  },
+  bookShelfCoverFallback: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ded4c8',
+  },
+  bookShelfCoverFallbackLabel: {
+    color: '#6f6457',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  bookShelfCountChip: {
+    position: 'absolute',
+    left: 8,
+    bottom: 8,
+    backgroundColor: 'rgba(20, 16, 11, 0.82)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  bookShelfCountChipText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  bookShelfBody: { paddingHorizontal: 10, paddingVertical: 9 },
+  bookShelfCardTitle: { color: '#3f3830', fontWeight: '700', fontSize: 12, marginBottom: 3 },
+  bookShelfCardAuthor: { color: '#7f7567', fontSize: 10 },
+  bookSentenceSection: { flex: 1 },
+  bookSentenceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+    paddingVertical: 4,
+  },
+  bookSentenceBackButton: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#ddd2c3',
+    backgroundColor: '#f5efe6',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  bookSentenceBackText: { color: '#6f6457', fontSize: 11, fontWeight: '700' },
+  bookSentenceMeta: { flex: 1 },
+  bookSentenceTitle: { color: '#3b352e', fontSize: 15, fontWeight: '700' },
+  bookSentenceAuthor: { color: '#7e7467', fontSize: 11, marginTop: 2 },
   floatingButton: {
     position: 'absolute',
     right: 18,
