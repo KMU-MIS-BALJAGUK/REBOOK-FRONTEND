@@ -6,6 +6,7 @@ import { useUpdateMyNickname } from './hooks/useUpdateMyNickname';
 import { useUpdateMyBio } from './hooks/useUpdateMyBio';
 import { useMyInsights } from './hooks/useMyInsights';
 import { useLogout } from './hooks/useLogout';
+import { useDeleteAccount } from './hooks/useDeleteAccount';
 
 type Props = {
   nickname: string;
@@ -30,6 +31,7 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
   const updateNicknameMutation = useUpdateMyNickname();
   const updateBioMutation = useUpdateMyBio();
   const logoutMutation = useLogout();
+  const deleteAccountMutation = useDeleteAccount();
   const profile = myProfileQuery.data;
   const insights = myInsightsQuery.data;
   const displayName = profile?.nickname?.trim() || (nickname.trim() ? nickname : '독서가');
@@ -118,6 +120,46 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
     ]);
   };
 
+  const handleDeleteAccount = () => {
+    if (deleteAccountMutation.isPending) {
+      return;
+    }
+
+    Alert.alert('회원탈퇴하시겠습니까?', '계정은 복구할 수 없습니다.', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '확인',
+        onPress: () => {
+          Alert.prompt(
+            '탈퇴 사유',
+            '선택: NOT_USING / PRICE_TOO_HIGH / MISSING_FEATURE / OTHER',
+            [
+              {
+                text: '취소',
+                style: 'cancel',
+              },
+              {
+                text: '확인',
+                onPress: (reasonText?: string) => {
+                  const reason = normalizeDeleteReason(reasonText);
+                  deleteAccountMutation.mutate(
+                    reason ? { reason } : undefined,
+                    {
+                      onSuccess: () => {
+                        onLoggedOut();
+                      },
+                    },
+                  );
+                },
+              },
+            ],
+            'plain-text',
+          );
+        },
+      },
+    ]);
+  };
+
   if (mode === 'settings') {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -153,7 +195,15 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
               onPress={handleLogout}
               disabled={logoutMutation.isPending}
             />
-            <SettingRow title="회원탈퇴" icon="⛔" danger mt={8} />
+            {deleteAccountMutation.isError ? <Text style={styles.errorText}>{toUserMessage(deleteAccountMutation.error)}</Text> : null}
+            <SettingRow
+              title={deleteAccountMutation.isPending ? '탈퇴 처리 중...' : '회원탈퇴'}
+              icon="⛔"
+              danger
+              mt={8}
+              onPress={handleDeleteAccount}
+              disabled={deleteAccountMutation.isPending}
+            />
           </ScrollView>
 
           <BottomNav
@@ -352,6 +402,14 @@ function SettingRow({ title, sub, right, icon, danger, mt, onPress, disabled }: 
       <Text style={styles.settingRight}>{right ?? '›'}</Text>
     </TouchableOpacity>
   );
+}
+
+function normalizeDeleteReason(value?: string): 'NOT_USING' | 'PRICE_TOO_HIGH' | 'MISSING_FEATURE' | 'OTHER' | undefined {
+  const trimmed = value?.trim().toUpperCase();
+  if (trimmed === 'NOT_USING' || trimmed === 'PRICE_TOO_HIGH' || trimmed === 'MISSING_FEATURE' || trimmed === 'OTHER') {
+    return trimmed;
+  }
+  return undefined;
 }
 
 type BottomNavProps = {
