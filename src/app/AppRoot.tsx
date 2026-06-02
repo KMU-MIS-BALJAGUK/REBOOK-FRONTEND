@@ -53,7 +53,7 @@ export default function AppRoot() {
   );
   const quoteImagePresignedUrlMutation = useQuoteImagePresignedUrl();
   const quoteImageOcrMutation = useQuoteImageOcr();
-  const { setAuthSession } = actions;
+  const { setAuthSession, setScreen } = actions;
   const [ocrPreviewBlocks, setOcrPreviewBlocks] = useState<QuoteOcrBlock[] | undefined>(undefined);
   const [ocrQuoteContext, setOcrQuoteContext] = useState<OcrQuoteContext | undefined>(undefined);
 
@@ -62,11 +62,14 @@ export default function AppRoot() {
       const session = await hydrateSession();
       if (session) {
         setAuthSession(session);
+        if (!session.firstLogin) {
+          setScreen('home');
+        }
       }
     };
 
     syncSession();
-  }, [setAuthSession]);
+  }, [setAuthSession, setScreen]);
 
   if (state.screen === 'home') {
     return (
@@ -101,6 +104,7 @@ export default function AppRoot() {
         onPressHome={() => actions.setScreen('home')}
         onPressCommunity={() => actions.setScreen('community')}
         onPressAiChat={() => actions.setScreen('ai-chat')}
+        onLoggedOut={actions.resetToLoggedOut}
       />
     );
   }
@@ -384,7 +388,11 @@ export default function AppRoot() {
             }
             actions.setAuthSession(session);
             void setSession(session);
-            actions.goNext();
+            if (session.firstLogin) {
+              actions.goNext();
+              return;
+            }
+            actions.setScreen('home');
           },
         });
       }}

@@ -1,21 +1,23 @@
 import React, { useState } from 'react';
-import { Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useMyProfile } from './hooks/useMyProfile';
 import { toUserMessage } from '../../shared/utils/apiError';
 import { useUpdateMyNickname } from './hooks/useUpdateMyNickname';
 import { useUpdateMyBio } from './hooks/useUpdateMyBio';
 import { useMyInsights } from './hooks/useMyInsights';
+import { useLogout } from './hooks/useLogout';
 
 type Props = {
   nickname: string;
   onPressHome: () => void;
   onPressCommunity: () => void;
   onPressAiChat: () => void;
+  onLoggedOut: () => void;
 };
 
 type ViewMode = 'main' | 'settings';
 
-export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressAiChat }: Props) {
+export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressAiChat, onLoggedOut }: Props) {
   const [mode, setMode] = useState<ViewMode>('main');
   const [isNicknameEditVisible, setIsNicknameEditVisible] = useState(false);
   const [isBioEditVisible, setIsBioEditVisible] = useState(false);
@@ -27,6 +29,7 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
   const myInsightsQuery = useMyInsights();
   const updateNicknameMutation = useUpdateMyNickname();
   const updateBioMutation = useUpdateMyBio();
+  const logoutMutation = useLogout();
   const profile = myProfileQuery.data;
   const insights = myInsightsQuery.data;
   const displayName = profile?.nickname?.trim() || (nickname.trim() ? nickname : '독서가');
@@ -95,6 +98,26 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
     );
   };
 
+  const handleLogout = () => {
+    if (logoutMutation.isPending) {
+      return;
+    }
+
+    Alert.alert('로그아웃하시겠습니까?', '', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '확인',
+        onPress: () => {
+          logoutMutation.mutate(undefined, {
+            onSuccess: () => {
+              onLoggedOut();
+            },
+          });
+        },
+      },
+    ]);
+  };
+
   if (mode === 'settings') {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -122,7 +145,14 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
             <SettingRow title="개인정보처리방침" />
             <SettingRow title="오픈소스 라이선스" />
 
-            <SettingRow title="로그아웃" icon="↪" mt={10} />
+            {logoutMutation.isError ? <Text style={styles.errorText}>{toUserMessage(logoutMutation.error)}</Text> : null}
+            <SettingRow
+              title={logoutMutation.isPending ? '로그아웃 중...' : '로그아웃'}
+              icon="↪"
+              mt={10}
+              onPress={handleLogout}
+              disabled={logoutMutation.isPending}
+            />
             <SettingRow title="회원탈퇴" icon="⛔" danger mt={8} />
           </ScrollView>
 
@@ -301,11 +331,17 @@ type SettingRowProps = {
   icon?: string;
   danger?: boolean;
   mt?: number;
+  onPress?: () => void;
+  disabled?: boolean;
 };
 
-function SettingRow({ title, sub, right, icon, danger, mt }: SettingRowProps) {
+function SettingRow({ title, sub, right, icon, danger, mt, onPress, disabled }: SettingRowProps) {
   return (
-    <TouchableOpacity style={[styles.settingRow, mt ? { marginTop: mt } : null]}>
+    <TouchableOpacity
+      style={[styles.settingRow, mt ? { marginTop: mt } : null, disabled ? styles.settingRowDisabled : null]}
+      onPress={onPress}
+      disabled={disabled}
+    >
       <View style={styles.settingLeft}>
         {icon ? <Text style={styles.settingRowIcon}>{icon}</Text> : null}
         <View>
@@ -491,6 +527,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 8,
+  },
+  settingRowDisabled: {
+    opacity: 0.6,
   },
   settingLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   settingRowIcon: { fontSize: 13, color: '#8d7f6f' },

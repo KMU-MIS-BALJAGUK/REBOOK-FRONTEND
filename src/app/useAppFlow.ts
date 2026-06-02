@@ -39,6 +39,18 @@ export function useAppFlow() {
   };
 
   const goPrev = () => setStep((prev) => Math.max(prev - 1, 0));
+  const resetToLoggedOut = () => {
+    setScreen('onboarding');
+    setStep(0);
+    setNickname('');
+    setBookTitle('');
+    setAuthor('');
+    setSelectedRecordOption('now');
+    setSelectedMood('FRIENDLY');
+    setHomeTab('all');
+    setRegisterType('manual');
+    setAuthSession(null);
+  };
 
   return {
     state: {
@@ -68,6 +80,7 @@ export function useAppFlow() {
       setAuthSession,
       goNext,
       goPrev,
+      resetToLoggedOut,
     },
   };
 }

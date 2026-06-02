@@ -184,9 +184,9 @@ export function OnboardingScreen(props: Props) {
                       ) : null}
                       {!isBookSearchLoading && !bookSearchError && searchedBooks.length > 0 ? (
                         <ScrollView style={styles.searchResultsList} nestedScrollEnabled keyboardShouldPersistTaps="handled">
-                          {searchedBooks.map((book) => (
+                          {searchedBooks.map((book, index) => (
                             <TouchableOpacity
-                              key={book.bookId}
+                              key={`${book.bookId ?? 'no-id'}-${book.title}-${book.author}-${index}`}
                               style={styles.searchResultItem}
                               onPress={() => {
                                 setShowBookResults(false);

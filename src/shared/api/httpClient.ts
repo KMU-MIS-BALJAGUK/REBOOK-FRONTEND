@@ -6,6 +6,7 @@ type RequestOptions = {
   body?: unknown;
   headers?: Record<string, string>;
   auth?: boolean;
+  allowEmptyData?: boolean;
 };
 
 type Envelope<T> = {
@@ -75,6 +76,10 @@ async function requestJson<TResponse>(
   }
 
   if (typeof json?.data === 'undefined') {
+    if (options.allowEmptyData) {
+      return undefined as TResponse;
+    }
+
     throw new ApiError({
       message: '응답 데이터 형식이 올바르지 않아요.',
       status: response.status,

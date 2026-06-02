@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { RegisterType } from '../../../app/types';
 import { toUserMessage } from '../../../shared/utils/apiError';
 import { useCreateFolder } from '../hooks/useCreateFolder';
+import { useQuoteBookSearch } from '../hooks/useQuoteBookSearch';
 import { useCreateQuote } from '../hooks/useCreateQuote';
 import { useFolders } from '../hooks/useFolders';
 
@@ -24,6 +25,7 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
   const foldersQuery = useFolders({ includeQuoteCount: true });
   const [book, setBook] = useState('');
   const [author, setAuthor] = useState('');
+  const [showBookResults, setShowBookResults] = useState(false);
   const [page, setPage] = useState('');
   const [quote, setQuote] = useState(initialQuoteText ?? '');
   const [memo, setMemo] = useState('');
@@ -36,11 +38,22 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
   const apiError = createQuoteMutation.isError ? toUserMessage(createQuoteMutation.error) : null;
   const submitError = validationError ?? apiError;
   const isSubmitDisabled = createQuoteMutation.isPending;
+  const deferredBook = useDeferredValue(book);
+  const deferredAuthor = useDeferredValue(author);
+  const bookSearchQuery = deferredBook.trim() || deferredAuthor.trim();
+  const quoteBookSearchQuery = useQuoteBookSearch(bookSearchQuery, bookSearchQuery.length > 0);
   const canUseOcrSource = useMemo(
     () => (initialMethod === 'camera' || initialMethod === 'gallery') && Boolean(ocrSource),
     [initialMethod, ocrSource],
   );
   const createFolderError = createFolderMutation.isError ? toUserMessage(createFolderMutation.error) : null;
+  const bookSearchError = quoteBookSearchQuery.isError ? toUserMessage(quoteBookSearchQuery.error) : null;
+
+  useEffect(() => {
+    if (!book.trim() && !author.trim()) {
+      setShowBookResults(false);
+    }
+  }, [author, book]);
 
   const handleSubmit = () => {
     const trimmedBook = book.trim();
@@ -118,9 +131,52 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
       </View>
       <ScrollView contentContainerStyle={styles.formBody} showsVerticalScrollIndicator={false}>
         <Text style={styles.formLabel}>책 제목</Text>
-        <TextInput style={styles.formInput} value={book} onChangeText={setBook} placeholder="책 제목을 입력하세요" />
+        <TextInput
+          style={styles.formInput}
+          value={book}
+          onChangeText={(value) => {
+            setShowBookResults(true);
+            setBook(value);
+          }}
+          placeholder="책 제목을 입력하세요"
+        />
+        {showBookResults && (book.trim() || author.trim()) ? (
+          <View style={styles.searchResultsWrap}>
+            {quoteBookSearchQuery.isLoading ? <Text style={styles.helperText}>검색 결과를 불러오는 중...</Text> : null}
+            {!quoteBookSearchQuery.isLoading && bookSearchError ? <Text style={styles.errorText}>{bookSearchError}</Text> : null}
+            {!quoteBookSearchQuery.isLoading && !bookSearchError && (quoteBookSearchQuery.data?.books ?? []).length === 0 ? (
+              <Text style={styles.helperText}>검색 결과가 없어요.</Text>
+            ) : null}
+            {!quoteBookSearchQuery.isLoading && !bookSearchError && (quoteBookSearchQuery.data?.books ?? []).length > 0 ? (
+              <ScrollView style={styles.searchResultsList} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                {(quoteBookSearchQuery.data?.books ?? []).map((searchedBook, index) => (
+                  <TouchableOpacity
+                    key={`${searchedBook.bookId ?? 'no-id'}-${searchedBook.title}-${searchedBook.author}-${index}`}
+                    style={styles.searchResultItem}
+                    onPress={() => {
+                      setBook(searchedBook.title);
+                      setAuthor(searchedBook.author);
+                      setShowBookResults(false);
+                    }}
+                  >
+                    <Text style={styles.searchResultTitle}>{searchedBook.title}</Text>
+                    <Text style={styles.searchResultAuthor}>{searchedBook.author}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            ) : null}
+          </View>
+        ) : null}
         <Text style={styles.formLabel}>저자</Text>
-        <TextInput style={styles.formInput} value={author} onChangeText={setAuthor} placeholder="저자를 입력하세요" />
+        <TextInput
+          style={styles.formInput}
+          value={author}
+          onChangeText={(value) => {
+            setShowBookResults(true);
+            setAuthor(value);
+          }}
+          placeholder="저자를 입력하세요"
+        />
         <Text style={styles.formLabel}>페이지</Text>
         <TextInput
           style={styles.formInput}
@@ -246,6 +302,35 @@ const styles = StyleSheet.create({
     borderColor: '#e4dbcd',
     paddingHorizontal: 10,
     color: '#3e352b',
+    fontSize: 12,
+  },
+  searchResultsWrap: {
+    marginTop: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e4dbcd',
+    backgroundColor: '#f9f6f0',
+    padding: 8,
+  },
+  searchResultsList: {
+    maxHeight: 180,
+  },
+  searchResultItem: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ebe2d6',
+    backgroundColor: '#fbf8f2',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  searchResultTitle: {
+    color: '#2f2a24',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  searchResultAuthor: {
+    color: '#8a7f71',
     fontSize: 12,
   },
   formTextArea: {
