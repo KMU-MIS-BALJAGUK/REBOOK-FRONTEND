@@ -107,7 +107,6 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
         ? homeUnfilteredTabQuery
         : homeFilterQuery;
 
-  const displayName = nickname.trim() ? nickname : 'User';
   const list = activeQuery.data?.items ?? [];
   const bookShelfItems = useMemo(() => {
     const items = homeCardsQuery.data?.items ?? [];
@@ -252,229 +251,227 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
     <SafeAreaView style={styles.homeSafeArea}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.homeContainer}>
-        <View style={styles.homeHeader}>
-          <Text style={styles.homeUsername}>{displayName}</Text>
-        </View>
+        <View style={styles.topPanel}>
+          <Text style={styles.brandTitle}>ReBook</Text>
 
-        <View style={styles.homeSearchRow}>
-          <View style={styles.searchPill}>
-            <Text style={styles.searchIcon}>⌕</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="키워드를 검색하세요"
-              placeholderTextColor="#9f968a"
-              value={searchKeyword}
-              onChangeText={setSearchKeyword}
-            />
+          <View style={styles.homeSearchRow}>
+            <View style={styles.searchPill}>
+              <Text style={styles.searchIcon}>⌕</Text>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="키워드를 검색하세요"
+                placeholderTextColor="#9f968a"
+                value={searchKeyword}
+                onChangeText={setSearchKeyword}
+              />
+            </View>
+            <View style={styles.roundButton}>
+              <Text style={styles.roundButtonText}>My</Text>
+            </View>
           </View>
-          <View style={styles.roundButton}>
-            <Text style={styles.roundButtonText}>나</Text>
-          </View>
-        </View>
 
-        <View style={styles.homeTabRow}>
-          <HomeTabButton label="전체" active={tab === 'all'} onPress={() => onChangeTab('all')} />
-          <HomeTabButton label="도서별" active={tab === 'book'} onPress={() => onChangeTab('book')} />
-          <HomeTabButton label="폴더별" active={tab === 'folder'} onPress={() => onChangeTab('folder')} />
-          <HomeTabButton label="감정별" active={tab === 'emotion'} onPress={() => onChangeTab('emotion')} />
-        </View>
-        {tab === 'folder' ? (
-          <View style={styles.folderManageRow}>
-            <TouchableOpacity style={styles.folderManageButton} onPress={() => setIsFolderManageVisible(true)}>
-              <Text style={styles.folderManageButtonText}>폴더 관리</Text>
-            </TouchableOpacity>
+          <View style={styles.homeTabRow}>
+            <HomeTabButton label="전체" active={tab === 'all'} onPress={() => onChangeTab('all')} />
+            <HomeTabButton label="도서별" active={tab === 'book'} onPress={() => onChangeTab('book')} />
+            <HomeTabButton label="폴더별" active={tab === 'folder'} onPress={() => onChangeTab('folder')} />
+            <HomeTabButton label="감정별" active={tab === 'emotion'} onPress={() => onChangeTab('emotion')} />
           </View>
-        ) : null}
-        {tab === 'folder' ? (
-          <>
-            {homeFoldersQuery.isLoading ? <Text style={styles.inlineInfoText}>폴더를 불러오는 중...</Text> : null}
-            {homeFoldersQuery.isError ? (
-              <View style={styles.inlineRow}>
-                <Text style={styles.inlineErrorText}>폴더를 불러오지 못했어요.</Text>
-                <TouchableOpacity style={styles.inlineRetryButton} onPress={() => void homeFoldersQuery.refetch()}>
-                  <Text style={styles.inlineRetryText}>재시도</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-            {!homeFoldersQuery.isLoading && !homeFoldersQuery.isError && (homeFoldersQuery.data ?? []).length > 0 ? (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.folderChipRow}
-              >
-                {(homeFoldersQuery.data ?? []).map((folder) => (
-                  <TouchableOpacity
-                    key={`folder-chip-${folder.folderId}`}
-                    onPress={() => setSelectedFolderId(folder.folderId)}
-                    style={[styles.folderChip, selectedFolderId === folder.folderId && styles.folderChipActive]}
-                  >
-                    <Text
-                      style={[
-                        styles.folderChipText,
-                        selectedFolderId === folder.folderId && styles.folderChipTextActive,
-                      ]}
-                    >
-                      {folder.folderName}
-                    </Text>
+
+          {tab === 'folder' ? (
+            <View style={styles.folderManageRow}>
+              <TouchableOpacity style={styles.folderManageButton} onPress={() => setIsFolderManageVisible(true)}>
+                <Text style={styles.folderManageButtonText}>폴더 관리</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+          {tab === 'folder' ? (
+            <>
+              {homeFoldersQuery.isLoading ? <Text style={styles.inlineInfoText}>폴더를 불러오는 중...</Text> : null}
+              {homeFoldersQuery.isError ? (
+                <View style={styles.inlineRow}>
+                  <Text style={styles.inlineErrorText}>폴더를 불러오지 못했어요.</Text>
+                  <TouchableOpacity style={styles.inlineRetryButton} onPress={() => void homeFoldersQuery.refetch()}>
+                    <Text style={styles.inlineRetryText}>재시도</Text>
                   </TouchableOpacity>
+                </View>
+              ) : null}
+              {!homeFoldersQuery.isLoading && !homeFoldersQuery.isError && (homeFoldersQuery.data ?? []).length > 0 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.folderChipRow}>
+                  {(homeFoldersQuery.data ?? []).map((folder) => (
+                    <TouchableOpacity
+                      key={`folder-chip-${folder.folderId}`}
+                      onPress={() => setSelectedFolderId(folder.folderId)}
+                      style={[styles.folderChip, selectedFolderId === folder.folderId && styles.folderChipActive]}
+                    >
+                      <Text
+                        style={[
+                          styles.folderChipText,
+                          selectedFolderId === folder.folderId && styles.folderChipTextActive,
+                        ]}
+                      >
+                        {folder.folderName}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : null}
+            </>
+          ) : null}
+
+          {tab === 'emotion' ? (
+            <>
+              {reactionEmojisQuery.isLoading ? <Text style={styles.inlineInfoText}>이모지를 불러오는 중...</Text> : null}
+              {reactionEmojisQuery.isError ? (
+                <View style={styles.inlineRow}>
+                  <Text style={styles.inlineErrorText}>이모지를 불러오지 못했어요.</Text>
+                  <TouchableOpacity style={styles.inlineRetryButton} onPress={() => void reactionEmojisQuery.refetch()}>
+                    <Text style={styles.inlineRetryText}>재시도</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+              {!reactionEmojisQuery.isLoading && !reactionEmojisQuery.isError ? (
+                <View style={styles.emojiChipRow}>
+                  {(reactionEmojisQuery.data ?? []).map((chip) => (
+                    <TouchableOpacity
+                      key={chip.emojiType}
+                      onPress={() => setSelectedEmojiType((prev) => (prev === chip.emojiType ? undefined : chip.emojiType))}
+                      style={[styles.emojiChip, selectedEmojiType === chip.emojiType && styles.emojiChipActive]}
+                    >
+                      <Text style={styles.emojiChipText}>{emojiTypeToIcon(chip.emojiType)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : null}
+            </>
+          ) : null}
+        </View>
+
+        <View style={styles.homeContent}>
+          {activeQuery.isLoading ? (
+            <View style={styles.centerStateWrap}>
+              <Text style={styles.stateText}>{isSearchMode ? '검색 결과를 불러오는 중...' : '카드를 불러오는 중...'}</Text>
+            </View>
+          ) : null}
+
+          {!activeQuery.isLoading && activeQuery.isError ? (
+            <View style={styles.centerStateWrap}>
+              <Text style={styles.stateText}>{toUserMessage(activeQuery.error)}</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={() => void activeQuery.refetch()}>
+                <Text style={styles.retryButtonText}>다시 시도</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {!activeQuery.isLoading && !activeQuery.isError && tab === 'folder' && !homeFoldersQuery.isLoading && !homeFoldersQuery.isError && (homeFoldersQuery.data ?? []).length === 0 ? (
+            <View style={styles.centerStateWrap}>
+              <Text style={styles.stateText}>등록된 폴더가 없어요. 폴더를 먼저 만들어주세요.</Text>
+            </View>
+          ) : null}
+
+          {!activeQuery.isLoading &&
+          !activeQuery.isError &&
+          tab === 'book' &&
+          !isSearchMode &&
+          selectedBookId === null &&
+          bookShelfItems.length > 0 ? (
+            <View style={styles.bookShelfSection}>
+              <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false} contentContainerStyle={styles.bookShelfGrid}>
+                {bookShelfItems.map((book) => (
+                  <BookShelfCard key={book.bookId} item={book} onPress={() => setSelectedBookId(book.bookId)} />
                 ))}
               </ScrollView>
-            ) : null}
-          </>
-        ) : null}
-
-        {tab === 'emotion' ? (
-          <>
-            {reactionEmojisQuery.isLoading ? <Text style={styles.inlineInfoText}>이모지를 불러오는 중...</Text> : null}
-            {reactionEmojisQuery.isError ? (
-              <View style={styles.inlineRow}>
-                <Text style={styles.inlineErrorText}>이모지를 불러오지 못했어요.</Text>
-                <TouchableOpacity style={styles.inlineRetryButton} onPress={() => void reactionEmojisQuery.refetch()}>
-                  <Text style={styles.inlineRetryText}>재시도</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-            {!reactionEmojisQuery.isLoading && !reactionEmojisQuery.isError ? (
-              <View style={styles.emojiChipRow}>
-                {(reactionEmojisQuery.data ?? []).map((chip) => (
-                  <TouchableOpacity
-                    key={chip.emojiType}
-                    onPress={() => setSelectedEmojiType((prev) => (prev === chip.emojiType ? undefined : chip.emojiType))}
-                    style={[styles.emojiChip, selectedEmojiType === chip.emojiType && styles.emojiChipActive]}
-                  >
-                    <Text style={styles.emojiChipText}>{emojiTypeToIcon(chip.emojiType)}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ) : null}
-          </>
-        ) : null}
-
-        {activeQuery.isLoading ? (
-          <View style={styles.centerStateWrap}>
-            <Text style={styles.stateText}>{isSearchMode ? '검색 결과를 불러오는 중...' : '카드를 불러오는 중...'}</Text>
-          </View>
-        ) : null}
-
-        {!activeQuery.isLoading && activeQuery.isError ? (
-          <View style={styles.centerStateWrap}>
-            <Text style={styles.stateText}>{toUserMessage(activeQuery.error)}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={() => void activeQuery.refetch()}>
-              <Text style={styles.retryButtonText}>다시 시도</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
-        {!activeQuery.isLoading && !activeQuery.isError && tab === 'folder' && !homeFoldersQuery.isLoading && !homeFoldersQuery.isError && (homeFoldersQuery.data ?? []).length === 0 ? (
-          <View style={styles.centerStateWrap}>
-            <Text style={styles.stateText}>등록된 폴더가 없어요. 폴더를 먼저 만들어주세요.</Text>
-          </View>
-        ) : null}
-
-        {!activeQuery.isLoading &&
-        !activeQuery.isError &&
-        tab === 'book' &&
-        !isSearchMode &&
-        selectedBookId === null &&
-        bookShelfItems.length > 0 ? (
-          <View style={styles.bookShelfSection}>
-            <Text style={styles.bookShelfHint}>책 표지를 눌러 저장된 문장을 확인하세요.</Text>
-            <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false} contentContainerStyle={styles.bookShelfGrid}>
-              {bookShelfItems.map((book) => (
-                <BookShelfCard key={book.bookId} item={book} onPress={() => setSelectedBookId(book.bookId)} />
-              ))}
-            </ScrollView>
-          </View>
-        ) : null}
-
-        {!activeQuery.isLoading &&
-        !activeQuery.isError &&
-        tab === 'book' &&
-        !isSearchMode &&
-        selectedBookId !== null &&
-        selectedBook ? (
-          <View style={styles.bookSentenceSection}>
-            <View style={styles.bookSentenceHeader}>
-              <TouchableOpacity style={styles.bookSentenceBackButton} onPress={() => setSelectedBookId(null)}>
-                <Text style={styles.bookSentenceBackText}>← 책 표지</Text>
-              </TouchableOpacity>
-              <View style={styles.bookSentenceMeta}>
-                <Text style={styles.bookSentenceTitle}>{selectedBook.bookTitle}</Text>
-                <Text style={styles.bookSentenceAuthor}>{selectedBook.author}</Text>
-              </View>
             </View>
-            <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false}>
-              {selectedBookCards.map((item) => (
-                <ListCard
-                  key={item.cardId}
-                  item={item}
-                  onPress={() => setSelectedCardId(item.cardId)}
-                  onLongPress={() => setReactionPickerCardId(item.cardId)}
-                />
-              ))}
-            </ScrollView>
-          </View>
-        ) : null}
+          ) : null}
 
-        {!activeQuery.isLoading &&
-        !activeQuery.isError &&
-        tab === 'book' &&
-        !isSearchMode &&
-        selectedBookId === null &&
-        bookShelfItems.length === 0 ? (
-          <View style={styles.centerStateWrap}>
-            <Text style={styles.stateText}>저장된 책이 아직 없어요.</Text>
-          </View>
-        ) : null}
+          {!activeQuery.isLoading &&
+          !activeQuery.isError &&
+          tab === 'book' &&
+          !isSearchMode &&
+          selectedBookId !== null &&
+          selectedBook ? (
+            <View style={styles.bookSentenceSection}>
+              <View style={styles.bookSentenceHeader}>
+                <TouchableOpacity style={styles.bookSentenceBackButton} onPress={() => setSelectedBookId(null)}>
+                  <Text style={styles.bookSentenceBackText}>← 책 표지</Text>
+                </TouchableOpacity>
+                <View style={styles.bookSentenceMeta}>
+                  <Text style={styles.bookSentenceTitle}>{selectedBook.bookTitle}</Text>
+                  <Text style={styles.bookSentenceAuthor}>{selectedBook.author}</Text>
+                </View>
+              </View>
+              <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false}>
+                {selectedBookCards.map((item) => (
+                  <ListCard
+                    key={item.cardId}
+                    item={item}
+                    onPress={() => setSelectedCardId(item.cardId)}
+                    onLongPress={() => setReactionPickerCardId(item.cardId)}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
 
-        {!activeQuery.isLoading &&
-        !activeQuery.isError &&
-        tab === 'book' &&
-        !isSearchMode &&
-        selectedBookId !== null &&
-        selectedBookCards.length === 0 ? (
-          <View style={styles.centerStateWrap}>
-            <Text style={styles.stateText}>이 책에 저장된 문장이 아직 없어요.</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={() => setSelectedBookId(null)}>
-              <Text style={styles.retryButtonText}>책 목록으로</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
+          {!activeQuery.isLoading &&
+          !activeQuery.isError &&
+          tab === 'book' &&
+          !isSearchMode &&
+          selectedBookId === null &&
+          bookShelfItems.length === 0 ? (
+            <View style={styles.centerStateWrap}>
+              <Text style={styles.stateText}>저장된 책이 아직 없어요.</Text>
+            </View>
+          ) : null}
 
-        {!activeQuery.isLoading &&
-        !activeQuery.isError &&
-        list.length === 0 &&
-        !(tab === 'folder' && !homeFoldersQuery.isLoading && !homeFoldersQuery.isError && (homeFoldersQuery.data ?? []).length === 0) ? (
-          <View style={styles.centerStateWrap}>
-            <Text style={styles.stateText}>{isSearchMode ? '검색 결과가 없어요.' : '표시할 카드가 아직 없어요.'}</Text>
-          </View>
-        ) : null}
+          {!activeQuery.isLoading &&
+          !activeQuery.isError &&
+          tab === 'book' &&
+          !isSearchMode &&
+          selectedBookId !== null &&
+          selectedBookCards.length === 0 ? (
+            <View style={styles.centerStateWrap}>
+              <Text style={styles.stateText}>이 책에 저장된 문장이 아직 없어요.</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={() => setSelectedBookId(null)}>
+                <Text style={styles.retryButtonText}>책 목록으로</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
-        {!activeQuery.isLoading && !activeQuery.isError && list.length > 0 && !(tab === 'book' && !isSearchMode) ? (
-          (isSearchMode ? 'list' : viewMode) === 'list' ? (
-            <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false}>
-              {list.map((item) => (
-                <ListCard
-                  key={item.cardId}
-                  item={item}
-                  onPress={() => setSelectedCardId(item.cardId)}
-                  onLongPress={() => setReactionPickerCardId(item.cardId)}
-                />
-              ))}
-            </ScrollView>
-          ) : (
-            <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false} contentContainerStyle={styles.gridWrap}>
-              {list.map((item) => (
-                <GridCard
-                  key={item.cardId}
-                  item={item}
-                  onPress={() => setSelectedCardId(item.cardId)}
-                  onLongPress={() => setReactionPickerCardId(item.cardId)}
-                />
-              ))}
-            </ScrollView>
-          )
-        ) : null}
+          {!activeQuery.isLoading &&
+          !activeQuery.isError &&
+          list.length === 0 &&
+          !(tab === 'folder' && !homeFoldersQuery.isLoading && !homeFoldersQuery.isError && (homeFoldersQuery.data ?? []).length === 0) ? (
+            <View style={styles.centerStateWrap}>
+              <Text style={styles.stateText}>{isSearchMode ? '검색 결과가 없어요.' : '표시할 카드가 아직 없어요.'}</Text>
+            </View>
+          ) : null}
+
+          {!activeQuery.isLoading && !activeQuery.isError && list.length > 0 && !(tab === 'book' && !isSearchMode) ? (
+            (isSearchMode ? 'list' : viewMode) === 'list' ? (
+              <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false}>
+                {list.map((item) => (
+                  <ListCard
+                    key={item.cardId}
+                    item={item}
+                    onPress={() => setSelectedCardId(item.cardId)}
+                    onLongPress={() => setReactionPickerCardId(item.cardId)}
+                  />
+                ))}
+              </ScrollView>
+            ) : (
+              <ScrollView style={styles.homeList} showsVerticalScrollIndicator={false} contentContainerStyle={styles.gridWrap}>
+                {list.map((item) => (
+                  <GridCard
+                    key={item.cardId}
+                    item={item}
+                    onPress={() => setSelectedCardId(item.cardId)}
+                    onLongPress={() => setReactionPickerCardId(item.cardId)}
+                  />
+                ))}
+              </ScrollView>
+            )
+          ) : null}
+        </View>
 
         <Modal visible={selectedCardId !== null} transparent animationType="fade" onRequestClose={() => setSelectedCardId(null)}>
           <View style={styles.modalBackdrop}>
@@ -783,69 +780,91 @@ function resolveRemoteImageUrl(url: string | null | undefined): string {
 }
 
 const styles = StyleSheet.create({
-  homeSafeArea: { flex: 1, backgroundColor: '#f6f3ee' },
-  homeContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
-  homeHeader: { marginBottom: 10 },
-  homeUsername: { fontSize: 38, letterSpacing: -0.8, color: '#746d63', fontWeight: '700' },
+  homeSafeArea: { flex: 1, backgroundColor: '#44c3f3' },
+  homeContainer: { flex: 1, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 10, backgroundColor: '#44c3f3' },
+  topPanel: {
+    backgroundColor: '#44c3f3',
+    paddingTop: 6,
+    paddingHorizontal: 4,
+    paddingBottom: 10,
+  },
+  homeContent: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#d6d6d6',
+    paddingHorizontal: 10,
+    paddingTop: 10,
+  },
+  brandTitle: {
+    textAlign: 'center',
+    color: '#111',
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: 0.2,
+    marginBottom: 8,
+  },
   homeSearchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   searchPill: {
     flex: 1,
-    minHeight: 32,
-    borderRadius: 16,
-    backgroundColor: '#efe9df',
+    minHeight: 40,
+    borderRadius: 0,
+    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#e2d9cc',
-    paddingHorizontal: 10,
+    borderColor: '#0d0d0d',
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  searchIcon: { fontSize: 13, color: '#948878', marginRight: 6 },
-  searchInput: { flex: 1, fontSize: 12, color: '#4a433a', paddingVertical: 0 },
+  searchIcon: { fontSize: 16, color: '#111', marginRight: 8 },
+  searchInput: { flex: 1, fontSize: 15, color: '#141414', paddingVertical: 0 },
   roundButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#8d7353',
+    width: 48,
+    height: 40,
+    borderRadius: 0,
+    backgroundColor: '#0d0d0d',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  roundButtonText: { color: '#fff', fontSize: 13, marginTop: -1 },
+  roundButtonText: { color: '#44c3f3', fontSize: 13, fontWeight: '800' },
   homeTabRow: { flexDirection: 'row', gap: 6, marginBottom: 10 },
   homeTabButton: {
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e4dbce',
-    backgroundColor: '#f4efe7',
-    paddingVertical: 6,
+    borderColor: '#0d0d0d',
+    backgroundColor: '#7fd0ee',
+    paddingVertical: 8,
     paddingHorizontal: 10,
+    flex: 1,
+    alignItems: 'center',
   },
-  homeTabButtonActive: { backgroundColor: '#8d7353', borderColor: '#8d7353' },
-  homeTabText: { color: '#7b7369', fontSize: 11, fontWeight: '600' },
-  homeTabTextActive: { color: '#fff' },
+  homeTabButtonActive: { backgroundColor: '#0d0d0d', borderColor: '#0d0d0d' },
+  homeTabText: { color: '#0d0d0d', fontSize: 12, fontWeight: '700' },
+  homeTabTextActive: { color: '#44c3f3' },
   folderManageRow: { marginBottom: 10, alignItems: 'flex-end' },
   folderManageButton: {
     borderWidth: 1,
-    borderColor: '#d8cdbf',
-    backgroundColor: '#f7f2ea',
-    borderRadius: 10,
+    borderColor: '#0d0d0d',
+    backgroundColor: '#44c3f3',
+    borderRadius: 0,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  folderManageButtonText: { color: '#6f6557', fontSize: 11, fontWeight: '700' },
+  folderManageButtonText: { color: '#0d0d0d', fontSize: 11, fontWeight: '800' },
   folderChipRow: { gap: 8, paddingBottom: 10 },
   folderChip: {
     minHeight: 34,
     paddingHorizontal: 14,
-    borderRadius: 17,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#ded3c3',
-    backgroundColor: '#f4ede3',
+    borderColor: '#0d0d0d',
+    backgroundColor: '#7fd0ee',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  folderChipActive: { backgroundColor: '#8d7353', borderColor: '#8d7353' },
-  folderChipText: { color: '#6c6256', fontSize: 12, fontWeight: '600' },
-  folderChipTextActive: { color: '#fff' },
+  folderChipActive: { backgroundColor: '#0d0d0d', borderColor: '#0d0d0d' },
+  folderChipText: { color: '#0d0d0d', fontSize: 12, fontWeight: '700' },
+  folderChipTextActive: { color: '#44c3f3' },
   inlineInfoText: { color: '#7b7369', fontSize: 12, marginBottom: 8 },
   inlineRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   inlineErrorText: { color: '#b25555', fontSize: 12 },
@@ -862,14 +881,14 @@ const styles = StyleSheet.create({
   emojiChip: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e4dbce',
-    backgroundColor: '#f7f3ec',
+    borderColor: '#0d0d0d',
+    backgroundColor: '#7fd0ee',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emojiChipActive: { borderColor: '#8d7353', backgroundColor: '#f3ece1' },
+  emojiChipActive: { borderColor: '#0d0d0d', backgroundColor: '#0d0d0d' },
   emojiChipText: { fontSize: 16 },
   homeList: { flex: 1 },
   centerStateWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -992,26 +1011,36 @@ const styles = StyleSheet.create({
   },
   reactionPickerChipText: { fontSize: 17 },
   quoteCard: {
-    backgroundColor: '#f9f6f0',
+    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#ece4d9',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
+    borderColor: '#e8e8e8',
+    borderRadius: 0,
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
-  quoteTitle: { fontSize: 13, color: '#3f3830', fontWeight: '700', marginBottom: 6 },
-  quoteText: { fontSize: 13, color: '#322d27', lineHeight: 19, marginBottom: 9 },
+  quoteTitle: { fontSize: 13, color: '#3a342c', fontWeight: '700', marginBottom: 10 },
+  quoteText: { fontSize: 14, color: '#322d27', lineHeight: 22, marginBottom: 12 },
   quoteMeta: { fontSize: 10, color: '#8b8173' },
-  quoteMark: { position: 'absolute', right: 10, bottom: 8, color: '#e6b545', fontSize: 11 },
+  quoteMark: { position: 'absolute', right: 12, bottom: 10, color: '#e6b545', fontSize: 13 },
   gridWrap: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10 },
   gridCard: {
     width: '48.5%',
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#ece4d8',
-    backgroundColor: '#f7f3ec',
+    borderColor: '#e8e8e8',
+    backgroundColor: '#fff',
     padding: 10,
     minHeight: 126,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
   gridTitle: { color: '#3f3830', fontWeight: '700', fontSize: 12, marginBottom: 4 },
   gridPage: { color: '#8b8173', fontSize: 10, marginBottom: 8 },
@@ -1022,15 +1051,20 @@ const styles = StyleSheet.create({
   bookShelfGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12, paddingBottom: 12 },
   bookShelfCard: {
     width: '48.5%',
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#ece4d8',
-    backgroundColor: '#f7f3ec',
+    borderColor: '#e8e8e8',
+    backgroundColor: '#fff',
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
   bookShelfCover: {
-    height: 170,
-    backgroundColor: '#e8e1d5',
+    height: 180,
+    backgroundColor: '#f1f1f1',
     position: 'relative',
   },
   bookShelfCoverImage: {
@@ -1042,7 +1076,7 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ded4c8',
+    backgroundColor: '#ececec',
   },
   bookShelfCoverFallbackLabel: {
     color: '#6f6457',
