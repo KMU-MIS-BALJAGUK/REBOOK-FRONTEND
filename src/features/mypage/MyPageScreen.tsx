@@ -165,15 +165,17 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="dark-content" />
         <View style={styles.container}>
-          <View style={styles.settingsHeader}>
-            <TouchableOpacity onPress={() => setMode('main')}>
-              <Text style={styles.backIcon}>←</Text>
-            </TouchableOpacity>
-            <Text style={styles.settingsTitle}>설정</Text>
-            <View style={styles.headerSpacer} />
+          <View style={styles.topPanel}>
+            <View style={styles.settingsHeader}>
+              <TouchableOpacity onPress={() => setMode('main')}>
+                <Text style={styles.backIcon}>←</Text>
+              </TouchableOpacity>
+              <Text style={styles.settingsTitle}>설정</Text>
+              <View style={styles.headerSpacer} />
+            </View>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
             <Text style={styles.groupLabel}>계정</Text>
             <SettingRow title="닉네임" sub={displayName} />
 
@@ -206,12 +208,7 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
             />
           </ScrollView>
 
-          <BottomNav
-            current="mypage"
-            onPressHome={onPressHome}
-            onPressCommunity={onPressCommunity}
-            onPressAiChat={onPressAiChat}
-          />
+          <BottomNav onPressHome={onPressHome} onPressCommunity={onPressCommunity} onPressAiChat={onPressAiChat} />
         </View>
       </SafeAreaView>
     );
@@ -221,14 +218,16 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.container}>
-        <View style={styles.topHeader}>
-          <Text style={styles.backIcon}>←</Text>
-          <TouchableOpacity onPress={() => setMode('settings')}>
-            <Text style={styles.settingIcon}>⚙</Text>
-          </TouchableOpacity>
+        <View style={styles.topPanel}>
+          <View style={styles.topHeader}>
+            <Text style={styles.backIcon}>←</Text>
+            <TouchableOpacity onPress={() => setMode('settings')}>
+              <Text style={styles.settingIcon}>⚙</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
           <View style={styles.profileWrap}>
             <View style={styles.avatar}><Text style={styles.avatarText}>{displayInitial}</Text></View>
             <View style={styles.nameRow}>
@@ -293,12 +292,7 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
           </View>
         </ScrollView>
 
-        <BottomNav
-          current="mypage"
-          onPressHome={onPressHome}
-          onPressCommunity={onPressCommunity}
-          onPressAiChat={onPressAiChat}
-        />
+        <BottomNav onPressHome={onPressHome} onPressCommunity={onPressCommunity} onPressAiChat={onPressAiChat} />
       </View>
 
       <Modal visible={isNicknameEditVisible} transparent animationType="fade" onRequestClose={() => setIsNicknameEditVisible(false)}>
@@ -413,7 +407,6 @@ function normalizeDeleteReason(value?: string): 'NOT_USING' | 'PRICE_TOO_HIGH' |
 }
 
 type BottomNavProps = {
-  current: 'mypage';
   onPressHome: () => void;
   onPressCommunity: () => void;
   onPressAiChat: () => void;
@@ -434,20 +427,18 @@ function BottomNav({ onPressHome, onPressCommunity, onPressAiChat }: BottomNavPr
         <Text style={styles.bottomIcon}>◔</Text>
         <Text style={styles.bottomLabel}>AI 채팅</Text>
       </TouchableOpacity>
-      <View style={styles.bottomItem}>
-        <Text style={styles.bottomIcon}>⚪</Text>
-        <Text style={styles.bottomLabelActive}>마이</Text>
-      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f6f3ee' },
-  container: { flex: 1, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
-  topHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  backIcon: { fontSize: 18, color: '#4a4035' },
-  settingIcon: { fontSize: 14, color: '#6d6256' },
+  safeArea: { flex: 1, backgroundColor: '#44c3f3' },
+  container: { flex: 1, backgroundColor: '#44c3f3' },
+  topPanel: { backgroundColor: '#44c3f3', paddingHorizontal: 14, paddingTop: 8, paddingBottom: 10 },
+  contentScroll: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 14, paddingTop: 10 },
+  topHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  backIcon: { fontSize: 18, color: '#111' },
+  settingIcon: { fontSize: 14, color: '#111', fontWeight: '700' },
   profileWrap: { alignItems: 'center', marginBottom: 12 },
   avatar: {
     width: 58,
@@ -476,10 +467,12 @@ const styles = StyleSheet.create({
   },
   editNicknameButtonText: { color: '#6c6256', fontSize: 11, fontWeight: '700' },
   plusCard: {
-    borderRadius: 12,
+    borderRadius: 0,
     backgroundColor: '#8d7353',
     padding: 12,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#111',
   },
   plusTitle: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 6 },
   plusBody: { color: '#ede4d8', fontSize: 11, lineHeight: 16, marginBottom: 8 },
@@ -487,7 +480,7 @@ const styles = StyleSheet.create({
   plusBtn: {
     height: 34,
     marginTop: 10,
-    borderRadius: 10,
+    borderRadius: 0,
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
@@ -496,10 +489,10 @@ const styles = StyleSheet.create({
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 8, marginBottom: 12 },
   statCard: {
     width: '48.8%',
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e8dfd2',
-    backgroundColor: '#f9f5ef',
+    borderColor: '#e8e8e8',
+    backgroundColor: '#fff',
     paddingVertical: 10,
     paddingHorizontal: 10,
   },
@@ -514,7 +507,7 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     backgroundColor: '#f9f6f0',
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: '#e8dfd2',
     padding: 16,
@@ -548,10 +541,10 @@ const styles = StyleSheet.create({
   },
   confirmButtonText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   analysisCard: {
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e8dfd2',
-    backgroundColor: '#f9f5ef',
+    borderColor: '#e8e8e8',
+    backgroundColor: '#fff',
     padding: 11,
     marginBottom: 10,
   },
@@ -575,10 +568,10 @@ const styles = StyleSheet.create({
   groupLabel: { fontSize: 10, color: '#9a8f81', marginBottom: 6, marginTop: 4 },
   settingRow: {
     minHeight: 54,
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e8dfd2',
-    backgroundColor: '#f9f5ef',
+    borderColor: '#e8e8e8',
+    backgroundColor: '#fff',
     paddingHorizontal: 12,
     paddingVertical: 10,
     flexDirection: 'row',
@@ -596,17 +589,18 @@ const styles = StyleSheet.create({
   settingRowSub: { fontSize: 10, color: '#978c7d', marginTop: 3 },
   settingRight: { fontSize: 12, color: '#9a8f81' },
   bottomNav: {
-    height: 48,
+    height: 72,
     borderTopWidth: 1,
-    borderColor: '#e6ddcf',
-    backgroundColor: '#f8f4ed',
+    borderColor: '#0d0d0d',
+    backgroundColor: '#44c3f3',
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 8,
+    paddingHorizontal: 12,
   },
-  bottomItem: { alignItems: 'center', justifyContent: 'center' },
-  bottomIcon: { fontSize: 14, color: '#8f8578', marginBottom: 1 },
-  bottomLabel: { fontSize: 10, color: '#92897d' },
+  bottomItem: { alignItems: 'center', justifyContent: 'center', flex: 1 },
+  bottomIcon: { fontSize: 18, color: '#111', marginBottom: 4 },
+  bottomLabel: { fontSize: 10, color: '#111', fontWeight: '700' },
   bottomLabelActive: { fontSize: 10, color: '#8d7353', fontWeight: '700' },
 });
