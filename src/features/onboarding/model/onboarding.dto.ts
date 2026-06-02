@@ -67,3 +67,18 @@ export type CompleteOnboardingResponseDto = {
   };
   onboardingStatus: OnboardingStatusDto;
 };
+
+export type OnboardingBookSearchItemDto = {
+  bookId: number;
+  title: string;
+  author: string;
+  coverImageUrl: string;
+  publisher: string;
+  publishedAt: string;
+  sourceType: string;
+};
+
+export type OnboardingBookSearchResponseDto = {
+  query: string;
+  books: OnboardingBookSearchItemDto[];
+};

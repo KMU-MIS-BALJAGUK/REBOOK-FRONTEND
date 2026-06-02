@@ -8,7 +8,11 @@
     "userInterfaceStyle": "light",
     "ios": {
       "usesAppleSignIn": true,
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.warock.rebook",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,6 +28,12 @@
     },
     "plugins": [
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "3af1b608-87de-41a3-a00b-a7a60459197c"
+      }
+    },
+    "owner": "kbt828"
   }
 }

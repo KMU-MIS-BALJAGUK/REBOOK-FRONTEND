@@ -64,3 +64,18 @@ export type CompleteOnboardingResult = {
   };
   onboardingStatus: OnboardingStatus;
 };
+
+export type OnboardingBookSearchItem = {
+  bookId: number;
+  title: string;
+  author: string;
+  coverImageUrl: string;
+  publisher: string;
+  publishedAt: string;
+  sourceType: string;
+};
+
+export type OnboardingBookSearchResult = {
+  query: string;
+  books: OnboardingBookSearchItem[];
+};

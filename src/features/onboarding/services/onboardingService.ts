@@ -7,12 +7,14 @@ import {
   toSaveAiStyleResult,
   toFirstBookSaveResult,
   toNicknameSaveResult,
+  toOnboardingBookSearchResult,
   toSaveFirstBookRequestDto,
   toSaveNicknameRequestDto,
 } from '../model/onboarding.mapper';
 import {
   CompleteOnboardingResponseDto,
   GetAiStylesResponseDto,
+  OnboardingBookSearchResponseDto,
   SaveAiStyleResponseDto,
   SaveFirstBookResponseDto,
   SaveNicknameResponseDto,
@@ -22,6 +24,7 @@ import {
   CompleteOnboardingInput,
   CompleteOnboardingResult,
   FirstBookSaveResult,
+  OnboardingBookSearchResult,
   SaveAiStyleInput,
   SaveAiStyleResult,
   SaveFirstBookInput,
@@ -75,4 +78,15 @@ export async function completeOnboarding(input: CompleteOnboardingInput): Promis
   });
 
   return toCompleteOnboardingResult(response);
+}
+
+export async function searchOnboardingBooks(query: string): Promise<OnboardingBookSearchResult> {
+  const response = await getJson<OnboardingBookSearchResponseDto>(
+    `/api/v1/onboarding/books/search?query=${encodeURIComponent(query)}`,
+    {
+      auth: true,
+    },
+  );
+
+  return toOnboardingBookSearchResult(response);
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useEffect, useState } from 'react';
+import { useDeferredValue, useEffect, useState } from 'react';
 import { useAppFlow } from './useAppFlow';
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
 import { HomeScreen } from '../features/home/HomeScreen';
@@ -19,6 +19,7 @@ import { useSaveNickname } from '../features/onboarding/hooks/useSaveNickname';
 import { useSaveFirstBook } from '../features/onboarding/hooks/useSaveFirstBook';
 import { useSaveAiStyle } from '../features/onboarding/hooks/useSaveAiStyle';
 import { useCompleteOnboarding } from '../features/onboarding/hooks/useCompleteOnboarding';
+import { useSearchOnboardingBooks } from '../features/onboarding/hooks/useSearchOnboardingBooks';
 import { hydrateSession, setSession } from '../shared/auth/authSession';
 import { toUserMessage } from '../shared/utils/apiError';
 import { QuoteOcrBlock } from '../features/quote/model/quoteOcr.types';
@@ -38,6 +39,18 @@ export default function AppRoot() {
   const saveFirstBookMutation = useSaveFirstBook();
   const saveAiStyleMutation = useSaveAiStyle();
   const completeOnboardingMutation = useCompleteOnboarding();
+  const deferredBookTitle = useDeferredValue(state.bookTitle);
+  const deferredAuthor = useDeferredValue(state.author);
+  const onboardingBookSearchQuery =
+    deferredBookTitle.trim() || deferredAuthor.trim();
+  const onboardingBookSearchEnabled =
+    state.stepKey === 'book' &&
+    (state.selectedRecordOption === 'now' || state.selectedRecordOption === 'finished') &&
+    onboardingBookSearchQuery.length > 0;
+  const onboardingBookSearchQueryResult = useSearchOnboardingBooks(
+    onboardingBookSearchQuery,
+    onboardingBookSearchEnabled,
+  );
   const quoteImagePresignedUrlMutation = useQuoteImagePresignedUrl();
   const quoteImageOcrMutation = useQuoteImageOcr();
   const { setAuthSession } = actions;
@@ -269,6 +282,9 @@ export default function AppRoot() {
       nicknameSaveError={saveNicknameMutation.isError ? toUserMessage(saveNicknameMutation.error) : null}
       isFirstBookSaving={saveFirstBookMutation.isPending}
       firstBookSaveError={saveFirstBookMutation.isError ? toUserMessage(saveFirstBookMutation.error) : null}
+      searchedBooks={onboardingBookSearchQueryResult.data?.books ?? []}
+      isBookSearchLoading={onboardingBookSearchQueryResult.isLoading}
+      bookSearchError={onboardingBookSearchQueryResult.isError ? toUserMessage(onboardingBookSearchQueryResult.error) : null}
       aiStyles={aiStylesQuery.data ?? []}
       isAiStylesLoading={aiStylesQuery.isLoading}
       aiStylesError={aiStylesQuery.isError ? toUserMessage(aiStylesQuery.error) : null}
@@ -282,6 +298,10 @@ export default function AppRoot() {
       onNicknameChange={actions.setNickname}
       onBookTitleChange={actions.setBookTitle}
       onAuthorChange={actions.setAuthor}
+      onBookSelect={(book) => {
+        actions.setBookTitle(book.title);
+        actions.setAuthor(book.author);
+      }}
       onRecordOptionChange={actions.setSelectedRecordOption}
       onMoodChange={actions.setSelectedMood}
       onPrev={actions.goPrev}

@@ -4,6 +4,24 @@ import { Platform } from 'react-native';
 import { appleLogin } from '../services/authService';
 import { AuthSession } from '../model/auth.types';
 
+function logAppleLoginError(stage: string, error: unknown, extra?: Record<string, unknown>) {
+  const base =
+    typeof error === 'object' && error !== null
+      ? {
+          name: 'name' in error ? error.name : undefined,
+          message: 'message' in error ? error.message : undefined,
+          code: 'code' in error ? error.code : undefined,
+          stack: 'stack' in error ? error.stack : undefined,
+        }
+      : { message: String(error) };
+
+  console.error('[apple-login]', {
+    stage,
+    ...base,
+    ...extra,
+  });
+}
+
 export function useAppleLogin() {
   return useMutation<AuthSession | null, Error>({
     mutationFn: async () => {
@@ -33,10 +51,16 @@ export function useAppleLogin() {
         ) {
           return null;
         }
+        logAppleLoginError('apple-signin-sdk', error);
         throw error;
       }
 
       if (!credential.identityToken || !credential.authorizationCode) {
+        logAppleLoginError('credential-validation', new Error('missing identityToken or authorizationCode'), {
+          hasIdentityToken: Boolean(credential.identityToken),
+          hasAuthorizationCode: Boolean(credential.authorizationCode),
+          hasEmail: Boolean(credential.email),
+        });
         throw new Error('애플 인증 토큰을 가져오지 못했어요.');
       }
 
@@ -44,12 +68,22 @@ export function useAppleLogin() {
       const familyName = credential.fullName?.familyName ?? '';
       const fullName = `${familyName}${givenName}`.trim();
 
-      return appleLogin({
-        identityToken: credential.identityToken,
-        authorizationCode: credential.authorizationCode,
-        email: credential.email ?? undefined,
-        name: fullName || undefined,
-      });
+      try {
+        return await appleLogin({
+          identityToken: credential.identityToken,
+          authorizationCode: credential.authorizationCode,
+          email: credential.email ?? undefined,
+          name: fullName || undefined,
+        });
+      } catch (error) {
+        logAppleLoginError('backend-apple-login', error, {
+          identityTokenLength: credential.identityToken.length,
+          authorizationCodeLength: credential.authorizationCode.length,
+          hasEmail: Boolean(credential.email),
+          hasName: Boolean(fullName),
+        });
+        throw error;
+      }
     },
   });
 }

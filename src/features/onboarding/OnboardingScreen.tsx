@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { StepKey } from '../../app/types';
-import { AiStyle } from './model/onboarding.types';
+import { AiStyle, OnboardingBookSearchItem } from './model/onboarding.types';
 
 type Props = {
   step: number;
@@ -28,6 +28,9 @@ type Props = {
   nicknameSaveError: string | null;
   isFirstBookSaving: boolean;
   firstBookSaveError: string | null;
+  searchedBooks: OnboardingBookSearchItem[];
+  isBookSearchLoading: boolean;
+  bookSearchError: string | null;
   aiStyles: AiStyle[];
   isAiStylesLoading: boolean;
   aiStylesError: string | null;
@@ -38,6 +41,7 @@ type Props = {
   onNicknameChange: (value: string) => void;
   onBookTitleChange: (value: string) => void;
   onAuthorChange: (value: string) => void;
+  onBookSelect: (book: OnboardingBookSearchItem) => void;
   onRecordOptionChange: (value: string) => void;
   onMoodChange: (value: string) => void;
   onPrev: () => void;
@@ -63,6 +67,9 @@ export function OnboardingScreen(props: Props) {
     nicknameSaveError,
     isFirstBookSaving,
     firstBookSaveError,
+    searchedBooks,
+    isBookSearchLoading,
+    bookSearchError,
     aiStyles,
     isAiStylesLoading,
     aiStylesError,
@@ -73,6 +80,7 @@ export function OnboardingScreen(props: Props) {
     onNicknameChange,
     onBookTitleChange,
     onAuthorChange,
+    onBookSelect,
     onRecordOptionChange,
     onMoodChange,
     onPrev,
@@ -80,6 +88,11 @@ export function OnboardingScreen(props: Props) {
     onAppleLoginPress,
     onRetryAiStyles,
   } = props;
+  const [showBookResults, setShowBookResults] = useState(true);
+
+  useEffect(() => {
+    setShowBookResults(true);
+  }, [bookTitle, author]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -155,8 +168,39 @@ export function OnboardingScreen(props: Props) {
                     placeholder="책 제목을 입력하세요"
                     placeholderTextColor="#aca396"
                     value={bookTitle}
-                    onChangeText={onBookTitleChange}
+                    onChangeText={(value) => {
+                      setShowBookResults(true);
+                      onBookTitleChange(value);
+                    }}
                   />
+                  {showBookResults && (bookTitle.trim() || author.trim()) ? (
+                    <View style={styles.searchResultsWrap}>
+                      {isBookSearchLoading ? <Text style={styles.infoText}>검색 결과를 불러오는 중...</Text> : null}
+                      {!isBookSearchLoading && bookSearchError ? (
+                        <Text style={styles.errorText}>{bookSearchError}</Text>
+                      ) : null}
+                      {!isBookSearchLoading && !bookSearchError && searchedBooks.length === 0 ? (
+                        <Text style={styles.infoText}>검색 결과가 없어요.</Text>
+                      ) : null}
+                      {!isBookSearchLoading && !bookSearchError && searchedBooks.length > 0 ? (
+                        <ScrollView style={styles.searchResultsList} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                          {searchedBooks.map((book) => (
+                            <TouchableOpacity
+                              key={book.bookId}
+                              style={styles.searchResultItem}
+                              onPress={() => {
+                                setShowBookResults(false);
+                                onBookSelect(book);
+                              }}
+                            >
+                              <Text style={styles.searchResultTitle}>{book.title}</Text>
+                              <Text style={styles.searchResultAuthor}>{book.author}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      ) : null}
+                    </View>
+                  ) : null}
 
                   <Text style={styles.label}>저자</Text>
                   <TextInput
@@ -164,7 +208,10 @@ export function OnboardingScreen(props: Props) {
                     placeholder="저자를 입력하세요"
                     placeholderTextColor="#aca396"
                     value={author}
-                    onChangeText={onAuthorChange}
+                    onChangeText={(value) => {
+                      setShowBookResults(true);
+                      onAuthorChange(value);
+                    }}
                   />
                 </View>
               )}
@@ -416,6 +463,32 @@ const styles = StyleSheet.create({
   optionBtnText: { color: '#5a5247', fontSize: 14, fontWeight: '600', textAlign: 'center' },
   optionBtnTextActive: { color: '#fff' },
   formWrap: { marginTop: 2 },
+  searchResultsWrap: {
+    backgroundColor: '#fbf8f3',
+    borderWidth: 1,
+    borderColor: '#e7e0d3',
+    borderRadius: 14,
+    marginTop: 8,
+    marginBottom: 2,
+    paddingVertical: 4,
+  },
+  searchResultsList: {
+    maxHeight: 150,
+  },
+  searchResultItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  searchResultTitle: {
+    fontSize: 15,
+    color: '#2f2a24',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  searchResultAuthor: {
+    fontSize: 13,
+    color: '#7c7468',
+  },
   label: { fontSize: 12, color: '#6d655b', marginBottom: 6, marginTop: 10 },
   input: {
     backgroundColor: '#f0ece5',

@@ -1,5 +1,6 @@
 import {
   CompleteOnboardingRequestDto,
+  OnboardingBookSearchResponseDto,
   CompleteOnboardingResponseDto,
   GetAiStylesResponseDto,
   SaveAiStyleRequestDto,
@@ -13,6 +14,7 @@ import {
   AiStyle,
   CompleteOnboardingInput,
   CompleteOnboardingResult,
+  OnboardingBookSearchResult,
   FirstBookSaveResult,
   SaveAiStyleInput,
   SaveAiStyleResult,
@@ -111,5 +113,20 @@ export function toCompleteOnboardingResult(dto: CompleteOnboardingResponseDto): 
       nextStep: dto.onboardingStatus.nextStep,
       completedSteps: dto.onboardingStatus.completedSteps,
     },
+  };
+}
+
+export function toOnboardingBookSearchResult(dto: OnboardingBookSearchResponseDto): OnboardingBookSearchResult {
+  return {
+    query: dto.query,
+    books: dto.books.map((book) => ({
+      bookId: book.bookId,
+      title: book.title,
+      author: book.author,
+      coverImageUrl: book.coverImageUrl,
+      publisher: book.publisher,
+      publishedAt: book.publishedAt,
+      sourceType: book.sourceType,
+    })),
   };
 }
