@@ -265,9 +265,9 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
                 onChangeText={setSearchKeyword}
               />
             </View>
-            <View style={styles.roundButton}>
+            <TouchableOpacity style={styles.roundButton} onPress={onPressMyPage}>
               <Text style={styles.roundButtonText}>My</Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.homeTabRow}>
@@ -656,10 +656,6 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
           <TouchableOpacity style={styles.bottomItem} onPress={onPressAiChat}>
             <Text style={styles.bottomIcon}>◔</Text>
             <Text style={styles.bottomLabel}>AI 채팅</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.bottomItem} onPress={onPressMyPage}>
-            <Text style={styles.bottomIcon}>⚪</Text>
-            <Text style={styles.bottomLabel}>마이</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -1131,19 +1127,19 @@ const styles = StyleSheet.create({
   },
   floatingButtonText: { color: '#fff', fontSize: 18, lineHeight: 18, marginTop: -1 },
   bottomNav: {
-    height: 48,
+    height: 72,
     borderTopWidth: 1,
-    borderColor: '#e6ddcf',
-    backgroundColor: '#f8f4ed',
+    borderColor: '#0d0d0d',
+    backgroundColor: '#44c3f3',
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     marginTop: 8,
   },
-  bottomItem: { alignItems: 'center', justifyContent: 'center' },
-  bottomIcon: { fontSize: 14, color: '#8f8578', marginBottom: 1 },
-  bottomLabel: { fontSize: 10, color: '#92897d' },
-  bottomLabelActive: { fontSize: 10, color: '#8d7353', fontWeight: '700' },
+  bottomItem: { alignItems: 'center', justifyContent: 'center', minWidth: 70 },
+  bottomIcon: { fontSize: 18, color: '#111', marginBottom: 4 },
+  bottomLabel: { fontSize: 10, color: '#111', fontWeight: '700' },
+  bottomLabelActive: { fontSize: 10, color: '#fff', fontWeight: '700' },
 });
 
 function emojiTypeToIcon(type: HomeCardEmojiType): string {
