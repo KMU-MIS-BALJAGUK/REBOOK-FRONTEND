@@ -645,14 +645,14 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
         </Pressable>
 
         <View style={styles.bottomNav}>
-          <View style={styles.bottomItem}>
-            <Text style={styles.bottomIcon}>⌂</Text>
-            <Text style={styles.bottomLabelActive}>홈</Text>
-          </View>
           <TouchableOpacity style={styles.bottomItem} onPress={onPressCommunity}>
             <Text style={styles.bottomIcon}>◌</Text>
             <Text style={styles.bottomLabel}>커뮤니티</Text>
           </TouchableOpacity>
+          <View style={styles.bottomItem}>
+            <Text style={styles.bottomIcon}>⌂</Text>
+            <Text style={styles.bottomLabelActive}>홈</Text>
+          </View>
           <TouchableOpacity style={styles.bottomItem} onPress={onPressAiChat}>
             <Text style={styles.bottomIcon}>◔</Text>
             <Text style={styles.bottomLabel}>AI 채팅</Text>
@@ -1132,11 +1132,12 @@ const styles = StyleSheet.create({
     borderColor: '#0d0d0d',
     backgroundColor: '#44c3f3',
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 8,
+    paddingHorizontal: 12,
   },
-  bottomItem: { alignItems: 'center', justifyContent: 'center', minWidth: 70 },
+  bottomItem: { alignItems: 'center', justifyContent: 'center', flex: 1 },
   bottomIcon: { fontSize: 18, color: '#111', marginBottom: 4 },
   bottomLabel: { fontSize: 10, color: '#111', fontWeight: '700' },
   bottomLabelActive: { fontSize: 10, color: '#fff', fontWeight: '700' },
