@@ -227,25 +227,23 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.container}>
-        <View style={styles.topBar}>
-          <Text style={styles.backIcon}>←</Text>
-          <Text style={styles.headerTitle}>책별 커뮤니티</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+        <View style={styles.topPanel}>
+          <Text style={styles.brandTitle}>ReBook</Text>
 
-        <View style={styles.searchRow}>
-          <View style={styles.searchPill}>
-            <Text style={styles.searchIcon}>⌕</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="책 제목으로 검색"
-              placeholderTextColor="#9f968a"
-              value={searchKeyword}
-              onChangeText={setSearchKeyword}
-            />
-          </View>
-          <View style={styles.badgeButton}>
-            <Text style={styles.badgeButtonText}>나</Text>
+          <View style={styles.homeSearchRow}>
+            <View style={styles.searchPill}>
+              <Text style={styles.searchIcon}>⌕</Text>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="키워드를 검색하세요"
+                placeholderTextColor="#9f968a"
+                value={searchKeyword}
+                onChangeText={setSearchKeyword}
+              />
+            </View>
+            <TouchableOpacity style={styles.roundButton} onPress={onPressMyPage}>
+              <Text style={styles.roundButtonText}>My</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -855,19 +853,23 @@ function resolveRemoteImageUrl(url: string | null | undefined): string {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#44c3f3' },
   container: { flex: 1, backgroundColor: '#44c3f3' },
-  topBar: {
+  topPanel: {
     backgroundColor: '#44c3f3',
     paddingHorizontal: 14,
-    paddingTop: 8,
+    paddingTop: 6,
     paddingBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#111',
   },
-  backIcon: { fontSize: 18, color: '#111', width: 30 },
-  headerTitle: { flex: 1, textAlign: 'left', color: '#111', fontSize: 18, fontWeight: '800' },
-  headerSpacer: { width: 30 },
-  username: { display: 'none' as const },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, paddingHorizontal: 14 },
+  brandTitle: {
+    color: '#111',
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  homeSearchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   searchPill: {
     flex: 1,
     minHeight: 40,
@@ -881,7 +883,7 @@ const styles = StyleSheet.create({
   },
   searchIcon: { fontSize: 16, color: '#111', marginRight: 8 },
   searchInput: { flex: 1, fontSize: 15, color: '#141414', paddingVertical: 0 },
-  badgeButton: {
+  roundButton: {
     width: 48,
     height: 40,
     borderRadius: 0,
@@ -889,7 +891,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  badgeButtonText: { color: '#44c3f3', fontSize: 11, fontWeight: '800' },
+  roundButtonText: { color: '#44c3f3', fontSize: 11, fontWeight: '800' },
   scroll: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 14 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: 8 },
   sectionTitleLarge: { fontSize: 12, color: '#4f463c', fontWeight: '700' },
@@ -971,7 +973,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   bottomNav: {
-    height: 72,
+    height: 84,
     borderTopWidth: 1,
     borderColor: '#0d0d0d',
     backgroundColor: '#44c3f3',
@@ -981,10 +983,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 12,
   },
-  bottomItem: { alignItems: 'center', justifyContent: 'center', flex: 1 },
-  bottomIcon: { fontSize: 18, color: '#111', marginBottom: 4 },
-  bottomLabel: { fontSize: 10, color: '#111', fontWeight: '700' },
-  bottomLabelActive: { fontSize: 10, color: '#111', fontWeight: '800' },
+  bottomItem: { alignItems: 'center', justifyContent: 'center', flex: 1, paddingVertical: 8 },
+  bottomIcon: { fontSize: 22, color: '#111', marginBottom: 5 },
+  bottomLabel: { fontSize: 11, color: '#111', fontWeight: '700' },
+  bottomLabelActive: { fontSize: 11, color: '#fff', fontWeight: '700' },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(32, 26, 20, 0.45)',

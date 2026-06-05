@@ -777,11 +777,11 @@ function resolveRemoteImageUrl(url: string | null | undefined): string {
 
 const styles = StyleSheet.create({
   homeSafeArea: { flex: 1, backgroundColor: '#44c3f3' },
-  homeContainer: { flex: 1, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 10, backgroundColor: '#44c3f3' },
+  homeContainer: { flex: 1, paddingHorizontal: 0, paddingTop: 8, paddingBottom: 10, backgroundColor: '#44c3f3' },
   topPanel: {
     backgroundColor: '#44c3f3',
     paddingTop: 6,
-    paddingHorizontal: 4,
+    paddingHorizontal: 14,
     paddingBottom: 10,
   },
   homeContent: {
@@ -1127,7 +1127,7 @@ const styles = StyleSheet.create({
   },
   floatingButtonText: { color: '#fff', fontSize: 18, lineHeight: 18, marginTop: -1 },
   bottomNav: {
-    height: 72,
+    height: 84,
     borderTopWidth: 1,
     borderColor: '#0d0d0d',
     backgroundColor: '#44c3f3',
@@ -1137,10 +1137,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 12,
   },
-  bottomItem: { alignItems: 'center', justifyContent: 'center', flex: 1 },
-  bottomIcon: { fontSize: 18, color: '#111', marginBottom: 4 },
-  bottomLabel: { fontSize: 10, color: '#111', fontWeight: '700' },
-  bottomLabelActive: { fontSize: 10, color: '#fff', fontWeight: '700' },
+  bottomItem: { alignItems: 'center', justifyContent: 'center', flex: 1, paddingVertical: 8 },
+  bottomIcon: { fontSize: 22, color: '#111', marginBottom: 5 },
+  bottomLabel: { fontSize: 11, color: '#111', fontWeight: '700' },
+  bottomLabelActive: { fontSize: 11, color: '#fff', fontWeight: '700' },
 });
 
 function emojiTypeToIcon(type: HomeCardEmojiType): string {
