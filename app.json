@@ -29,6 +29,13 @@
     "plugins": [
       "expo-secure-store",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "문장 사진을 촬영하기 위해 카메라 권한이 필요합니다.",
+          "microphonePermission": false
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "문장 사진을 선택하기 위해 사진 접근 권한이 필요합니다.",

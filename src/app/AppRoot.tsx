@@ -1,6 +1,7 @@
 import React from 'react';
 import { useDeferredValue, useEffect, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useAppFlow } from './useAppFlow';
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
 import { HomeScreen } from '../features/home/HomeScreen';
@@ -27,6 +28,7 @@ import { toUserMessage } from '../shared/utils/apiError';
 import { QuoteOcrBlock } from '../features/quote/model/quoteOcr.types';
 import { QuoteImageUploadInput } from '../features/quote/model/quoteImageUpload.types';
 import { QuoteImageAttachmentResult } from '../features/quote/model/quoteImageAttachment.types';
+import { QuoteLocalImageAsset } from '../features/quote/model/quoteLocalImage.types';
 
 type OcrQuoteContext = QuoteImageAttachmentResult;
 
@@ -57,7 +59,7 @@ function resolveQuoteImageFileExtension(contentType: string, fileName?: string |
   return 'jpg';
 }
 
-async function prepareQuoteImageAsset(asset: ImagePicker.ImagePickerAsset): Promise<PreparedQuoteImageAsset> {
+async function prepareQuoteImageAsset(asset: QuoteLocalImageAsset): Promise<PreparedQuoteImageAsset> {
   const response = await fetch(asset.uri);
   const blob = await response.blob();
   const contentType = asset.mimeType ?? 'image/jpeg';
@@ -68,6 +70,54 @@ async function prepareQuoteImageAsset(asset: ImagePicker.ImagePickerAsset): Prom
     fileName,
     contentType,
     fileSize: asset.fileSize ?? blob.size,
+  };
+}
+
+async function cropQuoteImageAsset(
+  asset: QuoteLocalImageAsset,
+  targetAspectRatio: number,
+): Promise<QuoteLocalImageAsset> {
+  if (!asset.width || !asset.height || asset.width <= 0 || asset.height <= 0) {
+    return asset;
+  }
+
+  const sourceRatio = asset.width / asset.height;
+  let cropWidth = asset.width;
+  let cropHeight = asset.height;
+
+  if (sourceRatio > targetAspectRatio) {
+    cropWidth = Math.round(asset.height * targetAspectRatio);
+  } else {
+    cropHeight = Math.round(asset.width / targetAspectRatio);
+  }
+
+  const originX = Math.max(0, Math.round((asset.width - cropWidth) / 2));
+  const originY = Math.max(0, Math.round((asset.height - cropHeight) / 2));
+  const format = asset.mimeType === 'image/png' ? ImageManipulator.SaveFormat.PNG : ImageManipulator.SaveFormat.JPEG;
+  const manipulated = await ImageManipulator.manipulateAsync(
+    asset.uri,
+    [
+      {
+        crop: {
+          originX,
+          originY,
+          width: cropWidth,
+          height: cropHeight,
+        },
+      },
+    ],
+    {
+      format,
+      compress: 1,
+    },
+  );
+
+  return {
+    uri: manipulated.uri,
+    fileName: asset.fileName ?? `quote-image-${Date.now()}.${format === ImageManipulator.SaveFormat.PNG ? 'png' : 'jpg'}`,
+    mimeType: format === ImageManipulator.SaveFormat.PNG ? 'image/png' : 'image/jpeg',
+    width: manipulated.width,
+    height: manipulated.height,
   };
 }
 
@@ -100,7 +150,7 @@ export default function AppRoot() {
   const [quoteImageFlowError, setQuoteImageFlowError] = useState<string | null>(null);
 
   const processQuoteImageAsset = async (
-    asset: ImagePicker.ImagePickerAsset,
+    asset: QuoteLocalImageAsset,
     shouldNavigateToPreview: boolean,
   ): Promise<QuoteImageAttachmentResult> => {
     setQuoteImageFlowError(null);
@@ -143,28 +193,26 @@ export default function AppRoot() {
     return attachmentResult;
   };
 
-  const launchCameraQuoteFlow = async () => {
+  const attachQuoteImageFromGallery = async (): Promise<QuoteImageAttachmentResult | null> => {
     try {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        setQuoteImageFlowError('카메라 권한이 필요합니다.');
-        return;
+        throw createUserFacingError('사진 접근 권한이 필요합니다.');
       }
 
-      const result = await ImagePicker.launchCameraAsync({
+      const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         quality: 1,
         allowsEditing: false,
-        cameraType: ImagePicker.CameraType.back,
       });
 
       if (result.canceled || !result.assets?.length) {
-        return;
+        return null;
       }
 
-      await processQuoteImageAsset(result.assets[0], true);
+      return await processQuoteImageAsset(result.assets[0], false);
     } catch (error) {
-      setQuoteImageFlowError(toUserMessage(error));
+      throw error instanceof Error ? error : createUserFacingError('이미지 첨부에 실패했어요.');
     }
   };
 
@@ -189,29 +237,6 @@ export default function AppRoot() {
       await processQuoteImageAsset(result.assets[0], true);
     } catch (error) {
       setQuoteImageFlowError(toUserMessage(error));
-    }
-  };
-
-  const attachQuoteImageFromGallery = async (): Promise<QuoteImageAttachmentResult | null> => {
-    try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        throw createUserFacingError('사진 접근 권한이 필요합니다.');
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        quality: 1,
-        allowsEditing: false,
-      });
-
-      if (result.canceled || !result.assets?.length) {
-        return null;
-      }
-
-      return await processQuoteImageAsset(result.assets[0], false);
-    } catch (error) {
-      throw error instanceof Error ? error : createUserFacingError('이미지 첨부에 실패했어요.');
     }
   };
 
@@ -317,8 +342,10 @@ export default function AppRoot() {
                 ? toUserMessage(quoteImageOcrMutation.error)
                 : null)
         }
-        onCapture={() => {
-          void launchCameraQuoteFlow();
+        onCapture={async (asset) => {
+          await processQuoteImageAsset(asset, true).catch((error) => {
+            setQuoteImageFlowError(toUserMessage(error));
+          });
         }}
       />
     );
