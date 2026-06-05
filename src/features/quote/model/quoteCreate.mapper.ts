@@ -1,9 +1,8 @@
-import { RegisterType } from '../../../app/types';
 import { CreateQuoteRequestDto, CreateQuoteResponseDto } from './quoteCreate.dto';
 import { CreateQuoteInput, CreateQuoteResult, QuoteSourceType } from './quoteCreate.types';
 
-function resolveSourceType(registerType: RegisterType, hasOcrSource: boolean): QuoteSourceType {
-  if ((registerType === 'camera' || registerType === 'gallery') && hasOcrSource) {
+function resolveSourceType(hasOcrSource: boolean): QuoteSourceType {
+  if (hasOcrSource) {
     return 'IMAGE_OCR';
   }
 
@@ -11,7 +10,7 @@ function resolveSourceType(registerType: RegisterType, hasOcrSource: boolean): Q
 }
 
 export function toCreateQuoteRequestDto(input: CreateQuoteInput): CreateQuoteRequestDto {
-  const sourceType = resolveSourceType(input.registerType, Boolean(input.ocrSource));
+  const sourceType = resolveSourceType(Boolean(input.ocrSource));
 
   return {
     book: {

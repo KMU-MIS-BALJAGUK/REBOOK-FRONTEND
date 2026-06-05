@@ -1,5 +1,6 @@
 import React from 'react';
 import { useDeferredValue, useEffect, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
 import { useAppFlow } from './useAppFlow';
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
 import { HomeScreen } from '../features/home/HomeScreen';
@@ -13,6 +14,7 @@ import { OcrPreviewScreen } from '../features/quote/screens/OcrPreviewScreen';
 import { QuoteFormScreen } from '../features/quote/screens/QuoteFormScreen';
 import { useQuoteImagePresignedUrl } from '../features/quote/hooks/useQuoteImagePresignedUrl';
 import { useQuoteImageOcr } from '../features/quote/hooks/useQuoteImageOcr';
+import { useQuoteImageUpload } from '../features/quote/hooks/useQuoteImageUpload';
 import { useAppleLogin } from '../features/onboarding/hooks/useAppleLogin';
 import { useAiStyles } from '../features/onboarding/hooks/useAiStyles';
 import { useSaveNickname } from '../features/onboarding/hooks/useSaveNickname';
@@ -23,13 +25,51 @@ import { useSearchOnboardingBooks } from '../features/onboarding/hooks/useSearch
 import { hydrateSession, setSession } from '../shared/auth/authSession';
 import { toUserMessage } from '../shared/utils/apiError';
 import { QuoteOcrBlock } from '../features/quote/model/quoteOcr.types';
+import { QuoteImageUploadInput } from '../features/quote/model/quoteImageUpload.types';
+import { QuoteImageAttachmentResult } from '../features/quote/model/quoteImageAttachment.types';
 
-type OcrQuoteContext = {
-  imageId: number;
-  ocrId: number;
-  fullText: string;
-  blockIds: number[];
+type OcrQuoteContext = QuoteImageAttachmentResult;
+
+type UserFacingError = Error & {
+  userMessage: string;
 };
+
+type PreparedQuoteImageAsset = {
+  blob: Blob;
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+};
+
+function createUserFacingError(message: string): UserFacingError {
+  const error = new Error(message) as UserFacingError;
+  error.userMessage = message;
+  return error;
+}
+
+function resolveQuoteImageFileExtension(contentType: string, fileName?: string | null) {
+  const currentExtension = fileName?.split('.').pop()?.trim().toLowerCase();
+  if (currentExtension) {
+    return currentExtension;
+  }
+  if (contentType === 'image/png') return 'png';
+  if (contentType === 'image/webp') return 'webp';
+  return 'jpg';
+}
+
+async function prepareQuoteImageAsset(asset: ImagePicker.ImagePickerAsset): Promise<PreparedQuoteImageAsset> {
+  const response = await fetch(asset.uri);
+  const blob = await response.blob();
+  const contentType = asset.mimeType ?? 'image/jpeg';
+  const fileName = asset.fileName ?? `quote-image-${Date.now()}.${resolveQuoteImageFileExtension(contentType, asset.fileName)}`;
+
+  return {
+    blob,
+    fileName,
+    contentType,
+    fileSize: asset.fileSize ?? blob.size,
+  };
+}
 
 export default function AppRoot() {
   const { state, actions } = useAppFlow();
@@ -52,10 +92,128 @@ export default function AppRoot() {
     onboardingBookSearchEnabled,
   );
   const quoteImagePresignedUrlMutation = useQuoteImagePresignedUrl();
+  const quoteImageUploadMutation = useQuoteImageUpload();
   const quoteImageOcrMutation = useQuoteImageOcr();
   const { setAuthSession, setScreen } = actions;
   const [ocrPreviewBlocks, setOcrPreviewBlocks] = useState<QuoteOcrBlock[] | undefined>(undefined);
   const [ocrQuoteContext, setOcrQuoteContext] = useState<OcrQuoteContext | undefined>(undefined);
+  const [quoteImageFlowError, setQuoteImageFlowError] = useState<string | null>(null);
+
+  const processQuoteImageAsset = async (
+    asset: ImagePicker.ImagePickerAsset,
+    shouldNavigateToPreview: boolean,
+  ): Promise<QuoteImageAttachmentResult> => {
+    setQuoteImageFlowError(null);
+    setOcrPreviewBlocks(undefined);
+    setOcrQuoteContext(undefined);
+
+    const preparedAsset = await prepareQuoteImageAsset(asset);
+    const presigned = await quoteImagePresignedUrlMutation.mutateAsync({
+      fileName: preparedAsset.fileName,
+      contentType: preparedAsset.contentType,
+      fileSize: preparedAsset.fileSize,
+      purpose: 'QUOTE_OCR',
+    });
+
+    await quoteImageUploadMutation.mutateAsync({
+      uploadUrl: presigned.uploadUrl,
+      method: presigned.method,
+      headers: presigned.headers,
+      blob: preparedAsset.blob,
+    } satisfies QuoteImageUploadInput);
+
+    const ocr = await quoteImageOcrMutation.mutateAsync({
+      imageId: presigned.imageId,
+      imageUrl: presigned.publicUrl,
+    });
+
+    const attachmentResult = {
+      imageId: ocr.imageId,
+      ocrId: ocr.ocrId,
+      fullText: ocr.fullText,
+      blockIds: ocr.blocks.filter((block) => block.selected).map((block) => block.blockId),
+    };
+
+    if (shouldNavigateToPreview) {
+      setOcrPreviewBlocks(ocr.blocks);
+      setOcrQuoteContext(attachmentResult);
+      actions.setScreen('ocr-preview');
+    }
+
+    return attachmentResult;
+  };
+
+  const launchCameraQuoteFlow = async () => {
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        setQuoteImageFlowError('카메라 권한이 필요합니다.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 1,
+        allowsEditing: false,
+        cameraType: ImagePicker.CameraType.back,
+      });
+
+      if (result.canceled || !result.assets?.length) {
+        return;
+      }
+
+      await processQuoteImageAsset(result.assets[0], true);
+    } catch (error) {
+      setQuoteImageFlowError(toUserMessage(error));
+    }
+  };
+
+  const launchGalleryQuoteFlow = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setQuoteImageFlowError('사진 접근 권한이 필요합니다.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 1,
+        allowsEditing: false,
+      });
+
+      if (result.canceled || !result.assets?.length) {
+        return;
+      }
+
+      await processQuoteImageAsset(result.assets[0], true);
+    } catch (error) {
+      setQuoteImageFlowError(toUserMessage(error));
+    }
+  };
+
+  const attachQuoteImageFromGallery = async (): Promise<QuoteImageAttachmentResult | null> => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        throw createUserFacingError('사진 접근 권한이 필요합니다.');
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 1,
+        allowsEditing: false,
+      });
+
+      if (result.canceled || !result.assets?.length) {
+        return null;
+      }
+
+      return await processQuoteImageAsset(result.assets[0], false);
+    } catch (error) {
+      throw error instanceof Error ? error : createUserFacingError('이미지 첨부에 실패했어요.');
+    }
+  };
 
   useEffect(() => {
     const syncSession = async () => {
@@ -140,48 +298,27 @@ export default function AppRoot() {
   if (state.screen === 'camera-capture') {
     return (
       <CameraCaptureScreen
-        onBack={() => actions.setScreen('quote-method')}
-        isUploading={quoteImagePresignedUrlMutation.isPending || quoteImageOcrMutation.isPending}
+        onBack={() => {
+          setQuoteImageFlowError(null);
+          actions.setScreen('quote-method');
+        }}
+        isUploading={
+          quoteImagePresignedUrlMutation.isPending ||
+          quoteImageUploadMutation.isPending ||
+          quoteImageOcrMutation.isPending
+        }
         uploadError={
-          quoteImagePresignedUrlMutation.isError
+          quoteImageFlowError ??
+          (quoteImagePresignedUrlMutation.isError
             ? toUserMessage(quoteImagePresignedUrlMutation.error)
-            : quoteImageOcrMutation.isError
-              ? toUserMessage(quoteImageOcrMutation.error)
-              : null
+            : quoteImageUploadMutation.isError
+              ? toUserMessage(quoteImageUploadMutation.error)
+              : quoteImageOcrMutation.isError
+                ? toUserMessage(quoteImageOcrMutation.error)
+                : null)
         }
         onCapture={() => {
-          setOcrPreviewBlocks(undefined);
-          setOcrQuoteContext(undefined);
-          quoteImagePresignedUrlMutation.mutate(
-            {
-              fileName: `camera-${Date.now()}.jpg`,
-              contentType: 'image/jpeg',
-              fileSize: 345678,
-              purpose: 'QUOTE_OCR',
-            },
-            {
-              onSuccess: (presigned) => {
-                quoteImageOcrMutation.mutate(
-                  {
-                    imageId: presigned.imageId,
-                    imageUrl: presigned.publicUrl,
-                  },
-                  {
-                    onSuccess: (ocr) => {
-                      setOcrPreviewBlocks(ocr.blocks);
-                      setOcrQuoteContext({
-                        imageId: ocr.imageId,
-                        ocrId: ocr.ocrId,
-                        fullText: ocr.fullText,
-                        blockIds: ocr.blocks.filter((block) => block.selected).map((block) => block.blockId),
-                      });
-                      actions.setScreen('ocr-preview');
-                    },
-                  },
-                );
-              },
-            },
-          );
+          void launchCameraQuoteFlow();
         }}
       />
     );
@@ -190,48 +327,27 @@ export default function AppRoot() {
   if (state.screen === 'gallery-picker') {
     return (
       <GalleryPickerScreen
-        onBack={() => actions.setScreen('quote-method')}
-        isUploading={quoteImagePresignedUrlMutation.isPending || quoteImageOcrMutation.isPending}
+        onBack={() => {
+          setQuoteImageFlowError(null);
+          actions.setScreen('quote-method');
+        }}
+        isUploading={
+          quoteImagePresignedUrlMutation.isPending ||
+          quoteImageUploadMutation.isPending ||
+          quoteImageOcrMutation.isPending
+        }
         uploadError={
-          quoteImagePresignedUrlMutation.isError
+          quoteImageFlowError ??
+          (quoteImagePresignedUrlMutation.isError
             ? toUserMessage(quoteImagePresignedUrlMutation.error)
-            : quoteImageOcrMutation.isError
-              ? toUserMessage(quoteImageOcrMutation.error)
-              : null
+            : quoteImageUploadMutation.isError
+              ? toUserMessage(quoteImageUploadMutation.error)
+              : quoteImageOcrMutation.isError
+                ? toUserMessage(quoteImageOcrMutation.error)
+                : null)
         }
         onPick={() => {
-          setOcrPreviewBlocks(undefined);
-          setOcrQuoteContext(undefined);
-          quoteImagePresignedUrlMutation.mutate(
-            {
-              fileName: `gallery-${Date.now()}.webp`,
-              contentType: 'image/webp',
-              fileSize: 345678,
-              purpose: 'QUOTE_OCR',
-            },
-            {
-              onSuccess: (presigned) => {
-                quoteImageOcrMutation.mutate(
-                  {
-                    imageId: presigned.imageId,
-                    imageUrl: presigned.publicUrl,
-                  },
-                  {
-                    onSuccess: (ocr) => {
-                      setOcrPreviewBlocks(ocr.blocks);
-                      setOcrQuoteContext({
-                        imageId: ocr.imageId,
-                        ocrId: ocr.ocrId,
-                        fullText: ocr.fullText,
-                        blockIds: ocr.blocks.filter((block) => block.selected).map((block) => block.blockId),
-                      });
-                      actions.setScreen('ocr-preview');
-                    },
-                  },
-                );
-              },
-            },
-          );
+          void launchGalleryQuoteFlow();
         }}
       />
     );
@@ -265,6 +381,7 @@ export default function AppRoot() {
               }
             : undefined
         }
+        onAttachImage={attachQuoteImageFromGallery}
       />
     );
   }

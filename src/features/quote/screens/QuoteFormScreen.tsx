@@ -1,7 +1,8 @@
-import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import React, { useDeferredValue, useEffect, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { RegisterType } from '../../../app/types';
 import { toUserMessage } from '../../../shared/utils/apiError';
+import { QuoteImageAttachmentResult } from '../model/quoteImageAttachment.types';
 import { useCreateFolder } from '../hooks/useCreateFolder';
 import { useQuoteBookSearch } from '../hooks/useQuoteBookSearch';
 import { useCreateQuote } from '../hooks/useCreateQuote';
@@ -17,9 +18,17 @@ type Props = {
     ocrId: number;
     blockIds?: number[];
   };
+  onAttachImage: () => Promise<QuoteImageAttachmentResult | null>;
 };
 
-export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteText, ocrSource }: Props) {
+type AttachedOcrSource = {
+  imageId: number;
+  ocrId: number;
+  blockIds?: number[];
+  fullText?: string;
+};
+
+export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteText, ocrSource, onAttachImage }: Props) {
   const createQuoteMutation = useCreateQuote();
   const createFolderMutation = useCreateFolder();
   const foldersQuery = useFolders({ includeQuoteCount: true });
@@ -33,6 +42,10 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [folderError, setFolderError] = useState<string | null>(null);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [attachedImage, setAttachedImage] = useState<AttachedOcrSource | null>(
+    ocrSource ? { ...ocrSource, fullText: initialQuoteText ?? '' } : null,
+  );
   const [validationError, setValidationError] = useState<string | null>(null);
   const methodLabel = initialMethod === 'manual' ? '직접입력' : initialMethod === 'camera' ? '사진찍기' : '갤러리';
   const apiError = createQuoteMutation.isError ? toUserMessage(createQuoteMutation.error) : null;
@@ -42,12 +55,21 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
   const deferredAuthor = useDeferredValue(author);
   const bookSearchQuery = deferredBook.trim() || deferredAuthor.trim();
   const quoteBookSearchQuery = useQuoteBookSearch(bookSearchQuery, bookSearchQuery.length > 0);
-  const canUseOcrSource = useMemo(
-    () => (initialMethod === 'camera' || initialMethod === 'gallery') && Boolean(ocrSource),
-    [initialMethod, ocrSource],
-  );
   const createFolderError = createFolderMutation.isError ? toUserMessage(createFolderMutation.error) : null;
   const bookSearchError = quoteBookSearchQuery.isError ? toUserMessage(quoteBookSearchQuery.error) : null;
+  const quoteOcrSource = attachedImage
+    ? {
+        imageId: attachedImage.imageId,
+        ocrId: attachedImage.ocrId,
+        blockIds: attachedImage.blockIds,
+      }
+    : undefined;
+
+  useEffect(() => {
+    if (ocrSource) {
+      setAttachedImage({ ...ocrSource, fullText: initialQuoteText ?? '' });
+    }
+  }, [initialQuoteText, ocrSource]);
 
   useEffect(() => {
     if (!book.trim() && !author.trim()) {
@@ -85,7 +107,7 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
         memo: memo.trim() ? memo.trim() : undefined,
         folderId: selectedFolderId ?? undefined,
         registerType: initialMethod,
-        ocrSource: canUseOcrSource ? ocrSource : undefined,
+        ocrSource: quoteOcrSource,
       },
       {
         onSuccess: () => {
@@ -118,6 +140,26 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
         },
       },
     );
+  };
+
+  const handleAttachImage = async () => {
+    setAttachmentError(null);
+    try {
+      const result = await onAttachImage();
+      if (!result) {
+        return;
+      }
+
+      setAttachedImage(result);
+      setQuote(result.fullText);
+    } catch (error) {
+      setAttachmentError(toUserMessage(error));
+    }
+  };
+
+  const handleRemoveAttachment = () => {
+    setAttachedImage(null);
+    setAttachmentError(null);
   };
 
   return (
@@ -186,6 +228,24 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
           placeholder="페이지 번호"
         />
         <Text style={styles.formLabel}>수집 문장</Text>
+        <View style={styles.quoteAttachmentHeader}>
+          <Text style={styles.quoteAttachmentHeaderText}>이미지 첨부</Text>
+          <TouchableOpacity style={styles.quoteAttachButton} onPress={() => void handleAttachImage()}>
+            <Text style={styles.quoteAttachButtonText}>갤러리에서 선택</Text>
+          </TouchableOpacity>
+        </View>
+        {attachedImage ? (
+          <View style={styles.attachmentCard}>
+            <View style={styles.attachmentInfo}>
+              <Text style={styles.attachmentTitle}>이미지 첨부됨</Text>
+              <Text style={styles.attachmentSub}>OCR 결과를 문장 칸에 반영했어요.</Text>
+            </View>
+            <TouchableOpacity onPress={handleRemoveAttachment}>
+              <Text style={styles.attachmentRemoveText}>삭제</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+        {attachmentError ? <Text style={styles.errorText}>{attachmentError}</Text> : null}
         <TextInput
           style={styles.formTextArea}
           value={quote}
@@ -311,6 +371,63 @@ const styles = StyleSheet.create({
     borderColor: '#e4dbcd',
     backgroundColor: '#f9f6f0',
     padding: 8,
+  },
+  quoteAttachmentHeader: {
+    marginTop: 2,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  quoteAttachmentHeaderText: {
+    fontSize: 11,
+    color: '#746b5f',
+    fontWeight: '600',
+  },
+  quoteAttachButton: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#8d7353',
+    backgroundColor: '#f8f5ee',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  quoteAttachButtonText: {
+    fontSize: 11,
+    color: '#8d7353',
+    fontWeight: '700',
+  },
+  attachmentCard: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e0d4c3',
+    backgroundColor: '#f8f5ee',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  attachmentInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  attachmentTitle: {
+    fontSize: 12,
+    color: '#3e352b',
+    fontWeight: '700',
+  },
+  attachmentSub: {
+    fontSize: 11,
+    color: '#8a7f71',
+  },
+  attachmentRemoveText: {
+    fontSize: 11,
+    color: '#b14f4f',
+    fontWeight: '700',
   },
   searchResultsList: {
     maxHeight: 180,
