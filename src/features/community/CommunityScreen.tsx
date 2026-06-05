@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useMyCommunityBooks } from './hooks/useMyCommunityBooks';
 import { usePopularCommunityBooks } from './hooks/usePopularCommunityBooks';
 import { useCommunityBookDetail } from './hooks/useCommunityBookDetail';
@@ -15,6 +15,7 @@ import { toUserMessage } from '../../shared/utils/apiError';
 import { useCommunityBookPolls } from './hooks/useCommunityBookPolls';
 import { useCreateCommunityBookPoll } from './hooks/useCreateCommunityBookPoll';
 import { useSearchCommunityBooks } from './hooks/useSearchCommunityBooks';
+import { API_BASE_URL } from '../../shared/constants/api';
 
 type Props = {
   nickname: string;
@@ -226,7 +227,11 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.container}>
-        <Text style={styles.username}>{displayName}</Text>
+        <View style={styles.topBar}>
+          <Text style={styles.backIcon}>←</Text>
+          <Text style={styles.headerTitle}>책별 커뮤니티</Text>
+          <View style={styles.headerSpacer} />
+        </View>
 
         <View style={styles.searchRow}>
           <View style={styles.searchPill}>
@@ -273,9 +278,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                       }}
                     >
                       <View style={styles.bookRow}>
-                        <View style={styles.coverPlaceholder}>
-                          <Text style={styles.coverText}>표지</Text>
-                        </View>
+                        <BookCover url={book.coverImageUrl} size="medium" />
                         <View style={styles.bookContent}>
                           <Text style={styles.bookTitle} numberOfLines={1}>{book.title}</Text>
                           <Text style={styles.bookAuthor}>{book.author}</Text>
@@ -327,9 +330,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                   }}
                 >
                   <View style={styles.bookRow}>
-                    <View style={styles.coverPlaceholder}>
-                      <Text style={styles.coverText}>표지</Text>
-                    </View>
+                    <BookCover url={book.coverImageUrl} size="medium" />
                     <View style={styles.bookContent}>
                       <Text style={styles.bookTitle} numberOfLines={1}>{book.title}</Text>
                       <Text style={styles.bookAuthor}>{book.author}</Text>
@@ -370,9 +371,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                   }}
                 >
                   <View style={styles.popularBookRow}>
-                    <View style={styles.popularCoverPlaceholder}>
-                      <Text style={styles.coverText}>표지</Text>
-                    </View>
+                      <BookCover url={book.coverImageUrl} size="small" />
                     <View style={styles.bookContent}>
                       <Text style={styles.bookTitle} numberOfLines={1}>{book.title}</Text>
                       <Text style={styles.bookAuthor}>{book.author}</Text>
@@ -401,9 +400,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                 <>
                   <View style={styles.detailHeaderCard}>
                     <View style={styles.bookRow}>
-                      <View style={styles.coverPlaceholder}>
-                        <Text style={styles.coverText}>표지</Text>
-                      </View>
+                      <BookCover url={bookDetailQuery.data.coverImageUrl} size="large" />
                       <View style={styles.bookContent}>
                         <Text style={styles.bookTitle} numberOfLines={1}>{bookDetailQuery.data.title}</Text>
                         <Text style={styles.bookAuthor}>{bookDetailQuery.data.author}</Text>
@@ -547,9 +544,9 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                               <View style={styles.pollOptionsWrap}>
                                 <View style={styles.pollOptionsRow}>
                                   <View style={[styles.pollOptionBox, styles.pollOptionBoxLeft]}>
-                                    <Text style={styles.pollOptionPercentage}>{poll.optionA.percentage}%</Text>
-                                    <Text style={styles.pollOptionLabel}>{poll.optionA.label}</Text>
-                                    <Text style={styles.pollOptionMeta}>{poll.optionA.voteCount}명</Text>
+                                    <Text style={[styles.pollOptionPercentage, styles.pollOptionPercentageDark]}>{poll.optionA.percentage}%</Text>
+                                    <Text style={[styles.pollOptionLabel, styles.pollOptionLabelDark]}>{poll.optionA.label}</Text>
+                                    <Text style={[styles.pollOptionMeta, styles.pollOptionMetaDark]}>{poll.optionA.voteCount}명</Text>
                                   </View>
                                   <View style={styles.pollOptionBox}>
                                     <Text style={styles.pollOptionPercentage}>{poll.optionB.percentage}%</Text>
@@ -594,9 +591,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                 <>
                   <View style={styles.detailHeaderCard}>
                     <View style={styles.bookRow}>
-                      <View style={styles.coverPlaceholder}>
-                        <Text style={styles.coverText}>표지</Text>
-                      </View>
+                      <BookCover url={discussionDetailQuery.data.bookCoverImageUrl} size="large" />
                       <View style={styles.bookContent}>
                         <Text style={styles.bookTitle} numberOfLines={1}>{discussionDetailQuery.data.bookTitle}</Text>
                         <Text style={styles.bookAuthor}>{discussionDetailQuery.data.bookAuthor}</Text>
@@ -791,21 +786,17 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
         </Modal>
 
         <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.bottomItem} onPress={onPressHome}>
-            <Text style={styles.bottomIcon}>⌂</Text>
-            <Text style={styles.bottomLabel}>홈</Text>
-          </TouchableOpacity>
           <View style={styles.bottomItem}>
             <Text style={styles.bottomIcon}>◌</Text>
             <Text style={styles.bottomLabelActive}>커뮤니티</Text>
           </View>
+          <TouchableOpacity style={styles.bottomItem} onPress={onPressHome}>
+            <Text style={styles.bottomIcon}>⌂</Text>
+            <Text style={styles.bottomLabel}>홈</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.bottomItem} onPress={onPressAiChat}>
             <Text style={styles.bottomIcon}>◔</Text>
             <Text style={styles.bottomLabel}>AI 채팅</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.bottomItem} onPress={onPressMyPage}>
-            <Text style={styles.bottomIcon}>⚪</Text>
-            <Text style={styles.bottomLabel}>마이</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -813,34 +804,93 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
   );
 }
 
+function BookCover({
+  url,
+  size,
+}: {
+  url: string | null | undefined;
+  size: 'small' | 'medium' | 'large';
+}) {
+  const resolvedCoverUrl = resolveRemoteImageUrl(url);
+
+  const sizeStyle =
+    size === 'large'
+      ? styles.coverLarge
+      : size === 'medium'
+        ? styles.coverMedium
+        : styles.coverSmall;
+
+  if (resolvedCoverUrl) {
+    return <Image source={{ uri: resolvedCoverUrl }} style={[styles.coverImageBase, sizeStyle]} resizeMode="cover" />;
+  }
+
+  return (
+    <View style={[styles.coverFallbackBase, sizeStyle]}>
+      <Text style={styles.coverText}>표지</Text>
+    </View>
+  );
+}
+
+function resolveRemoteImageUrl(url: string | null | undefined): string {
+  if (typeof url !== 'string') {
+    return '';
+  }
+
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  if (/^(https?:)?\/\//.test(trimmed) || trimmed.startsWith('data:')) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith('/')) {
+    return `${API_BASE_URL}${trimmed}`;
+  }
+
+  return `${API_BASE_URL}/${trimmed}`;
+}
+
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f6f3ee' },
-  container: { flex: 1, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
-  username: { fontSize: 38, letterSpacing: -0.8, color: '#746d63', fontWeight: '700', marginBottom: 10 },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  searchPill: {
-    flex: 1,
-    minHeight: 32,
-    borderRadius: 16,
-    backgroundColor: '#efe9df',
-    borderWidth: 1,
-    borderColor: '#e2d9cc',
-    paddingHorizontal: 10,
+  safeArea: { flex: 1, backgroundColor: '#44c3f3' },
+  container: { flex: 1, backgroundColor: '#44c3f3' },
+  topBar: {
+    backgroundColor: '#44c3f3',
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  searchIcon: { fontSize: 13, color: '#948878', marginRight: 6 },
-  searchInput: { flex: 1, fontSize: 11, color: '#4a433a', paddingVertical: 0 },
+  backIcon: { fontSize: 18, color: '#111', width: 30 },
+  headerTitle: { flex: 1, textAlign: 'left', color: '#111', fontSize: 18, fontWeight: '800' },
+  headerSpacer: { width: 30 },
+  username: { display: 'none' as const },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, paddingHorizontal: 14 },
+  searchPill: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: 0,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#0d0d0d',
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  searchIcon: { fontSize: 16, color: '#111', marginRight: 8 },
+  searchInput: { flex: 1, fontSize: 15, color: '#141414', paddingVertical: 0 },
   badgeButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#8d7353',
+    width: 48,
+    height: 40,
+    borderRadius: 0,
+    backgroundColor: '#0d0d0d',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  badgeButtonText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  scroll: { flex: 1 },
+  badgeButtonText: { color: '#44c3f3', fontSize: 11, fontWeight: '800' },
+  scroll: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 14 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: 8 },
   sectionTitleLarge: { fontSize: 12, color: '#4f463c', fontWeight: '700' },
   sectionCountText: { fontSize: 12, color: '#8b8173', fontWeight: '600' },
@@ -858,12 +908,17 @@ const styles = StyleSheet.create({
   },
   retryButtonText: { color: '#5f564b', fontSize: 12, fontWeight: '600' },
   bookCard: {
-    backgroundColor: '#f9f6f0',
+    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#ece4d9',
-    borderRadius: 10,
+    borderColor: '#e8e8e8',
+    borderRadius: 0,
     padding: 12,
     marginBottom: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
   bookRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   coverPlaceholder: {
@@ -891,13 +946,18 @@ const styles = StyleSheet.create({
   previewText: { fontSize: 12, color: '#2f2921', lineHeight: 18 },
   smallCard: {
     minHeight: 92,
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#ece4d9',
-    backgroundColor: '#f9f6f0',
+    borderColor: '#e8e8e8',
+    backgroundColor: '#fff',
     justifyContent: 'center',
     paddingHorizontal: 12,
     marginBottom: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
   smallCardTitle: { fontSize: 12, color: '#3f362d', fontWeight: '600' },
   popularBookRow: { flexDirection: 'row', alignItems: 'center' },
@@ -911,19 +971,20 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   bottomNav: {
-    height: 48,
+    height: 72,
     borderTopWidth: 1,
-    borderColor: '#e6ddcf',
-    backgroundColor: '#f8f4ed',
+    borderColor: '#0d0d0d',
+    backgroundColor: '#44c3f3',
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 8,
+    paddingHorizontal: 12,
   },
-  bottomItem: { alignItems: 'center', justifyContent: 'center' },
-  bottomIcon: { fontSize: 14, color: '#8f8578', marginBottom: 1 },
-  bottomLabel: { fontSize: 10, color: '#92897d' },
-  bottomLabelActive: { fontSize: 10, color: '#8d7353', fontWeight: '700' },
+  bottomItem: { alignItems: 'center', justifyContent: 'center', flex: 1 },
+  bottomIcon: { fontSize: 18, color: '#111', marginBottom: 4 },
+  bottomLabel: { fontSize: 10, color: '#111', fontWeight: '700' },
+  bottomLabelActive: { fontSize: 10, color: '#111', fontWeight: '800' },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(32, 26, 20, 0.45)',
@@ -934,65 +995,67 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f6f0',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#e8dfd2',
+    borderColor: '#d7d1c6',
     padding: 16,
     maxHeight: '88%',
   },
   modalTitle: { fontSize: 16, color: '#2f2a24', fontWeight: '700', marginBottom: 10 },
   detailHeaderCard: {
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e8dfd2',
-    backgroundColor: '#f7f2ea',
+    borderColor: '#111',
+    backgroundColor: '#44c3f3',
     padding: 12,
     marginBottom: 12,
   },
-  detailHelperText: { fontSize: 12, color: '#7d7366' },
-  detailTabRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  detailHelperText: { fontSize: 12, color: '#111', fontWeight: '600' },
+  detailTabRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   detailTabButton: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e3d9cb',
-    backgroundColor: '#f4efe7',
+    borderColor: '#111',
+    backgroundColor: '#44c3f3',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 9,
   },
   detailTabButtonActive: {
-    backgroundColor: '#8d7353',
-    borderColor: '#8d7353',
+    backgroundColor: '#111',
+    borderColor: '#111',
   },
-  detailTabButtonText: { fontSize: 11, color: '#6c6256', fontWeight: '600' },
-  detailTabButtonTextActive: { color: '#fff' },
+  detailTabButtonText: { fontSize: 11, color: '#111', fontWeight: '700' },
+  detailTabButtonTextActive: { color: '#44c3f3' },
   quoteRankCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e8dfd2',
-    backgroundColor: '#faf7f2',
+    borderColor: '#111',
+    backgroundColor: '#fff',
     padding: 10,
     marginBottom: 8,
   },
   rankBadge: {
     width: 30,
     height: 30,
-    borderRadius: 15,
-    backgroundColor: '#efe8dd',
+    borderRadius: 0,
+    backgroundColor: '#44c3f3',
+    borderWidth: 1,
+    borderColor: '#111',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
   },
-  rankBadgeText: { color: '#7d6f5e', fontSize: 13, fontWeight: '700' },
+  rankBadgeText: { color: '#111', fontSize: 13, fontWeight: '800' },
   rankContent: { flex: 1 },
-  rankQuoteText: { color: '#312b23', fontSize: 13, marginBottom: 4 },
-  rankMetaText: { color: '#7c7266', fontSize: 11 },
+  rankQuoteText: { color: '#111', fontSize: 13, marginBottom: 4, fontWeight: '600' },
+  rankMetaText: { color: '#444', fontSize: 11 },
   discussionCard: {
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e8dfd2',
-    backgroundColor: '#faf7f2',
+    borderColor: '#111',
+    backgroundColor: '#fff',
     padding: 10,
     marginBottom: 8,
   },
@@ -1000,59 +1063,59 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 10,
-    backgroundColor: '#eef3e9',
+    borderRadius: 999,
+    backgroundColor: '#e8f6ef',
     marginBottom: 6,
   },
   discussionBadgeText: { color: '#7d8d73', fontSize: 10, fontWeight: '700' },
-  discussionTitle: { color: '#312b23', fontSize: 15, fontWeight: '700', marginBottom: 6 },
-  discussionPreview: { color: '#696055', fontSize: 13, lineHeight: 18, marginBottom: 8 },
-  discussionMeta: { color: '#7c7266', fontSize: 11 },
+  discussionTitle: { color: '#111', fontSize: 15, fontWeight: '700', marginBottom: 6 },
+  discussionPreview: { color: '#3f3f3f', fontSize: 13, lineHeight: 18, marginBottom: 8 },
+  discussionMeta: { color: '#666', fontSize: 11 },
   discussionActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  likeInlineText: { color: '#8d7353', fontSize: 12, fontWeight: '700' },
+  likeInlineText: { color: '#111', fontSize: 12, fontWeight: '700' },
   likeButton: {
     marginTop: 8,
     alignSelf: 'flex-start',
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#d6cbbb',
-    backgroundColor: '#f4efe7',
+    borderColor: '#111',
+    backgroundColor: '#44c3f3',
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  likeButtonText: { color: '#6c6256', fontSize: 12, fontWeight: '700' },
+  likeButtonText: { color: '#111', fontSize: 12, fontWeight: '800' },
   commentSectionCard: {
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e8dfd2',
-    backgroundColor: '#faf7f2',
+    borderColor: '#111',
+    backgroundColor: '#fff',
     padding: 10,
     marginBottom: 10,
   },
-  commentSectionTitle: { color: '#312b23', fontSize: 13, fontWeight: '700', marginBottom: 8 },
+  commentSectionTitle: { color: '#111', fontSize: 13, fontWeight: '700', marginBottom: 8 },
   commentList: {
     maxHeight: 240,
     marginBottom: 4,
   },
   commentItemCard: {
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e8dfd2',
-    backgroundColor: '#f7f2ea',
+    borderColor: '#111',
+    backgroundColor: '#f7f7f7',
     padding: 8,
     marginBottom: 8,
   },
-  commentWriter: { color: '#5f564b', fontSize: 11, fontWeight: '700', marginBottom: 4 },
-  commentContent: { color: '#312b23', fontSize: 13, lineHeight: 18, marginBottom: 4 },
-  commentMeta: { color: '#7c7266', fontSize: 11 },
+  commentWriter: { color: '#111', fontSize: 11, fontWeight: '700', marginBottom: 4 },
+  commentContent: { color: '#111', fontSize: 13, lineHeight: 18, marginBottom: 4 },
+  commentMeta: { color: '#666', fontSize: 11 },
   commentSubmitButton: {
     alignSelf: 'flex-end',
-    borderRadius: 8,
-    backgroundColor: '#8d7353',
+    borderRadius: 0,
+    backgroundColor: '#111',
     paddingHorizontal: 10,
     paddingVertical: 7,
     marginTop: 2,
@@ -1064,47 +1127,47 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   discussionCreateButton: {
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#8d7353',
-    backgroundColor: '#8d7353',
+    borderColor: '#111',
+    backgroundColor: '#111',
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  discussionCreateButtonText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  discussionCreateButtonText: { color: '#44c3f3', fontSize: 11, fontWeight: '800' },
   pollHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     marginBottom: 8,
   },
   pollCreateButton: {
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#8d7353',
-    backgroundColor: '#8d7353',
+    borderColor: '#111',
+    backgroundColor: '#111',
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  pollCreateButtonText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  pollCreateButtonText: { color: '#44c3f3', fontSize: 11, fontWeight: '800' },
   pollCard: {
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#ddd4c7',
-    backgroundColor: '#f6f2eb',
+    borderColor: '#111',
+    backgroundColor: '#fff',
     paddingHorizontal: 14,
     paddingTop: 18,
     paddingBottom: 16,
     marginBottom: 10,
   },
-  pollQuestion: { color: '#302a23', fontSize: 18, fontWeight: '700', marginBottom: 14, letterSpacing: -0.2 },
+  pollQuestion: { color: '#111', fontSize: 18, fontWeight: '700', marginBottom: 14, letterSpacing: -0.2 },
   pollOptionsWrap: { position: 'relative', marginBottom: 18 },
   pollOptionsRow: { flexDirection: 'row', alignItems: 'stretch', justifyContent: 'space-between', gap: 12 },
   pollOptionBox: {
     flex: 1,
-    borderRadius: 18,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#ddd3c5',
-    backgroundColor: '#f4efe8',
+    borderColor: '#111',
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 140,
@@ -1112,8 +1175,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   pollOptionBoxLeft: {
-    borderColor: '#9b7f5e',
-    backgroundColor: '#f7f4ee',
+    backgroundColor: '#111',
+    borderColor: '#111',
   },
   pollVsBadge: {
     position: 'absolute',
@@ -1124,44 +1187,49 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     marginLeft: -30,
     marginTop: -30,
-    backgroundColor: '#ab9474',
+    backgroundColor: '#44c3f3',
+    borderWidth: 1,
+    borderColor: '#111',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pollVsText: { color: '#fff', fontSize: 30, fontWeight: '700', letterSpacing: -0.2 },
-  pollOptionPercentage: { color: '#8f7352', fontSize: 46, fontWeight: '700', lineHeight: 50, letterSpacing: -1 },
-  pollOptionLabel: { color: '#302a23', fontSize: 17, fontWeight: '700', marginTop: 2, letterSpacing: -0.2 },
-  pollOptionMeta: { color: '#8c8378', fontSize: 13, fontWeight: '500', marginTop: 4 },
-  pollTotalVotes: { color: '#7b7268', fontSize: 15, textAlign: 'center', fontWeight: '500' },
-  pollPendingText: { color: '#7c7266', fontSize: 11, marginTop: 6, textAlign: 'center' },
+  pollVsText: { color: '#111', fontSize: 22, fontWeight: '800', letterSpacing: -0.2 },
+  pollOptionPercentage: { color: '#44c3f3', fontSize: 46, fontWeight: '700', lineHeight: 50, letterSpacing: -1 },
+  pollOptionPercentageDark: { color: '#44c3f3' },
+  pollOptionLabel: { color: '#111', fontSize: 17, fontWeight: '700', marginTop: 2, letterSpacing: -0.2 },
+  pollOptionLabelDark: { color: '#fff' },
+  pollOptionMeta: { color: '#666', fontSize: 13, fontWeight: '500', marginTop: 4 },
+  pollOptionMetaDark: { color: '#fff' },
+  pollTotalVotes: { color: '#666', fontSize: 15, textAlign: 'center', fontWeight: '500' },
+  pollPendingText: { color: '#666', fontSize: 11, marginTop: 6, textAlign: 'center' },
   inputLabel: { color: '#6c6256', fontSize: 12, fontWeight: '700', marginBottom: 6, marginTop: 2 },
   categoryRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   categoryChip: {
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#ded3c4',
-    backgroundColor: '#f4efe7',
+    borderColor: '#111',
+    backgroundColor: '#44c3f3',
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  categoryChipActive: { borderColor: '#8d7353', backgroundColor: '#8d7353' },
-  categoryChipText: { color: '#6c6256', fontSize: 11, fontWeight: '600' },
-  categoryChipTextActive: { color: '#fff' },
+  categoryChipActive: { borderColor: '#111', backgroundColor: '#111' },
+  categoryChipText: { color: '#111', fontSize: 11, fontWeight: '700' },
+  categoryChipTextActive: { color: '#44c3f3' },
   inputBox: {
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e2d8cb',
-    backgroundColor: '#f7f2ea',
+    borderColor: '#111',
+    backgroundColor: '#fff',
     paddingHorizontal: 10,
     minHeight: 38,
     marginBottom: 8,
     color: '#352f27',
   },
   textArea: {
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e2d8cb',
-    backgroundColor: '#f7f2ea',
+    borderColor: '#111',
+    backgroundColor: '#fff',
     paddingHorizontal: 10,
     paddingTop: 10,
     minHeight: 92,
@@ -1171,27 +1239,42 @@ const styles = StyleSheet.create({
   },
   createFooterRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 4 },
   cancelButton: {
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#d8cdbf',
-    backgroundColor: '#f4efe7',
+    borderColor: '#111',
+    backgroundColor: '#44c3f3',
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
-  cancelButtonText: { color: '#6c6256', fontSize: 12, fontWeight: '700' },
+  cancelButtonText: { color: '#111', fontSize: 12, fontWeight: '800' },
   confirmButton: {
-    borderRadius: 8,
-    backgroundColor: '#8d7353',
+    borderRadius: 0,
+    backgroundColor: '#111',
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
-  confirmButtonText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  confirmButtonText: { color: '#44c3f3', fontSize: 12, fontWeight: '800' },
   closeButton: {
     alignSelf: 'flex-end',
-    borderRadius: 10,
-    backgroundColor: '#8d7353',
+    borderRadius: 0,
+    backgroundColor: '#111',
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  closeButtonText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  closeButtonText: { color: '#44c3f3', fontSize: 12, fontWeight: '800' },
+  coverImageBase: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#111',
+  },
+  coverFallbackBase: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#eee8de',
+    borderWidth: 1,
+    borderColor: '#111',
+  },
+  coverSmall: { width: 44, height: 56 },
+  coverMedium: { width: 62, height: 80 },
+  coverLarge: { width: 86, height: 110 },
 });
