@@ -19,6 +19,8 @@ type Props = {
 type ViewMode = 'main' | 'settings';
 
 export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressAiChat, onLoggedOut }: Props) {
+  void onPressCommunity;
+  void onPressAiChat;
   const [mode, setMode] = useState<ViewMode>('main');
   const [isNicknameEditVisible, setIsNicknameEditVisible] = useState(false);
   const [isBioEditVisible, setIsBioEditVisible] = useState(false);
@@ -163,25 +165,24 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
   if (mode === 'settings') {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" />
-        <View style={styles.container}>
-          <View style={styles.topPanel}>
-            <View style={styles.settingsHeader}>
-              <TouchableOpacity onPress={() => setMode('main')}>
-                <Text style={styles.backIcon}>←</Text>
-              </TouchableOpacity>
-              <Text style={styles.settingsTitle}>설정</Text>
-              <View style={styles.headerSpacer} />
-            </View>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.screenShell}>
+          <View style={styles.settingsHeader}>
+            <TouchableOpacity style={styles.headerIconButton} onPress={() => setMode('main')}>
+              <Text style={styles.headerIcon}>←</Text>
+            </TouchableOpacity>
+            <Text style={styles.settingsTitle}>설정</Text>
+            <View style={styles.headerSpacer} />
           </View>
 
-          <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.settingsScroll} contentContainerStyle={styles.settingsScrollContent} showsVerticalScrollIndicator={false}>
             <Text style={styles.groupLabel}>계정</Text>
-            <SettingRow title="닉네임" sub={displayName} />
+            <SettingRow title="닉네임" sub={displayName} onPress={handleOpenNicknameEdit} />
+            <SettingRow title="한줄소개" sub={displayBio} onPress={handleOpenBioEdit} />
 
             <Text style={styles.groupLabel}>앱 설정</Text>
             <SettingRow title="알림 설정" icon="🔔" />
-            <SettingRow title="AI 대화 스타일" icon="🧠" sub="친근하고 따뜻하게" />
+            <SettingRow title="AI 대화 스타일" icon="✦" sub="친근하고 따뜻하게" />
 
             <Text style={styles.groupLabel}>앱 정보</Text>
             <SettingRow title="버전 정보" icon="ⓘ" right="1.0.0" />
@@ -207,8 +208,6 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
               disabled={deleteAccountMutation.isPending}
             />
           </ScrollView>
-
-          <BottomNav onPressHome={onPressHome} onPressCommunity={onPressCommunity} onPressAiChat={onPressAiChat} />
         </View>
       </SafeAreaView>
     );
@@ -216,43 +215,35 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
-      <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <View style={styles.screenShell}>
         <View style={styles.topPanel}>
           <View style={styles.topHeader}>
-            <Text style={styles.backIcon}>←</Text>
+            <TouchableOpacity style={styles.headerIconButton} onPress={onPressHome}>
+              <Text style={styles.headerIcon}>←</Text>
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => setMode('settings')}>
               <Text style={styles.settingIcon}>⚙</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.mainScroll} contentContainerStyle={styles.mainScrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.profileWrap}>
             <View style={styles.avatar}><Text style={styles.avatarText}>{displayInitial}</Text></View>
-            <View style={styles.nameRow}>
-              <Text style={styles.name}>{displayName}</Text>
-              <TouchableOpacity style={styles.editNicknameButton} onPress={handleOpenNicknameEdit}>
-                <Text style={styles.editNicknameButtonText}>✎</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.bioRow}>
-              <Text style={styles.desc}>{displayBio}</Text>
-              <TouchableOpacity style={styles.editNicknameButton} onPress={handleOpenBioEdit}>
-                <Text style={styles.editNicknameButtonText}>✎</Text>
-              </TouchableOpacity>
-            </View>
-            {myProfileQuery.isLoading ? <Text style={styles.desc}>프로필을 불러오는 중...</Text> : null}
+            <Text style={styles.name}>{displayName}</Text>
+            <Text style={styles.desc}>{displayBio}</Text>
+            {myProfileQuery.isLoading ? <Text style={styles.loadingText}>프로필을 불러오는 중...</Text> : null}
             {myProfileQuery.isError ? <Text style={styles.errorText}>{toUserMessage(myProfileQuery.error)}</Text> : null}
           </View>
 
           <View style={styles.plusCard}>
             <Text style={styles.plusTitle}>👑 ReBook Plus</Text>
-            <Text style={styles.plusBody}>월 9900원으로 나의 독서 경험을 더 깊게 만들어보세요.</Text>
+            <Text style={styles.plusBody}>월 9900원으로 나의 독서 취향을 더 깊게 확인해보세요.</Text>
             <Text style={styles.plusList}>• 내 독서 성향 분석</Text>
-            <Text style={styles.plusList}>• 감정 키워드 리포트</Text>
+            <Text style={styles.plusList}>• 감정/키워드 리포트</Text>
             <Text style={styles.plusList}>• AI 해석 확장</Text>
-            <Text style={styles.plusList}>• 내가 쓴 서평을 모아보기</Text>
+            <Text style={styles.plusList}>• 내가 쓴 게시물 모아보기</Text>
             <TouchableOpacity style={styles.plusBtn}><Text style={styles.plusBtnText}>자세히 보기</Text></TouchableOpacity>
           </View>
 
@@ -265,34 +256,38 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
             ))}
           </View>
 
+          <View style={styles.analysisSectionDivider} />
           <Text style={styles.sectionTitle}>내 독서 분석</Text>
-          {myInsightsQuery.isLoading ? <Text style={styles.desc}>독서 분석을 불러오는 중...</Text> : null}
+          {myInsightsQuery.isLoading ? <Text style={styles.loadingText}>독서 분석을 불러오는 중...</Text> : null}
           {myInsightsQuery.isError ? <Text style={styles.errorText}>{toUserMessage(myInsightsQuery.error)}</Text> : null}
           <View style={styles.analysisCard}>
-            <Text style={styles.analysisLabel}>자주 작성한 감정</Text>
-            <Text style={styles.analysisValue}>
-              {insights ? `${insights.favoriteEmotion.emoji} ${insights.favoriteEmotion.label} (${insights.favoriteEmotion.count}회)` : '-'}
-            </Text>
-            <Text style={styles.analysisLabel}>많이 저장된 키워드</Text>
+            <Text style={styles.analysisLabel}>자주 저장한 감정</Text>
+            <View style={styles.analysisEmotionRow}>
+              <Text style={styles.analysisEmotion}>{insights ? `${insights.favoriteEmotion.emoji}` : '🤔'}</Text>
+              <Text style={styles.analysisEmotionMeta}>
+                {insights ? `${insights.favoriteEmotion.count}회` : '-'}
+              </Text>
+            </View>
+
+            <Text style={styles.analysisLabel}>많이 저장한 키워드</Text>
             <View style={styles.tagRow}>
               {(insights?.topKeywords ?? []).length > 0
                 ? (insights?.topKeywords ?? []).map((keyword) => <Tag key={keyword} text={keyword} />)
                 : <Text style={styles.analysisValue}>키워드 없음</Text>}
             </View>
+
             <View style={styles.analysisMetaRow}>
-              <View>
+              <View style={styles.analysisMetaCell}>
                 <Text style={styles.analysisLabel}>많이 읽은 분야</Text>
                 <Text style={styles.analysisMetaStrong}>{insights?.favoriteGenre.label ?? '-'}</Text>
               </View>
-              <View>
+              <View style={styles.analysisMetaCell}>
                 <Text style={styles.analysisLabel}>이번 달 저장 문장</Text>
                 <Text style={styles.analysisMetaStrong}>{insights ? `${insights.savedQuotesThisMonth}개` : '-'}</Text>
               </View>
             </View>
           </View>
         </ScrollView>
-
-        <BottomNav onPressHome={onPressHome} onPressCommunity={onPressCommunity} onPressAiChat={onPressAiChat} />
       </View>
 
       <Modal visible={isNicknameEditVisible} transparent animationType="fade" onRequestClose={() => setIsNicknameEditVisible(false)}>
@@ -387,7 +382,7 @@ function SettingRow({ title, sub, right, icon, danger, mt, onPress, disabled }: 
       disabled={disabled}
     >
       <View style={styles.settingLeft}>
-        {icon ? <Text style={styles.settingRowIcon}>{icon}</Text> : null}
+        {icon ? <View style={[styles.settingRowIconWrap, danger && styles.settingRowIconWrapDanger]}><Text style={[styles.settingRowIcon, danger && styles.settingRowIconDanger]}>{icon}</Text></View> : null}
         <View>
           <Text style={[styles.settingRowTitle, danger && styles.settingRowTitleDanger]}>{title}</Text>
           {sub ? <Text style={styles.settingRowSub}>{sub}</Text> : null}
@@ -406,99 +401,103 @@ function normalizeDeleteReason(value?: string): 'NOT_USING' | 'PRICE_TOO_HIGH' |
   return undefined;
 }
 
-type BottomNavProps = {
-  onPressHome: () => void;
-  onPressCommunity: () => void;
-  onPressAiChat: () => void;
-};
-
-function BottomNav({ onPressHome, onPressCommunity, onPressAiChat }: BottomNavProps) {
-  return (
-    <View style={styles.bottomNav}>
-      <TouchableOpacity style={styles.bottomItem} onPress={onPressCommunity}>
-        <Text style={styles.bottomIcon}>◌</Text>
-        <Text style={styles.bottomLabel}>커뮤니티</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.bottomItem} onPress={onPressHome}>
-        <Text style={styles.bottomIcon}>⌂</Text>
-        <Text style={styles.bottomLabel}>홈</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.bottomItem} onPress={onPressAiChat}>
-        <Text style={styles.bottomIcon}>◔</Text>
-        <Text style={styles.bottomLabel}>AI 채팅</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#44c3f3' },
-  container: { flex: 1, backgroundColor: '#44c3f3' },
-  topPanel: { backgroundColor: '#44c3f3', paddingHorizontal: 14, paddingTop: 8, paddingBottom: 10 },
-  contentScroll: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 14, paddingTop: 10 },
+  safeArea: { flex: 1, backgroundColor: '#111' },
+  screenShell: { flex: 1, backgroundColor: '#111' },
+  topPanel: {
+    backgroundColor: '#111',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2d2d2d',
+  },
+  mainScroll: { flex: 1, backgroundColor: '#111' },
+  mainScrollContent: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 24 },
+  settingsScroll: { flex: 1, backgroundColor: '#111' },
+  settingsScrollContent: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 24 },
   topHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  backIcon: { fontSize: 18, color: '#111' },
-  settingIcon: { fontSize: 14, color: '#111', fontWeight: '700' },
-  profileWrap: { alignItems: 'center', marginBottom: 12 },
-  avatar: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: '#8d7353',
+  settingsHeader: {
+    backgroundColor: '#111',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2d2d2d',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerIconButton: {
+    width: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
   },
-  avatarText: { color: '#fff', fontSize: 22, fontWeight: '700' },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  bioRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  name: { fontSize: 26, fontWeight: '700', color: '#2f2a24', marginBottom: 3 },
-  desc: { fontSize: 11, color: '#978c7d' },
-  errorText: { fontSize: 11, color: '#b25555', marginTop: 4 },
+  headerIcon: { fontSize: 18, color: '#f3eee7', fontWeight: '700' },
+  settingIcon: { fontSize: 18, color: '#f3eee7', fontWeight: '700' },
+  settingsTitle: { fontSize: 18, color: '#f3eee7', fontWeight: '700' },
+  headerSpacer: { width: 30 },
+  profileWrap: { alignItems: 'center', marginBottom: 16 },
+  avatar: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: '#44c3f3',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  avatarText: { color: '#111', fontSize: 34, fontWeight: '700' },
+  name: { fontSize: 28, fontWeight: '700', color: '#fff', marginBottom: 6 },
+  desc: { fontSize: 13, color: '#44c3f3' },
+  loadingText: { fontSize: 12, color: '#bfc6cb', marginTop: 6 },
+  errorText: { fontSize: 11, color: '#ff7f7f', marginTop: 6 },
   editNicknameButton: {
     width: 22,
     height: 22,
     borderRadius: 11,
     borderWidth: 1,
-    borderColor: '#d8cdbf',
+    borderColor: '#44c3f3',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f4efe7',
+    backgroundColor: 'transparent',
   },
-  editNicknameButtonText: { color: '#6c6256', fontSize: 11, fontWeight: '700' },
+  editNicknameButtonText: { color: '#44c3f3', fontSize: 11, fontWeight: '700' },
   plusCard: {
-    borderRadius: 0,
-    backgroundColor: '#8d7353',
-    padding: 12,
-    marginBottom: 10,
+    borderRadius: 2,
+    backgroundColor: '#44c3f3',
+    padding: 14,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: '#111',
   },
-  plusTitle: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 6 },
-  plusBody: { color: '#ede4d8', fontSize: 11, lineHeight: 16, marginBottom: 8 },
-  plusList: { color: '#f5ece2', fontSize: 11, lineHeight: 17 },
+  plusTitle: { color: '#111', fontSize: 17, fontWeight: '700', marginBottom: 8 },
+  plusBody: { color: '#111', fontSize: 12, lineHeight: 18, marginBottom: 8 },
+  plusList: { color: '#111', fontSize: 12, lineHeight: 18 },
   plusBtn: {
-    height: 34,
-    marginTop: 10,
+    height: 40,
+    marginTop: 12,
     borderRadius: 0,
-    backgroundColor: '#fff',
+    backgroundColor: '#111',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  plusBtnText: { color: '#6d5840', fontWeight: '700', fontSize: 12 },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 8, marginBottom: 12 },
+  plusBtnText: { color: '#44c3f3', fontWeight: '700', fontSize: 13 },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 8, marginBottom: 16 },
   statCard: {
     width: '48.8%',
     borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e8e8e8',
-    backgroundColor: '#fff',
+    borderColor: '#44c3f3',
+    backgroundColor: '#111',
     paddingVertical: 10,
     paddingHorizontal: 10,
   },
-  statLabel: { color: '#94887a', fontSize: 10, marginBottom: 5 },
-  statValue: { color: '#2f2a24', fontSize: 24, fontWeight: '700' },
-  sectionTitle: { fontSize: 14, color: '#3e352b', fontWeight: '700', marginBottom: 7 },
+  statLabel: { color: '#d0eef9', fontSize: 10, marginBottom: 5 },
+  statValue: { color: '#fff', fontSize: 26, fontWeight: '700' },
+  analysisSectionDivider: { height: 1, backgroundColor: '#3d3d3d', marginBottom: 12 },
+  sectionTitle: { fontSize: 16, color: '#fff', fontWeight: '700', marginBottom: 10 },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(32, 26, 20, 0.45)',
@@ -543,29 +542,30 @@ const styles = StyleSheet.create({
   analysisCard: {
     borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e8e8e8',
+    borderColor: '#44c3f3',
     backgroundColor: '#fff',
-    padding: 11,
+    padding: 12,
     marginBottom: 10,
   },
-  analysisLabel: { fontSize: 10, color: '#988d7f', marginBottom: 4 },
+  analysisLabel: { fontSize: 10, color: '#6d6256', marginBottom: 4 },
   analysisValue: { fontSize: 12, color: '#4b4236', marginBottom: 8 },
+  analysisEmotionRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 10 },
+  analysisEmotion: { fontSize: 28, color: '#111', fontWeight: '700' },
+  analysisEmotionMeta: { fontSize: 13, color: '#4b4236' },
   tagRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 8 },
   tag: {
-    borderRadius: 12,
+    borderRadius: 13,
     borderWidth: 1,
-    borderColor: '#e4dacd',
+    borderColor: '#44c3f3',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: '#f3ede3',
+    backgroundColor: '#44c3f3',
   },
-  tagText: { fontSize: 10, color: '#7f7466' },
-  analysisMetaRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  analysisMetaStrong: { fontSize: 16, color: '#3f362d', fontWeight: '700' },
-  settingsHeader: { height: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  settingsTitle: { fontSize: 16, color: '#2f2a24', fontWeight: '700' },
-  headerSpacer: { width: 18 },
-  groupLabel: { fontSize: 10, color: '#9a8f81', marginBottom: 6, marginTop: 4 },
+  tagText: { fontSize: 10, color: '#111', fontWeight: '700' },
+  analysisMetaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
+  analysisMetaCell: { flex: 1 },
+  analysisMetaStrong: { fontSize: 18, color: '#3f362d', fontWeight: '700' },
+  groupLabel: { fontSize: 11, color: '#9a8f81', marginBottom: 6, marginTop: 4 },
   settingRow: {
     minHeight: 54,
     borderRadius: 0,
@@ -583,24 +583,21 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   settingLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  settingRowIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f4efe7',
+  },
+  settingRowIconWrapDanger: {
+    backgroundColor: '#f8e7e3',
+  },
   settingRowIcon: { fontSize: 13, color: '#8d7f6f' },
+  settingRowIconDanger: { color: '#d16456' },
   settingRowTitle: { fontSize: 13, color: '#3f362d', fontWeight: '600' },
   settingRowTitleDanger: { color: '#d16456' },
   settingRowSub: { fontSize: 10, color: '#978c7d', marginTop: 3 },
   settingRight: { fontSize: 12, color: '#9a8f81' },
-  bottomNav: {
-    height: 72,
-    borderTopWidth: 1,
-    borderColor: '#0d0d0d',
-    backgroundColor: '#44c3f3',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-    paddingHorizontal: 12,
-  },
-  bottomItem: { alignItems: 'center', justifyContent: 'center', flex: 1 },
-  bottomIcon: { fontSize: 18, color: '#111', marginBottom: 4 },
-  bottomLabel: { fontSize: 10, color: '#111', fontWeight: '700' },
-  bottomLabelActive: { fontSize: 10, color: '#8d7353', fontWeight: '700' },
 });
