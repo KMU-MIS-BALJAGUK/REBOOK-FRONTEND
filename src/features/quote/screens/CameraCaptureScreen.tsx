@@ -17,6 +17,13 @@ const FRAME_HEIGHT = Math.round(SCREEN_HEIGHT * 0.22);
 const FRAME_ASPECT_RATIO = FRAME_WIDTH / FRAME_HEIGHT;
 
 async function cropCapturedPhoto(photo: CameraCapturedPicture): Promise<QuoteLocalImageAsset> {
+  if (typeof photo.uri !== 'string' || !photo.uri.trim()) {
+    throw new Error('사진 정보를 확인할 수 없어요.');
+  }
+  if (!Number.isFinite(photo.width) || !Number.isFinite(photo.height) || photo.width <= 0 || photo.height <= 0) {
+    throw new Error('사진 정보를 확인할 수 없어요.');
+  }
+
   const sourceRatio = photo.width / photo.height;
   let cropWidth = photo.width;
   let cropHeight = photo.height;
@@ -43,7 +50,7 @@ async function cropCapturedPhoto(photo: CameraCapturedPicture): Promise<QuoteLoc
     ],
     {
       format: ImageManipulator.SaveFormat.JPEG,
-      compress: 1,
+      compress: 0.92,
     },
   );
 
@@ -80,11 +87,29 @@ export function CameraCaptureScreen({ onBack, onCapture, isUploading, uploadErro
     try {
       setLocalError(null);
       setIsCropping(true);
-      const photo = await cameraRef.current.takePictureAsync({ quality: 1, skipProcessing: false });
+      console.log('[QUOTE_CAMERA] shutter pressed');
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.8,
+        shutterSound: false,
+      });
+      if (!photo) {
+        throw new Error('사진 촬영에 실패했어요.');
+      }
+      console.log('[QUOTE_CAMERA] photo captured', {
+        uri: photo.uri,
+        width: photo.width,
+        height: photo.height,
+      });
       const cropped = await cropCapturedPhoto(photo);
+      console.log('[QUOTE_CAMERA] crop finished', {
+        uri: cropped.uri,
+        width: cropped.width,
+        height: cropped.height,
+      });
       await onCapture(cropped);
       setIsCropping(false);
     } catch (error) {
+      console.log('[QUOTE_CAMERA] capture error', error);
       setLocalError(error instanceof Error ? error.message : '사진 촬영에 실패했어요.');
       setIsCropping(false);
     }

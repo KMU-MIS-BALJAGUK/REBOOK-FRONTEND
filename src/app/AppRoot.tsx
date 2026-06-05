@@ -2,6 +2,7 @@ import React from 'react';
 import { useDeferredValue, useEffect, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { File } from 'expo-file-system';
 import { useAppFlow } from './useAppFlow';
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
 import { HomeScreen } from '../features/home/HomeScreen';
@@ -10,7 +11,6 @@ import { AiChatScreen } from '../features/ai-chat/AiChatScreen';
 import { MyPageScreen } from '../features/mypage/MyPageScreen';
 import { QuoteMethodScreen } from '../features/quote/screens/QuoteMethodScreen';
 import { CameraCaptureScreen } from '../features/quote/screens/CameraCaptureScreen';
-import { GalleryPickerScreen } from '../features/quote/screens/GalleryPickerScreen';
 import { OcrPreviewScreen } from '../features/quote/screens/OcrPreviewScreen';
 import { QuoteFormScreen } from '../features/quote/screens/QuoteFormScreen';
 import { useQuoteImagePresignedUrl } from '../features/quote/hooks/useQuoteImagePresignedUrl';
@@ -37,7 +37,7 @@ type UserFacingError = Error & {
 };
 
 type PreparedQuoteImageAsset = {
-  blob: Blob;
+  fileUri: string;
   fileName: string;
   contentType: string;
   fileSize: number;
@@ -60,16 +60,31 @@ function resolveQuoteImageFileExtension(contentType: string, fileName?: string |
 }
 
 async function prepareQuoteImageAsset(asset: QuoteLocalImageAsset): Promise<PreparedQuoteImageAsset> {
-  const response = await fetch(asset.uri);
-  const blob = await response.blob();
+  if (typeof asset.uri !== 'string' || !asset.uri.trim()) {
+    throw createUserFacingError('이미지 경로를 확인할 수 없어요.');
+  }
+  console.log('[QUOTE_IMAGE] prepare start', {
+    uri: asset.uri,
+    fileName: asset.fileName,
+    mimeType: asset.mimeType,
+    fileSize: asset.fileSize,
+    width: asset.width,
+    height: asset.height,
+  });
   const contentType = asset.mimeType ?? 'image/jpeg';
   const fileName = asset.fileName ?? `quote-image-${Date.now()}.${resolveQuoteImageFileExtension(contentType, asset.fileName)}`;
-
-  return {
-    blob,
+  const file = new File(asset.uri);
+  console.log('[QUOTE_IMAGE] prepare done', {
     fileName,
     contentType,
-    fileSize: asset.fileSize ?? blob.size,
+    fileSize: asset.fileSize ?? file.size,
+  });
+
+  return {
+    fileUri: asset.uri,
+    fileName,
+    contentType,
+    fileSize: asset.fileSize ?? file.size,
   };
 }
 
@@ -77,7 +92,15 @@ async function cropQuoteImageAsset(
   asset: QuoteLocalImageAsset,
   targetAspectRatio: number,
 ): Promise<QuoteLocalImageAsset> {
+  if (typeof asset.uri !== 'string' || !asset.uri.trim()) {
+    throw createUserFacingError('이미지 경로를 확인할 수 없어요.');
+  }
   if (!asset.width || !asset.height || asset.width <= 0 || asset.height <= 0) {
+    console.log('[QUOTE_IMAGE] crop skipped - missing dimensions', {
+      uri: asset.uri,
+      width: asset.width,
+      height: asset.height,
+    });
     return asset;
   }
 
@@ -93,6 +116,16 @@ async function cropQuoteImageAsset(
 
   const originX = Math.max(0, Math.round((asset.width - cropWidth) / 2));
   const originY = Math.max(0, Math.round((asset.height - cropHeight) / 2));
+  console.log('[QUOTE_IMAGE] crop start', {
+    uri: asset.uri,
+    width: asset.width,
+    height: asset.height,
+    cropWidth,
+    cropHeight,
+    originX,
+    originY,
+    targetAspectRatio,
+  });
   const format = asset.mimeType === 'image/png' ? ImageManipulator.SaveFormat.PNG : ImageManipulator.SaveFormat.JPEG;
   const manipulated = await ImageManipulator.manipulateAsync(
     asset.uri,
@@ -111,6 +144,11 @@ async function cropQuoteImageAsset(
       compress: 1,
     },
   );
+  console.log('[QUOTE_IMAGE] crop done', {
+    uri: manipulated.uri,
+    width: manipulated.width,
+    height: manipulated.height,
+  });
 
   return {
     uri: manipulated.uri,
@@ -128,7 +166,7 @@ export default function AppRoot() {
   const saveNicknameMutation = useSaveNickname();
   const saveFirstBookMutation = useSaveFirstBook();
   const saveAiStyleMutation = useSaveAiStyle();
-  const completeOnboardingMutation = useCompleteOnboarding();
+const completeOnboardingMutation = useCompleteOnboarding();
   const deferredBookTitle = useDeferredValue(state.bookTitle);
   const deferredAuthor = useDeferredValue(state.author);
   const onboardingBookSearchQuery =
@@ -157,24 +195,54 @@ export default function AppRoot() {
     setOcrPreviewBlocks(undefined);
     setOcrQuoteContext(undefined);
 
-    const preparedAsset = await prepareQuoteImageAsset(asset);
+    console.log('[QUOTE_IMAGE] flow start', {
+      shouldNavigateToPreview,
+      uri: asset.uri,
+      fileName: asset.fileName,
+      mimeType: asset.mimeType,
+      fileSize: asset.fileSize,
+      width: asset.width,
+      height: asset.height,
+    });
+
+    const croppedAsset = await cropQuoteImageAsset(asset, 4);
+    const preparedAsset = await prepareQuoteImageAsset(croppedAsset);
     const presigned = await quoteImagePresignedUrlMutation.mutateAsync({
       fileName: preparedAsset.fileName,
       contentType: preparedAsset.contentType,
       fileSize: preparedAsset.fileSize,
       purpose: 'QUOTE_OCR',
     });
+    console.log('[QUOTE_IMAGE] presigned received', {
+      imageId: presigned.imageId,
+      objectKey: presigned.objectKey,
+      method: presigned.method,
+      expiresIn: presigned.expiresIn,
+      publicUrl: presigned.publicUrl,
+    });
 
     await quoteImageUploadMutation.mutateAsync({
       uploadUrl: presigned.uploadUrl,
       method: presigned.method,
       headers: presigned.headers,
-      blob: preparedAsset.blob,
+      fileUri: preparedAsset.fileUri,
+      mimeType: preparedAsset.contentType,
     } satisfies QuoteImageUploadInput);
+    console.log('[QUOTE_IMAGE] upload done', {
+      imageId: presigned.imageId,
+      objectKey: presigned.objectKey,
+    });
 
     const ocr = await quoteImageOcrMutation.mutateAsync({
       imageId: presigned.imageId,
       imageUrl: presigned.publicUrl,
+    });
+    console.log('[QUOTE_IMAGE] ocr done', {
+      imageId: ocr.imageId,
+      ocrId: ocr.ocrId,
+      status: ocr.status,
+      blocks: ocr.blocks.length,
+      confidence: ocr.confidence,
     });
 
     const attachmentResult = {
@@ -313,7 +381,9 @@ export default function AppRoot() {
         onSelect={(type) => {
           actions.setRegisterType(type);
           if (type === 'camera') actions.setScreen('camera-capture');
-          if (type === 'gallery') actions.setScreen('gallery-picker');
+          if (type === 'gallery') {
+            void launchGalleryQuoteFlow();
+          }
           if (type === 'manual') actions.setScreen('quote-form');
         }}
       />
@@ -344,37 +414,9 @@ export default function AppRoot() {
         }
         onCapture={async (asset) => {
           await processQuoteImageAsset(asset, true).catch((error) => {
+            console.log('[QUOTE_IMAGE] flow error', error);
             setQuoteImageFlowError(toUserMessage(error));
           });
-        }}
-      />
-    );
-  }
-
-  if (state.screen === 'gallery-picker') {
-    return (
-      <GalleryPickerScreen
-        onBack={() => {
-          setQuoteImageFlowError(null);
-          actions.setScreen('quote-method');
-        }}
-        isUploading={
-          quoteImagePresignedUrlMutation.isPending ||
-          quoteImageUploadMutation.isPending ||
-          quoteImageOcrMutation.isPending
-        }
-        uploadError={
-          quoteImageFlowError ??
-          (quoteImagePresignedUrlMutation.isError
-            ? toUserMessage(quoteImagePresignedUrlMutation.error)
-            : quoteImageUploadMutation.isError
-              ? toUserMessage(quoteImageUploadMutation.error)
-              : quoteImageOcrMutation.isError
-                ? toUserMessage(quoteImageOcrMutation.error)
-                : null)
-        }
-        onPick={() => {
-          void launchGalleryQuoteFlow();
         }}
       />
     );
@@ -383,7 +425,7 @@ export default function AppRoot() {
   if (state.screen === 'ocr-preview') {
     return (
       <OcrPreviewScreen
-        onBack={() => actions.setScreen(state.registerType === 'camera' ? 'camera-capture' : 'gallery-picker')}
+        onBack={() => actions.setScreen(state.registerType === 'camera' ? 'camera-capture' : 'quote-method')}
         onNext={() => actions.setScreen('quote-form')}
         blocks={ocrPreviewBlocks}
       />
