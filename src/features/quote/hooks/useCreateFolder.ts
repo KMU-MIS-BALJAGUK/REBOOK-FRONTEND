@@ -7,8 +7,11 @@ export function useCreateFolder() {
 
   return useMutation<CreateFolderResult, Error, CreateFolderInput>({
     mutationFn: (input) => createFolder(input),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['quote', 'folders'] });
+    onSuccess: () => {
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['quote', 'folders'] }),
+        queryClient.invalidateQueries({ queryKey: ['home', 'folders'] }),
+      ]);
     },
   });
 }

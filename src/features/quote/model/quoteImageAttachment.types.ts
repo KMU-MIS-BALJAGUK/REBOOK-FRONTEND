@@ -3,4 +3,5 @@ export type QuoteImageAttachmentResult = {
   ocrId: number;
   fullText: string;
   blockIds: number[];
+  previewImageUri?: string;
 };

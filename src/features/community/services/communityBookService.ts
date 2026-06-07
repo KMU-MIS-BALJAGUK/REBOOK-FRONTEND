@@ -15,6 +15,8 @@ import {
   CommunityBookPollsResponseDto,
   CreateCommunityBookPollRequestDto,
   CreateCommunityBookPollResponseDto,
+  VoteCommunityBookPollRequestDto,
+  VoteCommunityBookPollResponseDto,
   CommunitySearchBooksResponseDto,
 } from '../model/communityBook.dto';
 import {
@@ -39,6 +41,8 @@ import {
   toCommunityBookPollsResult,
   toCreateCommunityBookPollRequestDto,
   toCreateCommunityBookPollResult,
+  toVoteCommunityBookPollRequestDto,
+  toVoteCommunityBookPollResult,
   buildCommunitySearchBooksQueryString,
   toCommunitySearchBooksResult,
 } from '../model/communityBook.mapper';
@@ -64,6 +68,8 @@ import {
   CommunityBookPollsResult,
   CreateCommunityBookPollInput,
   CreateCommunityBookPollResult,
+  VoteCommunityBookPollInput,
+  VoteCommunityBookPollResult,
   CommunitySearchBooksQuery,
   CommunitySearchBooksResult,
 } from '../model/communityBook.types';
@@ -186,6 +192,21 @@ export async function createCommunityBookPoll(
     body: dto,
   });
   return toCreateCommunityBookPollResult(response);
+}
+
+export async function voteCommunityBookPoll(
+  bookId: number,
+  input: VoteCommunityBookPollInput,
+): Promise<VoteCommunityBookPollResult> {
+  const dto: VoteCommunityBookPollRequestDto = toVoteCommunityBookPollRequestDto(input);
+  const response = await postJson<VoteCommunityBookPollResponseDto>(
+    `/api/v1/community/books/${bookId}/polls/${input.pollId}/vote`,
+    {
+      auth: true,
+      body: dto,
+    },
+  );
+  return toVoteCommunityBookPollResult(response);
 }
 
 export async function searchCommunityBooks(params: CommunitySearchBooksQuery): Promise<CommunitySearchBooksResult> {

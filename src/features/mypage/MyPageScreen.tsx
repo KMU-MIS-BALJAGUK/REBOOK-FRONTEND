@@ -162,134 +162,8 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
     ]);
   };
 
-  if (mode === 'settings') {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" />
-        <View style={styles.screenShell}>
-          <View style={styles.settingsHeader}>
-            <TouchableOpacity style={styles.headerIconButton} onPress={() => setMode('main')}>
-              <Text style={styles.headerIcon}>←</Text>
-            </TouchableOpacity>
-            <Text style={styles.settingsTitle}>설정</Text>
-            <View style={styles.headerSpacer} />
-          </View>
-
-          <ScrollView style={styles.settingsScroll} contentContainerStyle={styles.settingsScrollContent} showsVerticalScrollIndicator={false}>
-            <Text style={styles.groupLabel}>계정</Text>
-            <SettingRow title="닉네임" sub={displayName} onPress={handleOpenNicknameEdit} />
-            <SettingRow title="한줄소개" sub={displayBio} onPress={handleOpenBioEdit} />
-
-            <Text style={styles.groupLabel}>앱 설정</Text>
-            <SettingRow title="알림 설정" icon="🔔" />
-            <SettingRow title="AI 대화 스타일" icon="✦" sub="친근하고 따뜻하게" />
-
-            <Text style={styles.groupLabel}>앱 정보</Text>
-            <SettingRow title="버전 정보" icon="ⓘ" right="1.0.0" />
-            <SettingRow title="이용약관" />
-            <SettingRow title="개인정보처리방침" />
-            <SettingRow title="오픈소스 라이선스" />
-
-            {logoutMutation.isError ? <Text style={styles.errorText}>{toUserMessage(logoutMutation.error)}</Text> : null}
-            <SettingRow
-              title={logoutMutation.isPending ? '로그아웃 중...' : '로그아웃'}
-              icon="↪"
-              mt={10}
-              onPress={handleLogout}
-              disabled={logoutMutation.isPending}
-            />
-            {deleteAccountMutation.isError ? <Text style={styles.errorText}>{toUserMessage(deleteAccountMutation.error)}</Text> : null}
-            <SettingRow
-              title={deleteAccountMutation.isPending ? '탈퇴 처리 중...' : '회원탈퇴'}
-              icon="⛔"
-              danger
-              mt={8}
-              onPress={handleDeleteAccount}
-              disabled={deleteAccountMutation.isPending}
-            />
-          </ScrollView>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" />
-      <View style={styles.screenShell}>
-        <View style={styles.topPanel}>
-          <View style={styles.topHeader}>
-            <TouchableOpacity style={styles.headerIconButton} onPress={onPressHome}>
-              <Text style={styles.headerIcon}>←</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setMode('settings')}>
-              <Text style={styles.settingIcon}>⚙</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <ScrollView style={styles.mainScroll} contentContainerStyle={styles.mainScrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.profileWrap}>
-            <View style={styles.avatar}><Text style={styles.avatarText}>{displayInitial}</Text></View>
-            <Text style={styles.name}>{displayName}</Text>
-            <Text style={styles.desc}>{displayBio}</Text>
-            {myProfileQuery.isLoading ? <Text style={styles.loadingText}>프로필을 불러오는 중...</Text> : null}
-            {myProfileQuery.isError ? <Text style={styles.errorText}>{toUserMessage(myProfileQuery.error)}</Text> : null}
-          </View>
-
-          <View style={styles.plusCard}>
-            <Text style={styles.plusTitle}>👑 ReBook Plus</Text>
-            <Text style={styles.plusBody}>월 9900원으로 나의 독서 취향을 더 깊게 확인해보세요.</Text>
-            <Text style={styles.plusList}>• 내 독서 성향 분석</Text>
-            <Text style={styles.plusList}>• 감정/키워드 리포트</Text>
-            <Text style={styles.plusList}>• AI 해석 확장</Text>
-            <Text style={styles.plusList}>• 내가 쓴 게시물 모아보기</Text>
-            <TouchableOpacity style={styles.plusBtn}><Text style={styles.plusBtnText}>자세히 보기</Text></TouchableOpacity>
-          </View>
-
-          <View style={styles.statsGrid}>
-            {statCards.map((item) => (
-              <View key={item.label} style={styles.statCard}>
-                <Text style={styles.statLabel}>{item.label}</Text>
-                <Text style={styles.statValue}>{item.value}</Text>
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.analysisSectionDivider} />
-          <Text style={styles.sectionTitle}>내 독서 분석</Text>
-          {myInsightsQuery.isLoading ? <Text style={styles.loadingText}>독서 분석을 불러오는 중...</Text> : null}
-          {myInsightsQuery.isError ? <Text style={styles.errorText}>{toUserMessage(myInsightsQuery.error)}</Text> : null}
-          <View style={styles.analysisCard}>
-            <Text style={styles.analysisLabel}>자주 저장한 감정</Text>
-            <View style={styles.analysisEmotionRow}>
-              <Text style={styles.analysisEmotion}>{insights ? `${insights.favoriteEmotion.emoji}` : '🤔'}</Text>
-              <Text style={styles.analysisEmotionMeta}>
-                {insights ? `${insights.favoriteEmotion.count}회` : '-'}
-              </Text>
-            </View>
-
-            <Text style={styles.analysisLabel}>많이 저장한 키워드</Text>
-            <View style={styles.tagRow}>
-              {(insights?.topKeywords ?? []).length > 0
-                ? (insights?.topKeywords ?? []).map((keyword) => <Tag key={keyword} text={keyword} />)
-                : <Text style={styles.analysisValue}>키워드 없음</Text>}
-            </View>
-
-            <View style={styles.analysisMetaRow}>
-              <View style={styles.analysisMetaCell}>
-                <Text style={styles.analysisLabel}>많이 읽은 분야</Text>
-                <Text style={styles.analysisMetaStrong}>{insights?.favoriteGenre.label ?? '-'}</Text>
-              </View>
-              <View style={styles.analysisMetaCell}>
-                <Text style={styles.analysisLabel}>이번 달 저장 문장</Text>
-                <Text style={styles.analysisMetaStrong}>{insights ? `${insights.savedQuotesThisMonth}개` : '-'}</Text>
-              </View>
-            </View>
-          </View>
-        </ScrollView>
-      </View>
-
+  const editModals = (
+    <>
       <Modal visible={isNicknameEditVisible} transparent animationType="fade" onRequestClose={() => setIsNicknameEditVisible(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
@@ -353,7 +227,143 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </>
+  );
+
+  if (mode === 'settings') {
+    return (
+      <>
+        <SafeAreaView style={styles.safeArea}>
+          <StatusBar barStyle="light-content" />
+          <View style={styles.screenShell}>
+            <View style={styles.settingsHeader}>
+              <TouchableOpacity style={styles.headerIconButton} onPress={() => setMode('main')}>
+                <Text style={styles.headerIcon}>←</Text>
+              </TouchableOpacity>
+              <Text style={styles.settingsTitle}>설정</Text>
+              <View style={styles.headerSpacer} />
+            </View>
+
+            <ScrollView style={styles.settingsScroll} contentContainerStyle={styles.settingsScrollContent} showsVerticalScrollIndicator={false}>
+              <Text style={styles.groupLabel}>계정</Text>
+              <SettingRow title="닉네임 수정" sub={displayName} onPress={handleOpenNicknameEdit} />
+              <SettingRow title="한줄소개 수정" sub={displayBio} onPress={handleOpenBioEdit} />
+
+              <Text style={styles.groupLabel}>앱 설정</Text>
+              <SettingRow title="알림 설정" icon="🔔" />
+              <SettingRow title="AI 대화 스타일" icon="✦" sub="친근하고 따뜻하게" />
+
+              <Text style={styles.groupLabel}>앱 정보</Text>
+              <SettingRow title="버전 정보" icon="ⓘ" right="1.0.0" />
+              <SettingRow title="이용약관" />
+              <SettingRow title="개인정보처리방침" />
+              <SettingRow title="오픈소스 라이선스" />
+
+              {logoutMutation.isError ? <Text style={styles.errorText}>{toUserMessage(logoutMutation.error)}</Text> : null}
+              <SettingRow
+                title={logoutMutation.isPending ? '로그아웃 중...' : '로그아웃'}
+                icon="↪"
+                mt={10}
+                onPress={handleLogout}
+                disabled={logoutMutation.isPending}
+              />
+              {deleteAccountMutation.isError ? <Text style={styles.errorText}>{toUserMessage(deleteAccountMutation.error)}</Text> : null}
+              <SettingRow
+                title={deleteAccountMutation.isPending ? '탈퇴 처리 중...' : '회원탈퇴'}
+                icon="⛔"
+                danger
+                mt={8}
+                onPress={handleDeleteAccount}
+                disabled={deleteAccountMutation.isPending}
+              />
+            </ScrollView>
+          </View>
+        </SafeAreaView>
+        {editModals}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.screenShell}>
+          <View style={styles.topPanel}>
+            <View style={styles.topHeader}>
+              <TouchableOpacity style={styles.headerIconButton} onPress={onPressHome}>
+                <Text style={styles.headerIcon}>←</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setMode('settings')}>
+                <Text style={styles.settingIcon}>⚙</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <ScrollView style={styles.mainScroll} contentContainerStyle={styles.mainScrollContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.profileWrap}>
+              <View style={styles.avatar}><Text style={styles.avatarText}>{displayInitial}</Text></View>
+              <Text style={styles.name}>{displayName}</Text>
+              <Text style={styles.desc}>{displayBio}</Text>
+              {myProfileQuery.isLoading ? <Text style={styles.loadingText}>프로필을 불러오는 중...</Text> : null}
+              {myProfileQuery.isError ? <Text style={styles.errorText}>{toUserMessage(myProfileQuery.error)}</Text> : null}
+            </View>
+
+            <View style={styles.plusCard}>
+              <Text style={styles.plusTitle}>👑 ReBook Plus</Text>
+              <Text style={styles.plusBody}>월 9900원으로 나의 독서 취향을 더 깊게 확인해보세요.</Text>
+              <Text style={styles.plusList}>• 내 독서 성향 분석</Text>
+              <Text style={styles.plusList}>• 감정/키워드 리포트</Text>
+              <Text style={styles.plusList}>• AI 해석 확장</Text>
+              <Text style={styles.plusList}>• 내가 쓴 게시물 모아보기</Text>
+              <TouchableOpacity style={styles.plusBtn}><Text style={styles.plusBtnText}>자세히 보기</Text></TouchableOpacity>
+            </View>
+
+            <View style={styles.statsGrid}>
+              {statCards.map((item) => (
+                <View key={item.label} style={styles.statCard}>
+                  <Text style={styles.statLabel}>{item.label}</Text>
+                  <Text style={styles.statValue}>{item.value}</Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.analysisSectionDivider} />
+            <Text style={styles.sectionTitle}>내 독서 분석</Text>
+            {myInsightsQuery.isLoading ? <Text style={styles.loadingText}>독서 분석을 불러오는 중...</Text> : null}
+            {myInsightsQuery.isError ? <Text style={styles.errorText}>{toUserMessage(myInsightsQuery.error)}</Text> : null}
+            <View style={styles.analysisCard}>
+              <Text style={styles.analysisLabel}>자주 저장한 감정</Text>
+              <View style={styles.analysisEmotionRow}>
+                <Text style={styles.analysisEmotion}>{insights ? `${insights.favoriteEmotion.emoji}` : '🤔'}</Text>
+                <Text style={styles.analysisEmotionMeta}>
+                  {insights ? `${insights.favoriteEmotion.count}회` : '-'}
+                </Text>
+              </View>
+
+              <Text style={styles.analysisLabel}>많이 저장한 키워드</Text>
+              <View style={styles.tagRow}>
+                {(insights?.topKeywords ?? []).length > 0
+                  ? (insights?.topKeywords ?? []).map((keyword) => <Tag key={keyword} text={keyword} />)
+                  : <Text style={styles.analysisValue}>키워드 없음</Text>}
+              </View>
+
+              <View style={styles.analysisMetaRow}>
+                <View style={styles.analysisMetaCell}>
+                  <Text style={styles.analysisLabel}>많이 읽은 분야</Text>
+                  <Text style={styles.analysisMetaStrong}>{insights?.favoriteGenre.label ?? '-'}</Text>
+                </View>
+                <View style={styles.analysisMetaCell}>
+                  <Text style={styles.analysisLabel}>이번 달 저장 문장</Text>
+                  <Text style={styles.analysisMetaStrong}>{insights ? `${insights.savedQuotesThisMonth}개` : '-'}</Text>
+                </View>
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+      </SafeAreaView>
+      {editModals}
+    </>
   );
 }
 
@@ -500,45 +510,45 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, color: '#fff', fontWeight: '700', marginBottom: 10 },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(32, 26, 20, 0.45)',
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
   modalCard: {
-    backgroundColor: '#f9f6f0',
-    borderRadius: 0,
+    backgroundColor: '#111',
+    borderRadius: 2,
     borderWidth: 1,
-    borderColor: '#e8dfd2',
+    borderColor: '#44c3f3',
     padding: 16,
   },
-  modalTitle: { fontSize: 16, color: '#2f2a24', fontWeight: '700', marginBottom: 10 },
+  modalTitle: { fontSize: 17, color: '#fff', fontWeight: '700', marginBottom: 10 },
   inputBox: {
-    borderRadius: 8,
+    borderRadius: 2,
     borderWidth: 1,
-    borderColor: '#e2d8cb',
-    backgroundColor: '#f7f2ea',
+    borderColor: '#44c3f3',
+    backgroundColor: '#1a1a1a',
     paddingHorizontal: 10,
     minHeight: 38,
     marginBottom: 8,
-    color: '#352f27',
+    color: '#fff',
   },
   editFooterRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 4 },
   cancelButton: {
-    borderRadius: 8,
+    borderRadius: 2,
     borderWidth: 1,
-    borderColor: '#d8cdbf',
-    backgroundColor: '#f4efe7',
+    borderColor: '#44c3f3',
+    backgroundColor: '#111',
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
-  cancelButtonText: { color: '#6c6256', fontSize: 12, fontWeight: '700' },
+  cancelButtonText: { color: '#44c3f3', fontSize: 12, fontWeight: '700' },
   confirmButton: {
-    borderRadius: 8,
-    backgroundColor: '#8d7353',
+    borderRadius: 2,
+    backgroundColor: '#44c3f3',
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
-  confirmButtonText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  confirmButtonText: { color: '#111', fontSize: 12, fontWeight: '700' },
   analysisCard: {
     borderRadius: 0,
     borderWidth: 1,

@@ -26,6 +26,8 @@ import { useHomeDeleteFolder } from './hooks/useHomeDeleteFolder';
 import { HomeCardEmojiType, HomeCardItem, HomeCardSort, HomeCardView } from './model/home.types';
 import { toUserMessage } from '../../shared/utils/apiError';
 import { API_BASE_URL } from '../../shared/constants/api';
+import { BottomNav } from '../../shared/ui/BottomNav';
+import { MyButton } from '../../shared/ui/MyButton';
 
 type Props = {
   nickname: string;
@@ -265,9 +267,7 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
                 onChangeText={setSearchKeyword}
               />
             </View>
-            <TouchableOpacity style={styles.roundButton} onPress={onPressMyPage}>
-              <Text style={styles.roundButtonText}>My</Text>
-            </TouchableOpacity>
+            <MyButton onPress={onPressMyPage} />
           </View>
 
           <View style={styles.homeTabRow}>
@@ -644,20 +644,7 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
           <Text style={styles.floatingButtonText}>＋</Text>
         </Pressable>
 
-        <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.bottomItem} onPress={onPressCommunity}>
-            <Text style={styles.bottomIcon}>◌</Text>
-            <Text style={styles.bottomLabel}>커뮤니티</Text>
-          </TouchableOpacity>
-          <View style={styles.bottomItem}>
-            <Text style={styles.bottomIcon}>⌂</Text>
-            <Text style={styles.bottomLabelActive}>홈</Text>
-          </View>
-          <TouchableOpacity style={styles.bottomItem} onPress={onPressAiChat}>
-            <Text style={styles.bottomIcon}>◔</Text>
-            <Text style={styles.bottomLabel}>AI 채팅</Text>
-          </TouchableOpacity>
-        </View>
+        <BottomNav active="home" onPressCommunity={onPressCommunity} onPressHome={() => {}} onPressAiChat={onPressAiChat} />
       </View>
     </SafeAreaView>
   );
@@ -777,7 +764,7 @@ function resolveRemoteImageUrl(url: string | null | undefined): string {
 
 const styles = StyleSheet.create({
   homeSafeArea: { flex: 1, backgroundColor: '#44c3f3' },
-  homeContainer: { flex: 1, paddingHorizontal: 0, paddingTop: 8, paddingBottom: 10, backgroundColor: '#44c3f3' },
+  homeContainer: { flex: 1, paddingHorizontal: 0, paddingTop: 8, paddingBottom: 0, backgroundColor: '#44c3f3' },
   topPanel: {
     backgroundColor: '#44c3f3',
     paddingTop: 6,
@@ -814,15 +801,6 @@ const styles = StyleSheet.create({
   },
   searchIcon: { fontSize: 16, color: '#111', marginRight: 8 },
   searchInput: { flex: 1, fontSize: 15, color: '#141414', paddingVertical: 0 },
-  roundButton: {
-    width: 48,
-    height: 40,
-    borderRadius: 0,
-    backgroundColor: '#0d0d0d',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  roundButtonText: { color: '#44c3f3', fontSize: 13, fontWeight: '800' },
   homeTabRow: { flexDirection: 'row', gap: 6, marginBottom: 10 },
   homeTabButton: {
     borderRadius: 0,
@@ -1115,17 +1093,22 @@ const styles = StyleSheet.create({
   bookSentenceAuthor: { color: '#7e7467', fontSize: 11, marginTop: 2 },
   floatingButton: {
     position: 'absolute',
-    right: 18,
-    bottom: 58,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#8d7353',
+    right: 16,
+    bottom: 90,
+    width: 44,
+    height: 44,
+    borderRadius: 0,
+    backgroundColor: '#111',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
   },
-  floatingButtonText: { color: '#fff', fontSize: 18, lineHeight: 18, marginTop: -1 },
+  floatingButtonText: { color: '#fff', fontSize: 24, lineHeight: 24, marginTop: -1, fontWeight: '700' },
   bottomNav: {
     height: 84,
     borderTopWidth: 1,

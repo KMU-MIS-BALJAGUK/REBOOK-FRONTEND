@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { CameraCapturedPicture, CameraView, useCameraPermissions } from 'expo-camera';
-import type { QuoteLocalImageAsset } from '../model/quoteLocalImage.types';
 import * as ImageManipulator from 'expo-image-manipulator';
+import type { QuoteLocalImageAsset } from '../model/quoteLocalImage.types';
 
 type Props = {
   onBack: () => void;
@@ -11,12 +11,9 @@ type Props = {
   uploadError: string | null;
 };
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const FRAME_WIDTH = Math.round(SCREEN_WIDTH * 0.88);
-const FRAME_HEIGHT = Math.round(SCREEN_HEIGHT * 0.22);
-const FRAME_ASPECT_RATIO = FRAME_WIDTH / FRAME_HEIGHT;
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-async function cropCapturedPhoto(photo: CameraCapturedPicture): Promise<QuoteLocalImageAsset> {
+async function toCapturedPhotoAsset(photo: CameraCapturedPicture): Promise<QuoteLocalImageAsset> {
   if (typeof photo.uri !== 'string' || !photo.uri.trim()) {
     throw new Error('사진 정보를 확인할 수 없어요.');
   }
@@ -24,43 +21,22 @@ async function cropCapturedPhoto(photo: CameraCapturedPicture): Promise<QuoteLoc
     throw new Error('사진 정보를 확인할 수 없어요.');
   }
 
-  const sourceRatio = photo.width / photo.height;
-  let cropWidth = photo.width;
-  let cropHeight = photo.height;
-
-  if (sourceRatio > FRAME_ASPECT_RATIO) {
-    cropWidth = Math.round(photo.height * FRAME_ASPECT_RATIO);
-  } else {
-    cropHeight = Math.round(photo.width / FRAME_ASPECT_RATIO);
-  }
-
-  const originX = Math.max(0, Math.round((photo.width - cropWidth) / 2));
-  const originY = Math.max(0, Math.round((photo.height - cropHeight) / 2));
-  const manipulated = await ImageManipulator.manipulateAsync(
-    photo.uri,
-    [
-      {
-        crop: {
-          originX,
-          originY,
-          width: cropWidth,
-          height: cropHeight,
-        },
-      },
-    ],
-    {
-      format: ImageManipulator.SaveFormat.JPEG,
-      compress: 0.92,
-    },
-  );
+  // Re-encoding applies the camera orientation to the pixel data so the crop
+  // preview and ImageManipulator use the same coordinate system.
+  const normalizeContext = ImageManipulator.ImageManipulator.manipulate(photo.uri);
+  const normalizedImage = await normalizeContext.renderAsync();
+  const normalizedPhoto = await normalizedImage.saveAsync({
+    format: ImageManipulator.SaveFormat.JPEG,
+    compress: 0.92,
+  });
 
   return {
-    uri: manipulated.uri,
+    uri: normalizedPhoto.uri,
     fileName: `camera-${Date.now()}.jpg`,
     mimeType: 'image/jpeg',
     fileSize: undefined,
-    width: manipulated.width,
-    height: manipulated.height,
+    width: normalizedPhoto.width,
+    height: normalizedPhoto.height,
   };
 }
 
@@ -70,7 +46,6 @@ export function CameraCaptureScreen({ onBack, onCapture, isUploading, uploadErro
   const [isReady, setIsReady] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [isCropping, setIsCropping] = useState(false);
-
   useEffect(() => {
     if (!permission) {
       void requestPermission();
@@ -100,13 +75,13 @@ export function CameraCaptureScreen({ onBack, onCapture, isUploading, uploadErro
         width: photo.width,
         height: photo.height,
       });
-      const cropped = await cropCapturedPhoto(photo);
-      console.log('[QUOTE_CAMERA] crop finished', {
-        uri: cropped.uri,
-        width: cropped.width,
-        height: cropped.height,
+      const capturedAsset = await toCapturedPhotoAsset(photo);
+      console.log('[QUOTE_CAMERA] capture asset ready', {
+        uri: capturedAsset.uri,
+        width: capturedAsset.width,
+        height: capturedAsset.height,
       });
-      await onCapture(cropped);
+      await onCapture(capturedAsset);
       setIsCropping(false);
     } catch (error) {
       console.log('[QUOTE_CAMERA] capture error', error);
@@ -139,20 +114,14 @@ export function CameraCaptureScreen({ onBack, onCapture, isUploading, uploadErro
 
   return (
     <View style={styles.container}>
-      <CameraView
-        ref={cameraRef}
-        style={StyleSheet.absoluteFill}
-        facing="back"
-        onCameraReady={() => setIsReady(true)}
-      />
-      <View style={styles.topShade} />
-      <View style={styles.centerArea}>
-        <Text style={styles.guideText}>기록할 문장을 네모 안에 맞춰주세요</Text>
-        <View style={styles.cropFrame}>
-          <View style={styles.cropInnerBorder} />
-        </View>
+      <View style={StyleSheet.absoluteFill}>
+        <CameraView
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          facing="back"
+          onCameraReady={() => setIsReady(true)}
+        />
       </View>
-      <View style={styles.bottomShade} />
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack}>
           <Text style={styles.backText}>←</Text>
@@ -163,7 +132,18 @@ export function CameraCaptureScreen({ onBack, onCapture, isUploading, uploadErro
       <View style={styles.bottomBar}>
         {localError || uploadError ? <Text style={styles.errorText}>{localError ?? uploadError}</Text> : null}
         <TouchableOpacity style={styles.shutterButton} onPress={() => void handleCapture()} disabled={isBusy}>
-          {isBusy ? <ActivityIndicator color="#fff" /> : <Text style={styles.shutterText}>촬영</Text>}
+          {isBusy ? (
+            <ActivityIndicator color="#45c2f1" />
+          ) : (
+            <View style={styles.shutterIcon}>
+              <View style={[styles.apertureBlade, styles.apertureBlade1]} />
+              <View style={[styles.apertureBlade, styles.apertureBlade2]} />
+              <View style={[styles.apertureBlade, styles.apertureBlade3]} />
+              <View style={[styles.apertureBlade, styles.apertureBlade4]} />
+              <View style={[styles.apertureBlade, styles.apertureBlade5]} />
+              <View style={[styles.apertureBlade, styles.apertureBlade6]} />
+            </View>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -190,56 +170,6 @@ const styles = StyleSheet.create({
   backText: { color: '#fff', fontSize: 18, fontWeight: '700' },
   headerTitle: { color: '#fff', fontSize: 14, fontWeight: '700' },
   headerSpacer: { width: 18 },
-  topShade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    height: Math.max(0, (SCREEN_HEIGHT - FRAME_HEIGHT) / 2 - 70),
-    backgroundColor: 'rgba(0, 0, 0, 0.78)',
-    zIndex: 1,
-  },
-  centerArea: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: Math.max(76, (SCREEN_HEIGHT - FRAME_HEIGHT) / 2 - 20),
-    height: FRAME_HEIGHT + 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
-  },
-  guideText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 18,
-    textShadowColor: 'rgba(0,0,0,0.45)',
-    textShadowRadius: 4,
-  },
-  cropFrame: {
-    width: FRAME_WIDTH,
-    height: FRAME_HEIGHT,
-    borderWidth: 2,
-    borderColor: '#45c2f1',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    overflow: 'hidden',
-  },
-  cropInnerBorder: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-    margin: 2,
-  },
-  bottomShade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: Math.max(0, (SCREEN_HEIGHT - FRAME_HEIGHT) / 2 - 100),
-    backgroundColor: 'rgba(0, 0, 0, 0.78)',
-    zIndex: 1,
-  },
   bottomBar: {
     position: 'absolute',
     left: 0,
@@ -252,15 +182,40 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
   shutterButton: {
-    width: '100%',
-    maxWidth: 320,
-    height: 52,
-    borderRadius: 10,
-    backgroundColor: '#45c2f1',
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    borderWidth: 4,
+    borderColor: '#45c2f1',
+    backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  shutterText: { color: '#000', fontSize: 15, fontWeight: '800' },
+  shutterIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#45c2f1',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  apertureBlade: {
+    position: 'absolute',
+    left: 22,
+    top: -2,
+    width: 4,
+    height: 26,
+    backgroundColor: '#45c2f1',
+    borderRadius: 2,
+    transformOrigin: 'center',
+  },
+  apertureBlade1: { transform: [{ translateY: 11 }, { rotate: '0deg' }] },
+  apertureBlade2: { transform: [{ translateY: 11 }, { rotate: '60deg' }] },
+  apertureBlade3: { transform: [{ translateY: 11 }, { rotate: '120deg' }] },
+  apertureBlade4: { transform: [{ translateY: 11 }, { rotate: '180deg' }] },
+  apertureBlade5: { transform: [{ translateY: 11 }, { rotate: '240deg' }] },
+  apertureBlade6: { transform: [{ translateY: 11 }, { rotate: '300deg' }] },
   errorText: {
     color: '#f8d1d1',
     fontSize: 12,

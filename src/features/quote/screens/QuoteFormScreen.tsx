@@ -1,12 +1,47 @@
-import React, { useDeferredValue, useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useDeferredValue, useEffect, useRef, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
+import {
+  ActivityIndicator,
+  InputAccessoryView,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { RegisterType } from '../../../app/types';
 import { toUserMessage } from '../../../shared/utils/apiError';
 import { QuoteImageAttachmentResult } from '../model/quoteImageAttachment.types';
+import { QuoteLocalImageAsset } from '../model/quoteLocalImage.types';
 import { useCreateFolder } from '../hooks/useCreateFolder';
 import { useQuoteBookSearch } from '../hooks/useQuoteBookSearch';
 import { useCreateQuote } from '../hooks/useCreateQuote';
 import { useFolders } from '../hooks/useFolders';
+import { CameraCropScreen } from './CameraCropScreen';
+
+const INPUT_ACCESSORY_IDS = {
+  book: 'quote-form-book-accessory',
+  author: 'quote-form-author-accessory',
+  page: 'quote-form-page-accessory',
+  quote: 'quote-form-quote-accessory',
+  memo: 'quote-form-memo-accessory',
+  folder: 'quote-form-folder-accessory',
+} as const;
+
+const INPUT_ACCESSORIES = [
+  { id: INPUT_ACCESSORY_IDS.book, label: '책 제목' },
+  { id: INPUT_ACCESSORY_IDS.author, label: '저자' },
+  { id: INPUT_ACCESSORY_IDS.page, label: '페이지' },
+  { id: INPUT_ACCESSORY_IDS.quote, label: '추출된 문장' },
+  { id: INPUT_ACCESSORY_IDS.memo, label: '내 코멘트' },
+  { id: INPUT_ACCESSORY_IDS.folder, label: '새 폴더 이름' },
+] as const;
 
 type Props = {
   onBack: () => void;
@@ -18,7 +53,7 @@ type Props = {
     ocrId: number;
     blockIds?: number[];
   };
-  onAttachImage: () => Promise<QuoteImageAttachmentResult | null>;
+  onAttachImage: (asset: QuoteLocalImageAsset) => Promise<QuoteImageAttachmentResult | null>;
 };
 
 type AttachedOcrSource = {
@@ -32,6 +67,7 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
   const createQuoteMutation = useCreateQuote();
   const createFolderMutation = useCreateFolder();
   const foldersQuery = useFolders({ includeQuoteCount: true });
+  const formScrollRef = useRef<ScrollView | null>(null);
   const [book, setBook] = useState('');
   const [author, setAuthor] = useState('');
   const [showBookResults, setShowBookResults] = useState(false);
@@ -43,6 +79,9 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
   const [newFolderName, setNewFolderName] = useState('');
   const [folderError, setFolderError] = useState<string | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [pendingAttachmentAsset, setPendingAttachmentAsset] = useState<QuoteLocalImageAsset | null>(null);
+  const [isAttachmentSubmitting, setIsAttachmentSubmitting] = useState(false);
+  const [activeInputLabel, setActiveInputLabel] = useState<string | null>(null);
   const [attachedImage, setAttachedImage] = useState<AttachedOcrSource | null>(
     ocrSource ? { ...ocrSource, fullText: initialQuoteText ?? '' } : null,
   );
@@ -50,7 +89,7 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
   const methodLabel = initialMethod === 'manual' ? '직접입력' : initialMethod === 'camera' ? '사진찍기' : '갤러리';
   const apiError = createQuoteMutation.isError ? toUserMessage(createQuoteMutation.error) : null;
   const submitError = validationError ?? apiError;
-  const isSubmitDisabled = createQuoteMutation.isPending;
+  const isSubmitDisabled = createQuoteMutation.isPending || createFolderMutation.isPending;
   const deferredBook = useDeferredValue(book);
   const deferredAuthor = useDeferredValue(author);
   const bookSearchQuery = deferredBook.trim() || deferredAuthor.trim();
@@ -117,7 +156,7 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
     );
   };
 
-  const handleCreateFolder = () => {
+  const handleCreateFolder = async () => {
     const trimmedName = newFolderName.trim();
     if (!trimmedName) {
       setFolderError('폴더 이름을 입력해주세요.');
@@ -129,29 +168,39 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
     }
 
     setFolderError(null);
-    createFolderMutation.mutate(
-      { folderName: trimmedName },
-      {
-        onSuccess: async (createdFolder) => {
-          await foldersQuery.refetch();
-          setSelectedFolderId(createdFolder.folderId);
-          setNewFolderName('');
-          setIsCreatingFolder(false);
-        },
-      },
-    );
+    try {
+      const createdFolder = await createFolderMutation.mutateAsync({ folderName: trimmedName });
+      setSelectedFolderId(createdFolder.folderId);
+      setNewFolderName('');
+      setIsCreatingFolder(false);
+      Keyboard.dismiss();
+      setActiveInputLabel(null);
+      await foldersQuery.refetch();
+    } catch {
+      // The mutation error is rendered from createFolderMutation below.
+    }
   };
 
   const handleAttachImage = async () => {
     setAttachmentError(null);
     try {
-      const result = await onAttachImage();
-      if (!result) {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setAttachmentError('사진 접근 권한이 필요합니다.');
         return;
       }
 
-      setAttachedImage(result);
-      setQuote(result.fullText);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 1,
+        allowsEditing: false,
+      });
+
+      if (result.canceled || !result.assets?.length) {
+        return;
+      }
+
+      setPendingAttachmentAsset(result.assets[0]);
     } catch (error) {
       setAttachmentError(toUserMessage(error));
     }
@@ -162,8 +211,55 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
     setAttachmentError(null);
   };
 
+  const finishInput = () => {
+    Keyboard.dismiss();
+    setActiveInputLabel(null);
+  };
+
+  const handleInputFocus = (label: string, scrollToBottom = false) => {
+    setActiveInputLabel(label);
+    if (!scrollToBottom) {
+      return;
+    }
+
+    setTimeout(() => {
+      formScrollRef.current?.scrollToEnd({ animated: true });
+    }, Platform.OS === 'ios' ? 280 : 180);
+  };
+
+  if (pendingAttachmentAsset) {
+    return (
+      <CameraCropScreen
+        asset={pendingAttachmentAsset}
+        onBack={() => {
+          setAttachmentError(null);
+          setPendingAttachmentAsset(null);
+        }}
+        isSubmitting={isAttachmentSubmitting}
+        submitError={attachmentError}
+        onConfirm={async (asset) => {
+          try {
+            setAttachmentError(null);
+            setIsAttachmentSubmitting(true);
+            const result = await onAttachImage(asset);
+            if (result) {
+              setAttachedImage(result);
+              setQuote(result.fullText);
+            }
+            setPendingAttachmentAsset(null);
+          } catch (error) {
+            setAttachmentError(toUserMessage(error));
+          } finally {
+            setIsAttachmentSubmitting(false);
+          }
+        }}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.formSafeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#44c3f3" />
       <View style={styles.formHeader}>
         <TouchableOpacity onPress={onBack}>
           <Text style={styles.backText}>←</Text>
@@ -171,7 +267,27 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
         <Text style={styles.formHeaderTitle}>문장 저장하기</Text>
         <View style={styles.formHeaderRight} />
       </View>
-      <ScrollView contentContainerStyle={styles.formBody} showsVerticalScrollIndicator={false}>
+      {activeInputLabel && Platform.OS !== 'ios' ? (
+        <View style={styles.keyboardToolbar}>
+          <Text style={styles.keyboardToolbarLabel}>{activeInputLabel} 입력 중</Text>
+          <TouchableOpacity style={styles.keyboardDoneButton} onPress={finishInput}>
+            <Text style={styles.keyboardDoneText}>완료</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          ref={formScrollRef}
+          style={styles.formScroll}
+          contentContainerStyle={styles.formBody}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        >
         <Text style={styles.formLabel}>책 제목</Text>
         <TextInput
           style={styles.formInput}
@@ -181,6 +297,9 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
             setBook(value);
           }}
           placeholder="책 제목을 입력하세요"
+          inputAccessoryViewID={Platform.OS === 'ios' ? INPUT_ACCESSORY_IDS.book : undefined}
+          onFocus={() => handleInputFocus('책 제목')}
+          onBlur={() => setActiveInputLabel(null)}
         />
         {showBookResults && (book.trim() || author.trim()) ? (
           <View style={styles.searchResultsWrap}>
@@ -218,6 +337,9 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
             setAuthor(value);
           }}
           placeholder="저자를 입력하세요"
+          inputAccessoryViewID={Platform.OS === 'ios' ? INPUT_ACCESSORY_IDS.author : undefined}
+          onFocus={() => handleInputFocus('저자')}
+          onBlur={() => setActiveInputLabel(null)}
         />
         <Text style={styles.formLabel}>페이지</Text>
         <TextInput
@@ -226,8 +348,11 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
           onChangeText={setPage}
           keyboardType="number-pad"
           placeholder="페이지 번호"
+          inputAccessoryViewID={Platform.OS === 'ios' ? INPUT_ACCESSORY_IDS.page : undefined}
+          onFocus={() => handleInputFocus('페이지')}
+          onBlur={() => setActiveInputLabel(null)}
         />
-        <Text style={styles.formLabel}>수집 문장</Text>
+        <Text style={styles.formLabel}>추출된 문장</Text>
         <View style={styles.quoteAttachmentHeader}>
           <Text style={styles.quoteAttachmentHeaderText}>이미지 첨부</Text>
           <TouchableOpacity style={styles.quoteAttachButton} onPress={() => void handleAttachImage()}>
@@ -247,19 +372,25 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
         ) : null}
         {attachmentError ? <Text style={styles.errorText}>{attachmentError}</Text> : null}
         <TextInput
-          style={styles.formTextArea}
+          style={[styles.formTextArea, styles.quoteTextArea]}
           value={quote}
           onChangeText={setQuote}
           multiline
           placeholder="인상 깊은 문장을 입력하세요"
+          inputAccessoryViewID={Platform.OS === 'ios' ? INPUT_ACCESSORY_IDS.quote : undefined}
+          onFocus={() => handleInputFocus('추출된 문장')}
+          onBlur={() => setActiveInputLabel(null)}
         />
         <Text style={styles.formLabel}>내 코멘트 (선택)</Text>
         <TextInput
-          style={styles.formTextArea}
+          style={[styles.formTextArea, styles.memoTextArea]}
           value={memo}
           onChangeText={setMemo}
           multiline
           placeholder="이 문장이 만든 생각을 자유롭게 적어보세요"
+          inputAccessoryViewID={Platform.OS === 'ios' ? INPUT_ACCESSORY_IDS.memo : undefined}
+          onFocus={() => handleInputFocus('내 코멘트', true)}
+          onBlur={() => setActiveInputLabel(null)}
         />
         <Text style={styles.formLabel}>폴더 선택</Text>
         <View style={styles.tagRow}>
@@ -305,14 +436,17 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
               onChangeText={setNewFolderName}
               placeholder="새 폴더 이름 (최대 20자)"
               maxLength={20}
+              inputAccessoryViewID={Platform.OS === 'ios' ? INPUT_ACCESSORY_IDS.folder : undefined}
+              onFocus={() => handleInputFocus('새 폴더 이름', true)}
+              onBlur={() => setActiveInputLabel(null)}
             />
             <TouchableOpacity
               style={[styles.createFolderButton, createFolderMutation.isPending && styles.submitButtonDisabled]}
               disabled={createFolderMutation.isPending}
-              onPress={handleCreateFolder}
+              onPress={() => void handleCreateFolder()}
             >
               {createFolderMutation.isPending ? (
-                <ActivityIndicator color="#fff" size="small" />
+                <ActivityIndicator color="#44c3f3" size="small" />
               ) : (
                 <Text style={styles.createFolderButtonText}>폴더 생성</Text>
               )}
@@ -328,48 +462,106 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
           </View>
         </View>
         {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
-      </ScrollView>
-      <TouchableOpacity style={[styles.submitButton, isSubmitDisabled && styles.submitButtonDisabled]} disabled={isSubmitDisabled} onPress={handleSubmit}>
-        {createQuoteMutation.isPending ? (
-          <ActivityIndicator color="#fff" size="small" />
-        ) : (
-          <Text style={styles.submitButtonText}>문장 저장하기</Text>
-        )}
-      </TouchableOpacity>
+        </ScrollView>
+        <View style={styles.submitBar}>
+          <TouchableOpacity style={[styles.submitButton, isSubmitDisabled && styles.submitButtonDisabled]} disabled={isSubmitDisabled} onPress={handleSubmit}>
+            {createQuoteMutation.isPending ? (
+              <ActivityIndicator color="#0d0d0d" size="small" />
+            ) : (
+              <Text style={styles.submitButtonText}>문장 저장하기</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+      {Platform.OS === 'ios' ? (
+        <>
+          {INPUT_ACCESSORIES.map((accessory) => (
+            <InputAccessoryView key={accessory.id} nativeID={accessory.id}>
+              <View style={styles.keyboardToolbar}>
+                <Text style={styles.keyboardToolbarLabel}>{accessory.label} 입력 중</Text>
+                <TouchableOpacity style={styles.keyboardDoneButton} onPress={finishInput}>
+                  <Text style={styles.keyboardDoneText}>완료</Text>
+                </TouchableOpacity>
+              </View>
+            </InputAccessoryView>
+          ))}
+        </>
+      ) : null}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  formSafeArea: { flex: 1, backgroundColor: '#f6f3ee' },
+  formSafeArea: { flex: 1, backgroundColor: '#44c3f3' },
   formHeader: {
-    height: 48,
+    height: 62,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#44c3f3',
+    borderBottomWidth: 1,
+    borderBottomColor: '#0d0d0d',
+  },
+  backText: { fontSize: 21, color: '#0d0d0d', fontWeight: '700' },
+  formHeaderTitle: { fontSize: 17, color: '#0d0d0d', fontWeight: '900' },
+  formHeaderRight: { width: 21 },
+  keyboardToolbar: {
+    minHeight: 46,
     paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#0d0d0d',
+    backgroundColor: '#b8e8f9',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  backText: { fontSize: 18, color: '#453d33' },
-  formHeaderTitle: { fontSize: 14, color: '#3a3228', fontWeight: '600' },
-  formHeaderRight: { width: 18 },
-  formBody: { paddingHorizontal: 14, paddingBottom: 16 },
-  formLabel: { marginTop: 10, marginBottom: 6, fontSize: 11, color: '#746b5f', fontWeight: '600' },
-  formInput: {
-    height: 38,
-    borderRadius: 8,
-    backgroundColor: '#f1ede5',
-    borderWidth: 1,
-    borderColor: '#e4dbcd',
-    paddingHorizontal: 10,
-    color: '#3e352b',
+  keyboardToolbarLabel: {
+    color: '#0d0d0d',
     fontSize: 12,
+    fontWeight: '700',
+  },
+  keyboardDoneButton: {
+    minWidth: 58,
+    height: 32,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#0d0d0d',
+    backgroundColor: '#0d0d0d',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  keyboardDoneText: {
+    color: '#44c3f3',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  keyboardAvoidingView: { flex: 1, backgroundColor: '#fff' },
+  formScroll: { flex: 1, backgroundColor: '#fff' },
+  formBody: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 22,
+    backgroundColor: '#fff',
+  },
+  formLabel: { marginTop: 14, marginBottom: 8, fontSize: 12, color: '#0d0d0d', fontWeight: '800' },
+  formInput: {
+    height: 46,
+    borderRadius: 0,
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#0d0d0d',
+    paddingHorizontal: 14,
+    color: '#0d0d0d',
+    fontSize: 14,
   },
   searchResultsWrap: {
     marginTop: 8,
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e4dbcd',
-    backgroundColor: '#f9f6f0',
+    borderColor: '#0d0d0d',
+    backgroundColor: '#fff',
     padding: 8,
   },
   quoteAttachmentHeader: {
@@ -382,27 +574,27 @@ const styles = StyleSheet.create({
   },
   quoteAttachmentHeaderText: {
     fontSize: 11,
-    color: '#746b5f',
-    fontWeight: '600',
+    color: '#0d0d0d',
+    fontWeight: '700',
   },
   quoteAttachButton: {
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#8d7353',
-    backgroundColor: '#f8f5ee',
+    borderColor: '#0d0d0d',
+    backgroundColor: '#7fd0ee',
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   quoteAttachButtonText: {
     fontSize: 11,
-    color: '#8d7353',
-    fontWeight: '700',
+    color: '#0d0d0d',
+    fontWeight: '800',
   },
   attachmentCard: {
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e0d4c3',
-    backgroundColor: '#f8f5ee',
+    borderColor: '#0d0d0d',
+    backgroundColor: '#e6f5fa',
     paddingHorizontal: 10,
     paddingVertical: 10,
     marginBottom: 8,
@@ -417,12 +609,12 @@ const styles = StyleSheet.create({
   },
   attachmentTitle: {
     fontSize: 12,
-    color: '#3e352b',
-    fontWeight: '700',
+    color: '#0d0d0d',
+    fontWeight: '800',
   },
   attachmentSub: {
     fontSize: 11,
-    color: '#8a7f71',
+    color: '#5f6c71',
   },
   attachmentRemoveText: {
     fontSize: 11,
@@ -433,10 +625,10 @@ const styles = StyleSheet.create({
     maxHeight: 180,
   },
   searchResultItem: {
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#ebe2d6',
-    backgroundColor: '#fbf8f2',
+    borderColor: '#d3d3d3',
+    backgroundColor: '#fff',
     paddingHorizontal: 10,
     paddingVertical: 10,
   },
@@ -447,60 +639,89 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   searchResultAuthor: {
-    color: '#8a7f71',
+    color: '#626262',
     fontSize: 12,
   },
   formTextArea: {
-    minHeight: 76,
-    borderRadius: 8,
-    backgroundColor: '#f1ede5',
-    borderWidth: 1,
-    borderColor: '#e4dbcd',
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    color: '#3e352b',
-    fontSize: 12,
+    minHeight: 90,
+    borderRadius: 0,
+    borderWidth: 1.5,
+    borderColor: '#0d0d0d',
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 12,
+    color: '#0d0d0d',
+    fontSize: 14,
+    lineHeight: 22,
     textAlignVertical: 'top',
   },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
+  quoteTextArea: {
+    minHeight: 96,
+    backgroundColor: '#44c3f3',
+    fontWeight: '700',
+    shadowColor: '#0d0d0d',
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    shadowOffset: { width: 3, height: 4 },
+    elevation: 3,
+  },
+  memoTextArea: {
+    minHeight: 104,
+    backgroundColor: '#e6f5fa',
+    borderColor: '#d7e7ec',
+  },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 2 },
   tagChip: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e1d7c9',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    backgroundColor: '#f8f5ee',
+    borderRadius: 0,
+    borderWidth: 1.5,
+    borderColor: '#0d0d0d',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    backgroundColor: '#44c3f3',
   },
   tagChipActive: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#8d7353',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    backgroundColor: '#8d7353',
+    borderRadius: 0,
+    borderWidth: 1.5,
+    borderColor: '#0d0d0d',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    backgroundColor: '#0d0d0d',
   },
-  tagChipText: { fontSize: 10, color: '#7f766a' },
-  tagChipTextActive: { fontSize: 10, color: '#fff', fontWeight: '600' },
+  tagChipText: { fontSize: 12, color: '#0d0d0d', fontWeight: '800' },
+  tagChipTextActive: { fontSize: 12, color: '#44c3f3', fontWeight: '800' },
+  submitBar: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 14,
+    backgroundColor: '#44c3f3',
+    borderTopWidth: 1,
+    borderTopColor: '#0d0d0d',
+  },
   submitButton: {
-    height: 44,
-    marginHorizontal: 14,
-    marginBottom: 12,
-    borderRadius: 9,
-    backgroundColor: '#8d7353',
+    height: 52,
+    borderRadius: 0,
+    borderWidth: 1.5,
+    borderColor: '#0d0d0d',
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#0d0d0d',
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    shadowOffset: { width: 2, height: 3 },
+    elevation: 3,
   },
   submitButtonDisabled: {
     opacity: 0.7,
   },
-  submitButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  submitButtonText: { color: '#0d0d0d', fontSize: 16, fontWeight: '900' },
   errorText: {
     marginTop: 10,
     color: '#b14f4f',
     fontSize: 12,
   },
   helperText: {
-    color: '#7f766a',
+    color: '#626262',
     fontSize: 12,
   },
   inlineRow: {
@@ -513,7 +734,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   retryText: {
-    color: '#8d7353',
+    color: '#087ca7',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -522,16 +743,18 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   createFolderButton: {
-    height: 38,
-    borderRadius: 8,
-    backgroundColor: '#8d7353',
+    height: 40,
+    borderRadius: 0,
+    borderWidth: 1.5,
+    borderColor: '#0d0d0d',
+    backgroundColor: '#0d0d0d',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 12,
     alignSelf: 'flex-start',
   },
   createFolderButtonText: {
-    color: '#fff',
+    color: '#44c3f3',
     fontSize: 12,
     fontWeight: '700',
   },

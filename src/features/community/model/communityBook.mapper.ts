@@ -5,6 +5,8 @@ import {
   CommunityBookPollsResponseDto,
   CreateCommunityBookPollRequestDto,
   CreateCommunityBookPollResponseDto,
+  VoteCommunityBookPollRequestDto,
+  VoteCommunityBookPollResponseDto,
   CreateDiscussionCommentRequestDto,
   CreateDiscussionCommentResponseDto,
   ToggleDiscussionLikeResponseDto,
@@ -28,6 +30,8 @@ import {
   CommunityBookPollsResult,
   CreateCommunityBookPollInput,
   CreateCommunityBookPollResult,
+  VoteCommunityBookPollInput,
+  VoteCommunityBookPollResult,
   CreateDiscussionCommentInput,
   CreateDiscussionCommentResult,
   ToggleDiscussionLikeResult,
@@ -301,27 +305,7 @@ export function buildCommunityBookPollsQueryString(params: CommunityBookPollsQue
 export function toCommunityBookPollsResult(dto: CommunityBookPollsResponseDto): CommunityBookPollsResult {
   return {
     bookId: dto.bookId,
-    items: dto.items.map((item) => ({
-      pollId: item.pollId,
-      bookId: item.bookId,
-      question: item.question,
-      optionA: {
-        optionId: item.optionA.optionId,
-        label: item.optionA.label,
-        voteCount: item.optionA.voteCount,
-        percentage: item.optionA.percentage,
-      },
-      optionB: {
-        optionId: item.optionB.optionId,
-        label: item.optionB.label,
-        voteCount: item.optionB.voteCount,
-        percentage: item.optionB.percentage,
-      },
-      totalVoteCount: item.totalVoteCount,
-      myVoteOptionId: item.myVoteOptionId,
-      isVoted: item.isVoted,
-      createdAt: item.createdAt,
-    })),
+    items: dto.items.map(toCommunityBookPollItem),
     pageInfo: {
       nextCursor: dto.pageInfo.nextCursor,
       hasNext: dto.pageInfo.hasNext,
@@ -341,6 +325,22 @@ export function toCreateCommunityBookPollRequestDto(
 }
 
 export function toCreateCommunityBookPollResult(dto: CreateCommunityBookPollResponseDto): CreateCommunityBookPollResult {
+  return toCommunityBookPollItem(dto);
+}
+
+export function toVoteCommunityBookPollRequestDto(
+  input: VoteCommunityBookPollInput,
+): VoteCommunityBookPollRequestDto {
+  return {
+    optionId: input.optionId,
+  };
+}
+
+export function toVoteCommunityBookPollResult(dto: VoteCommunityBookPollResponseDto): VoteCommunityBookPollResult {
+  return toCommunityBookPollItem(dto);
+}
+
+function toCommunityBookPollItem(dto: CreateCommunityBookPollResponseDto): CreateCommunityBookPollResult {
   return {
     pollId: dto.pollId,
     bookId: dto.bookId,

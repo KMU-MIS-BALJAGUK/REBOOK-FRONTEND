@@ -1,7 +1,6 @@
 import React from 'react';
 import { useDeferredValue, useEffect, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
 import { File } from 'expo-file-system';
 import { useAppFlow } from './useAppFlow';
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
@@ -11,6 +10,7 @@ import { AiChatScreen } from '../features/ai-chat/AiChatScreen';
 import { MyPageScreen } from '../features/mypage/MyPageScreen';
 import { QuoteMethodScreen } from '../features/quote/screens/QuoteMethodScreen';
 import { CameraCaptureScreen } from '../features/quote/screens/CameraCaptureScreen';
+import { CameraCropScreen } from '../features/quote/screens/CameraCropScreen';
 import { OcrPreviewScreen } from '../features/quote/screens/OcrPreviewScreen';
 import { QuoteFormScreen } from '../features/quote/screens/QuoteFormScreen';
 import { useQuoteImagePresignedUrl } from '../features/quote/hooks/useQuoteImagePresignedUrl';
@@ -88,77 +88,6 @@ async function prepareQuoteImageAsset(asset: QuoteLocalImageAsset): Promise<Prep
   };
 }
 
-async function cropQuoteImageAsset(
-  asset: QuoteLocalImageAsset,
-  targetAspectRatio: number,
-): Promise<QuoteLocalImageAsset> {
-  if (typeof asset.uri !== 'string' || !asset.uri.trim()) {
-    throw createUserFacingError('이미지 경로를 확인할 수 없어요.');
-  }
-  if (!asset.width || !asset.height || asset.width <= 0 || asset.height <= 0) {
-    console.log('[QUOTE_IMAGE] crop skipped - missing dimensions', {
-      uri: asset.uri,
-      width: asset.width,
-      height: asset.height,
-    });
-    return asset;
-  }
-
-  const sourceRatio = asset.width / asset.height;
-  let cropWidth = asset.width;
-  let cropHeight = asset.height;
-
-  if (sourceRatio > targetAspectRatio) {
-    cropWidth = Math.round(asset.height * targetAspectRatio);
-  } else {
-    cropHeight = Math.round(asset.width / targetAspectRatio);
-  }
-
-  const originX = Math.max(0, Math.round((asset.width - cropWidth) / 2));
-  const originY = Math.max(0, Math.round((asset.height - cropHeight) / 2));
-  console.log('[QUOTE_IMAGE] crop start', {
-    uri: asset.uri,
-    width: asset.width,
-    height: asset.height,
-    cropWidth,
-    cropHeight,
-    originX,
-    originY,
-    targetAspectRatio,
-  });
-  const format = asset.mimeType === 'image/png' ? ImageManipulator.SaveFormat.PNG : ImageManipulator.SaveFormat.JPEG;
-  const manipulated = await ImageManipulator.manipulateAsync(
-    asset.uri,
-    [
-      {
-        crop: {
-          originX,
-          originY,
-          width: cropWidth,
-          height: cropHeight,
-        },
-      },
-    ],
-    {
-      format,
-      compress: 1,
-    },
-  );
-  console.log('[QUOTE_IMAGE] crop done', {
-    uri: manipulated.uri,
-    width: manipulated.width,
-    height: manipulated.height,
-  });
-
-  return {
-    uri: manipulated.uri,
-    fileName: asset.fileName ?? `quote-image-${Date.now()}.${format === ImageManipulator.SaveFormat.PNG ? 'png' : 'jpg'}`,
-    mimeType: format === ImageManipulator.SaveFormat.PNG ? 'image/png' : 'image/jpeg',
-    width: manipulated.width,
-    height: manipulated.height,
-  };
-}
-
 export default function AppRoot() {
   const { state, actions } = useAppFlow();
   const appleLoginMutation = useAppleLogin();
@@ -166,7 +95,7 @@ export default function AppRoot() {
   const saveNicknameMutation = useSaveNickname();
   const saveFirstBookMutation = useSaveFirstBook();
   const saveAiStyleMutation = useSaveAiStyle();
-const completeOnboardingMutation = useCompleteOnboarding();
+  const completeOnboardingMutation = useCompleteOnboarding();
   const deferredBookTitle = useDeferredValue(state.bookTitle);
   const deferredAuthor = useDeferredValue(state.author);
   const onboardingBookSearchQuery =
@@ -186,6 +115,8 @@ const completeOnboardingMutation = useCompleteOnboarding();
   const [ocrPreviewBlocks, setOcrPreviewBlocks] = useState<QuoteOcrBlock[] | undefined>(undefined);
   const [ocrQuoteContext, setOcrQuoteContext] = useState<OcrQuoteContext | undefined>(undefined);
   const [quoteImageFlowError, setQuoteImageFlowError] = useState<string | null>(null);
+  const [pendingCropAsset, setPendingCropAsset] = useState<QuoteLocalImageAsset | undefined>(undefined);
+  const [pendingCropSource, setPendingCropSource] = useState<'camera' | 'gallery' | null>(null);
 
   const processQuoteImageAsset = async (
     asset: QuoteLocalImageAsset,
@@ -205,8 +136,8 @@ const completeOnboardingMutation = useCompleteOnboarding();
       height: asset.height,
     });
 
-    const croppedAsset = await cropQuoteImageAsset(asset, 4);
-    const preparedAsset = await prepareQuoteImageAsset(croppedAsset);
+    const normalizedAsset = asset;
+    const preparedAsset = await prepareQuoteImageAsset(normalizedAsset);
     const presigned = await quoteImagePresignedUrlMutation.mutateAsync({
       fileName: preparedAsset.fileName,
       contentType: preparedAsset.contentType,
@@ -250,6 +181,7 @@ const completeOnboardingMutation = useCompleteOnboarding();
       ocrId: ocr.ocrId,
       fullText: ocr.fullText,
       blockIds: ocr.blocks.filter((block) => block.selected).map((block) => block.blockId),
+      previewImageUri: normalizedAsset.uri,
     };
 
     if (shouldNavigateToPreview) {
@@ -259,29 +191,6 @@ const completeOnboardingMutation = useCompleteOnboarding();
     }
 
     return attachmentResult;
-  };
-
-  const attachQuoteImageFromGallery = async (): Promise<QuoteImageAttachmentResult | null> => {
-    try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        throw createUserFacingError('사진 접근 권한이 필요합니다.');
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        quality: 1,
-        allowsEditing: false,
-      });
-
-      if (result.canceled || !result.assets?.length) {
-        return null;
-      }
-
-      return await processQuoteImageAsset(result.assets[0], false);
-    } catch (error) {
-      throw error instanceof Error ? error : createUserFacingError('이미지 첨부에 실패했어요.');
-    }
   };
 
   const launchGalleryQuoteFlow = async () => {
@@ -302,7 +211,10 @@ const completeOnboardingMutation = useCompleteOnboarding();
         return;
       }
 
-      await processQuoteImageAsset(result.assets[0], true);
+      setQuoteImageFlowError(null);
+      setPendingCropSource('gallery');
+      setPendingCropAsset(result.assets[0]);
+      actions.setScreen('camera-crop');
     } catch (error) {
       setQuoteImageFlowError(toUserMessage(error));
     }
@@ -395,6 +307,8 @@ const completeOnboardingMutation = useCompleteOnboarding();
       <CameraCaptureScreen
         onBack={() => {
           setQuoteImageFlowError(null);
+          setPendingCropAsset(undefined);
+          setPendingCropSource(null);
           actions.setScreen('quote-method');
         }}
         isUploading={
@@ -413,10 +327,57 @@ const completeOnboardingMutation = useCompleteOnboarding();
                 : null)
         }
         onCapture={async (asset) => {
-          await processQuoteImageAsset(asset, true).catch((error) => {
-            console.log('[QUOTE_IMAGE] flow error', error);
-            setQuoteImageFlowError(toUserMessage(error));
-          });
+          setQuoteImageFlowError(null);
+          setPendingCropSource('camera');
+          setPendingCropAsset(asset);
+          actions.setScreen('camera-crop');
+        }}
+      />
+    );
+  }
+
+  if (state.screen === 'camera-crop') {
+    if (!pendingCropAsset) {
+      return null;
+    }
+
+    return (
+      <CameraCropScreen
+        asset={pendingCropAsset}
+        onBack={() => {
+          setQuoteImageFlowError(null);
+          if (pendingCropSource === 'camera') {
+            actions.setScreen('camera-capture');
+            return;
+          }
+          setPendingCropAsset(undefined);
+          setPendingCropSource(null);
+          actions.setScreen('quote-method');
+        }}
+        isSubmitting={
+          quoteImagePresignedUrlMutation.isPending ||
+          quoteImageUploadMutation.isPending ||
+          quoteImageOcrMutation.isPending
+        }
+        submitError={
+          quoteImageFlowError ??
+          (quoteImagePresignedUrlMutation.isError
+            ? toUserMessage(quoteImagePresignedUrlMutation.error)
+            : quoteImageUploadMutation.isError
+              ? toUserMessage(quoteImageUploadMutation.error)
+              : quoteImageOcrMutation.isError
+                ? toUserMessage(quoteImageOcrMutation.error)
+                : null)
+        }
+        onConfirm={async (asset) => {
+          await processQuoteImageAsset(asset, true)
+            .then(() => {
+              setPendingCropAsset(asset);
+            })
+            .catch((error) => {
+              console.log('[QUOTE_IMAGE] flow error', error);
+              setQuoteImageFlowError(toUserMessage(error));
+            });
         }}
       />
     );
@@ -425,9 +386,28 @@ const completeOnboardingMutation = useCompleteOnboarding();
   if (state.screen === 'ocr-preview') {
     return (
       <OcrPreviewScreen
-        onBack={() => actions.setScreen(state.registerType === 'camera' ? 'camera-capture' : 'quote-method')}
-        onNext={() => actions.setScreen('quote-form')}
+        onBack={() => actions.setScreen(state.registerType === 'manual' ? 'quote-method' : 'camera-crop')}
+        onNext={(selectedText, selectedBlockIds) => {
+          setOcrPreviewBlocks((currentBlocks) =>
+            currentBlocks?.map((block) => ({
+              ...block,
+              selected: selectedBlockIds.includes(block.blockId),
+            })),
+          );
+          setOcrQuoteContext((currentContext) =>
+            currentContext
+              ? {
+                  ...currentContext,
+                  fullText: selectedText,
+                  blockIds: selectedBlockIds,
+                }
+              : currentContext,
+          );
+          actions.setScreen('quote-form');
+        }}
         blocks={ocrPreviewBlocks}
+        text={ocrQuoteContext?.fullText}
+        imageUri={ocrQuoteContext?.previewImageUri}
       />
     );
   }
@@ -450,7 +430,7 @@ const completeOnboardingMutation = useCompleteOnboarding();
               }
             : undefined
         }
-        onAttachImage={attachQuoteImageFromGallery}
+        onAttachImage={async (asset) => processQuoteImageAsset(asset, false)}
       />
     );
   }

@@ -10,6 +10,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { BottomNav } from '../../shared/ui/BottomNav';
+import { MyButton } from '../../shared/ui/MyButton';
 
 type ChatView = 'list' | 'room';
 
@@ -62,88 +64,75 @@ export function AiChatScreen({ nickname, onPressHome, onPressCommunity, onPressM
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.container}>
-        {view === 'list' ? (
-          <>
-            <Text style={styles.screenTitle}>AI 채팅</Text>
-            <Text style={styles.screenSub}>저장한 문장과 대화를 나눠보세요</Text>
+        <View style={styles.contentSurface}>
+          {view === 'list' ? (
+            <>
+              <View style={styles.listHeader}>
+                <View>
+                  <Text style={styles.screenTitle}>AI 채팅</Text>
+                  <Text style={styles.screenSub}>저장한 문장과 대화를 나눠보세요</Text>
+                </View>
+                <MyButton onPress={onPressMyPage} />
+              </View>
 
-            <View style={styles.newChatRow}>
               <TouchableOpacity style={styles.newChatButton} onPress={() => setShowSelector(true)}>
                 <Text style={styles.newChatButtonText}>＋ 새 대화 시작하기</Text>
               </TouchableOpacity>
-              <View style={styles.plusBadge}>
-                <Text style={styles.plusBadgeText}>＋</Text>
+
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>최근 대화</Text>
+                <Text style={styles.sectionCount}>{recentChats.length}개</Text>
               </View>
-            </View>
 
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>최근 대화</Text>
-              <Text style={styles.sectionCount}>{recentChats.length}개</Text>
-            </View>
+              <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+                {recentChats.map((chat) => (
+                  <TouchableOpacity key={chat.id} style={styles.chatCard} onPress={() => setView('room')}>
+                    <Text style={styles.chatTitle}>{chat.title}</Text>
+                    <Text style={styles.chatBook}>{chat.book}</Text>
+                    <Text style={styles.chatPreview}>{chat.preview}</Text>
+                    <Text style={styles.chatCount}>{chat.count}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </>
+          ) : (
+            <>
+              <View style={styles.roomHeader}>
+                <TouchableOpacity onPress={() => setView('list')}>
+                  <Text style={styles.backIcon}>←</Text>
+                </TouchableOpacity>
+                <Text style={styles.roomTitle}>시와 대화하기</Text>
+                <View style={styles.headerSpacer} />
+              </View>
 
-            <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-              {recentChats.map((chat) => (
-                <TouchableOpacity key={chat.id} style={styles.chatCard} onPress={() => setView('room')}>
-                  <Text style={styles.chatTitle}>{chat.title}</Text>
-                  <Text style={styles.chatBook}>{chat.book}</Text>
-                  <Text style={styles.chatPreview}>{chat.preview}</Text>
-                  <Text style={styles.chatCount}>{chat.count}</Text>
+              <View style={styles.selectedSentenceCard}>
+                <Text style={styles.selectedBook}>델리쿠르 등 백작부인 · P.23</Text>
+                <Text style={styles.selectedSentence}>"우리는 말을 하면서 사유할 수 없다. 말은 생각을 비판한다."</Text>
+              </View>
+
+              <View style={styles.aiBubble}>
+                <Text style={styles.aiBubbleText}>이 문장이 마음에 남은 이유가 있을까요?</Text>
+              </View>
+
+              <Text style={styles.recommendLabel}>추천 질문</Text>
+              {quickQuestions.map((item) => (
+                <TouchableOpacity key={item} style={styles.quickChip}>
+                  <Text style={styles.quickChipText}>{item}</Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
-          </>
-        ) : (
-          <>
-            <View style={styles.roomHeader}>
-              <TouchableOpacity onPress={() => setView('list')}>
-                <Text style={styles.backIcon}>←</Text>
-              </TouchableOpacity>
-              <Text style={styles.roomTitle}>시와 대화하기</Text>
-              <View style={styles.headerSpacer} />
-            </View>
 
-            <View style={styles.selectedSentenceCard}>
-              <Text style={styles.selectedBook}>델리쿠르 등 백작부인 · P.23</Text>
-              <Text style={styles.selectedSentence}>"우리는 말을 하면서 사유할 수 없다. 말은 생각을 비판한다."</Text>
-            </View>
+              <View style={styles.inputRow}>
+                <TextInput style={styles.input} placeholder="메시지를 입력하세요..." placeholderTextColor="#a69b8e" />
+                <TouchableOpacity style={styles.sendButton}>
+                  <Text style={styles.sendButtonText}>➤</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </View>
 
-            <View style={styles.aiBubble}>
-              <Text style={styles.aiBubbleText}>이 문장이 마음에 남은 이유가 있을까요?</Text>
-            </View>
-
-            <Text style={styles.recommendLabel}>추천 질문</Text>
-            {quickQuestions.map((item) => (
-              <TouchableOpacity key={item} style={styles.quickChip}>
-                <Text style={styles.quickChipText}>{item}</Text>
-              </TouchableOpacity>
-            ))}
-
-            <View style={styles.inputRow}>
-              <TextInput style={styles.input} placeholder="메시지를 입력하세요..." placeholderTextColor="#a69b8e" />
-              <TouchableOpacity style={styles.sendButton}>
-                <Text style={styles.sendButtonText}>➤</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-
-        <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.bottomItem} onPress={onPressCommunity}>
-            <Text style={styles.bottomIcon}>◌</Text>
-            <Text style={styles.bottomLabel}>커뮤니티</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.bottomItem} onPress={onPressHome}>
-            <Text style={styles.bottomIcon}>⌂</Text>
-            <Text style={styles.bottomLabel}>홈</Text>
-          </TouchableOpacity>
-          <View style={styles.bottomItem}>
-            <Text style={styles.bottomIcon}>◔</Text>
-            <Text style={styles.bottomLabelActive}>AI 채팅</Text>
-          </View>
-          <TouchableOpacity style={styles.bottomItem} onPress={onPressMyPage}>
-            <Text style={styles.bottomIcon}>⚪</Text>
-            <Text style={styles.bottomLabel}>마이</Text>
-          </TouchableOpacity>
+        <View style={styles.bottomNavShell}>
+          <BottomNav active="ai-chat" onPressCommunity={onPressCommunity} onPressHome={onPressHome} onPressAiChat={() => {}} />
         </View>
 
         {showSelector && (
@@ -190,118 +179,134 @@ export function AiChatScreen({ nickname, onPressHome, onPressCommunity, onPressM
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f6f3ee' },
-  container: { flex: 1, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
-  screenTitle: { fontSize: 34, color: '#2f2a24', fontWeight: '700', marginBottom: 4 },
-  screenSub: { fontSize: 11, color: '#9a8f81', marginBottom: 12 },
-  newChatRow: { marginBottom: 12 },
+  safeArea: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: '#fff' },
+  contentSurface: { flex: 1, backgroundColor: '#fff' },
+  bottomNavShell: { backgroundColor: '#44c3f3' },
+  listHeader: {
+    backgroundColor: '#fff',
+    paddingTop: 6,
+    paddingHorizontal: 14,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#111',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  screenTitle: { fontSize: 28, color: '#2f2a24', fontWeight: '900', marginBottom: 4, letterSpacing: 0.2 },
+  screenSub: { fontSize: 11, color: '#6d6256' },
   newChatButton: {
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: '#8d7353',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  newChatButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  plusBadge: {
-    position: 'absolute',
-    right: 0,
-    top: -16,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#8d7353',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  plusBadgeText: { color: '#fff', fontSize: 16 },
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  sectionTitle: { fontSize: 14, color: '#3e352b', fontWeight: '700' },
-  sectionCount: { fontSize: 11, color: '#978c7d' },
-  scroll: { flex: 1 },
-  chatCard: {
-    borderRadius: 12,
+    height: 52,
+    borderRadius: 0,
+    backgroundColor: '#44c3f3',
     borderWidth: 1,
-    borderColor: '#e8dfd2',
-    backgroundColor: '#f9f5ef',
+    borderColor: '#111',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 14,
+    marginTop: 12,
+  },
+  newChatButtonText: { color: '#111', fontSize: 16, fontWeight: '700' },
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, marginTop: 14, paddingHorizontal: 14 },
+  sectionTitle: { fontSize: 16, color: '#2f2a24', fontWeight: '800' },
+  sectionCount: { fontSize: 11, color: '#978c7d' },
+  scroll: { flex: 1, paddingHorizontal: 14 },
+  chatCard: {
+    borderRadius: 0,
+    borderWidth: 1,
+    borderColor: '#e5ddd0',
+    backgroundColor: '#fff',
     padding: 12,
     marginBottom: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
-  chatTitle: { fontSize: 14, color: '#2f2a24', marginBottom: 4 },
-  chatBook: { fontSize: 10, color: '#9a8f81', marginBottom: 8 },
-  chatPreview: { fontSize: 12, color: '#5e5448', marginBottom: 6 },
-  chatCount: { fontSize: 10, color: '#938777', textAlign: 'right' },
-  roomHeader: { height: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  backIcon: { fontSize: 18, color: '#4b4236' },
-  roomTitle: { fontSize: 17, color: '#2f2a24', fontWeight: '700' },
+  chatTitle: { fontSize: 14, color: '#111', marginBottom: 4, fontWeight: '700' },
+  chatBook: { fontSize: 10, color: '#6f6457', marginBottom: 8 },
+  chatPreview: { fontSize: 12, color: '#4f463c', marginBottom: 6 },
+  chatCount: { fontSize: 10, color: '#6f6457', textAlign: 'right' },
+  roomHeader: {
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingHorizontal: 14,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee4d8',
+  },
+  backIcon: { fontSize: 18, color: '#111' },
+  roomHeaderTitleWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'center' },
+  roomHeaderBadge: { width: 28, height: 28, borderRadius: 14, textAlign: 'center', textAlignVertical: 'center', backgroundColor: '#f5efe6', color: '#8d7353', borderWidth: 1, borderColor: '#e3d9cb', overflow: 'hidden' },
+  roomTitle: { fontSize: 18, color: '#2f2a24', fontWeight: '800' },
   headerSpacer: { width: 18 },
   selectedSentenceCard: {
-    borderRadius: 10,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#e8dfd2',
-    backgroundColor: '#f9f5ef',
+    borderColor: '#e6ddcf',
+    backgroundColor: '#fff',
     padding: 12,
     marginBottom: 12,
+    marginHorizontal: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
-  selectedBook: { fontSize: 10, color: '#8f8477', marginBottom: 6 },
-  selectedSentence: { fontSize: 12, color: '#3f362d', lineHeight: 18 },
+  selectedBook: { fontSize: 12, color: '#7a6e5f', marginBottom: 6 },
+  selectedSentence: { fontSize: 13, color: '#3f362d', lineHeight: 19 },
   aiBubble: {
     alignSelf: 'flex-start',
     borderRadius: 14,
-    backgroundColor: '#f0ece5',
+    backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#e4dbce',
     paddingHorizontal: 12,
     paddingVertical: 9,
     marginBottom: 12,
+    marginHorizontal: 14,
   },
-  aiBubbleText: { fontSize: 12, color: '#544b3f' },
-  recommendLabel: { fontSize: 10, color: '#968b7d', marginBottom: 6 },
+  aiBubbleText: { fontSize: 13, color: '#544b3f' },
+  recommendLabel: { fontSize: 11, color: '#968b7d', marginBottom: 6, marginHorizontal: 14 },
   quickChip: {
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e7dece',
-    backgroundColor: '#f8f4ed',
+    backgroundColor: '#fff',
     paddingVertical: 10,
     paddingHorizontal: 12,
     marginBottom: 7,
+    marginHorizontal: 14,
   },
-  quickChipText: { fontSize: 12, color: '#4d4439' },
-  inputRow: { marginTop: 'auto', flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 10 },
+  quickChipText: { fontSize: 12, color: '#4d4439', fontWeight: '600' },
+  inputRow: { marginTop: 'auto', flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 10, paddingHorizontal: 14 },
   input: {
     flex: 1,
     height: 40,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e5dbce',
-    backgroundColor: '#f1ece4',
+    backgroundColor: '#f7f2ea',
     paddingHorizontal: 12,
     color: '#3f362d',
     fontSize: 12,
   },
   sendButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#d3cabd',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendButtonText: { color: '#fff', fontSize: 11 },
-  bottomNav: {
-    height: 48,
-    borderTopWidth: 1,
-    borderColor: '#e6ddcf',
-    backgroundColor: '#f8f4ed',
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  bottomItem: { alignItems: 'center', justifyContent: 'center' },
-  bottomIcon: { fontSize: 14, color: '#8f8578', marginBottom: 1 },
-  bottomLabel: { fontSize: 10, color: '#92897d' },
-  bottomLabelActive: { fontSize: 10, color: '#8d7353', fontWeight: '700' },
+  sendButtonText: { color: '#fff', fontSize: 13 },
   dim: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.24)' },
   sheet: {
     position: 'absolute',
@@ -328,13 +333,15 @@ const styles = StyleSheet.create({
   sheetSub: { fontSize: 11, color: '#918679', marginBottom: 10 },
   freeTalkButton: {
     borderRadius: 10,
-    backgroundColor: '#8d7353',
+    backgroundColor: '#44c3f3',
     paddingVertical: 12,
     paddingHorizontal: 12,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#111',
   },
-  freeTalkTitle: { fontSize: 14, color: '#fff', fontWeight: '700', marginBottom: 2 },
-  freeTalkSub: { fontSize: 11, color: '#eee7dd' },
+  freeTalkTitle: { fontSize: 14, color: '#111', fontWeight: '700', marginBottom: 2 },
+  freeTalkSub: { fontSize: 11, color: '#111' },
   storedTitle: { fontSize: 10, color: '#8f8477', marginBottom: 7 },
   storedList: { flexGrow: 0 },
   storedCard: {

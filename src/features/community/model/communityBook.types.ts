@@ -241,6 +241,12 @@ export type CreateCommunityBookPollInput = {
 };
 
 export type CreateCommunityBookPollResult = CommunityBookPollItem;
+export type VoteCommunityBookPollInput = {
+  pollId: number;
+  optionId: number;
+};
+
+export type VoteCommunityBookPollResult = CommunityBookPollItem;
 
 export type CommunityBookSearchSort = 'RELEVANCE';
 

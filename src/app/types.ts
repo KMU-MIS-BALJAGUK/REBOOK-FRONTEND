@@ -8,6 +8,7 @@ export type ScreenKey =
   | 'mypage'
   | 'quote-method'
   | 'camera-capture'
+  | 'camera-crop'
   | 'gallery-picker'
   | 'ocr-preview'
   | 'quote-form';

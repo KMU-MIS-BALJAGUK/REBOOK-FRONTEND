@@ -2,10 +2,15 @@ import { CreateQuoteOcrRequestDto, CreateQuoteOcrResponseDto } from './quoteOcr.
 import { QuoteOcrInput, QuoteOcrResult } from './quoteOcr.types';
 
 export function toCreateQuoteOcrRequestDto(input: QuoteOcrInput): CreateQuoteOcrRequestDto {
-  return {
+  const dto: CreateQuoteOcrRequestDto = {
     imageId: input.imageId,
-    imageUrl: input.imageUrl,
   };
+
+  if (typeof input.imageUrl === 'string' && input.imageUrl.trim()) {
+    dto.imageUrl = input.imageUrl;
+  }
+
+  return dto;
 }
 
 export function toQuoteOcrResult(dto: CreateQuoteOcrResponseDto): QuoteOcrResult {

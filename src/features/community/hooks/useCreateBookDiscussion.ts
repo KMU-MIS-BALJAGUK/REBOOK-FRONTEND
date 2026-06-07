@@ -13,7 +13,10 @@ export function useCreateBookDiscussion(bookId: number | null) {
       return createBookDiscussion(bookId, input);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['community', 'books', 'discussions', bookId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['community', 'books', 'discussions', bookId] }),
+        queryClient.invalidateQueries({ queryKey: ['mypage', 'insights'] }),
+      ]);
     },
   });
 }

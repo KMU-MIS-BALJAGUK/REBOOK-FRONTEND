@@ -193,6 +193,11 @@ export type CreateCommunityBookPollRequestDto = {
 };
 
 export type CreateCommunityBookPollResponseDto = CommunityBookPollItemDto;
+export type VoteCommunityBookPollRequestDto = {
+  optionId: number;
+};
+
+export type VoteCommunityBookPollResponseDto = CommunityBookPollItemDto;
 
 export type CommunityBookSearchSortDto = 'RELEVANCE';
 
