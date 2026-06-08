@@ -1,6 +1,7 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { RegisterType } from '../../../app/types';
+import { useDismissableBottomSheet } from '../../../shared/hooks/useDismissableBottomSheet';
 
 type Props = {
   onClose: () => void;
@@ -8,10 +9,16 @@ type Props = {
 };
 
 export function MethodSheet({ onClose, onSelect }: Props) {
+  const { contentPanHandlers, handlePanHandlers, onSheetLayout, requestClose, sheetAnimatedStyle } =
+    useDismissableBottomSheet({ visible: true, onClose });
+
   return (
     <>
-      <Pressable style={styles.overlayDim} onPress={onClose} />
-      <View style={styles.methodSheet}>
+      <Pressable style={styles.overlayDim} onPress={requestClose} />
+      <Animated.View style={[styles.methodSheet, sheetAnimatedStyle]} onLayout={onSheetLayout} {...contentPanHandlers}>
+        <View style={styles.handleArea} {...handlePanHandlers}>
+          <View style={styles.handle} />
+        </View>
         <Text style={styles.methodTitle}>문장 등록 방식 선택</Text>
         <TouchableOpacity style={styles.methodItem} onPress={() => onSelect('camera')}>
           <Text style={styles.methodItemIcon}>📷</Text>
@@ -34,7 +41,7 @@ export function MethodSheet({ onClose, onSelect }: Props) {
             <Text style={styles.methodItemSub}>문장을 직접 입력</Text>
           </View>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
     </>
   );
 }
@@ -60,6 +67,17 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 24,
     gap: 8,
+  },
+  handleArea: {
+    alignItems: 'center',
+    paddingVertical: 6,
+    marginBottom: 2,
+  },
+  handle: {
+    width: 48,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: '#d8cfc0',
   },
   methodTitle: { fontSize: 14, color: '#4d4439', fontWeight: '700', marginBottom: 2 },
   methodItem: {

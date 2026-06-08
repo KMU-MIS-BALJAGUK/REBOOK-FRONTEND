@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Animated,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -15,6 +16,7 @@ import {
   CommunityDiscussionCommentItem,
   CommunityDiscussionDetailResult,
 } from '../model/communityBook.types';
+import { useDismissableBottomSheet } from '../../../shared/hooks/useDismissableBottomSheet';
 
 type Props = {
   detail: CommunityDiscussionDetailResult | undefined;
@@ -61,6 +63,8 @@ export function DiscussionDetailSheet({
   const [isShowingAllComments, setIsShowingAllComments] = useState(false);
   const visibleComments = isShowingAllComments ? comments : comments.slice(0, 5);
   const hasHiddenComments = comments.length > 5;
+  const { contentPanHandlers, handlePanHandlers, onScroll, onSheetLayout, requestClose, sheetAnimatedStyle } =
+    useDismissableBottomSheet({ visible: true, onClose });
 
   useEffect(() => {
     setIsShowingAllComments(false);
@@ -71,11 +75,13 @@ export function DiscussionDetailSheet({
       style={styles.overlay}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.sheet}>
-        <View style={styles.handle} />
+      <Animated.View style={[styles.sheet, sheetAnimatedStyle]} onLayout={onSheetLayout}>
+        <View style={styles.handleArea} {...handlePanHandlers}>
+          <View style={styles.handle} />
+        </View>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>토론 상세</Text>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <TouchableOpacity style={styles.closeButton} onPress={requestClose}>
             <Text style={styles.closeButtonText}>닫기</Text>
           </TouchableOpacity>
         </View>
@@ -83,6 +89,9 @@ export function DiscussionDetailSheet({
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[styles.content, isCommentInputFocused && styles.contentWithKeyboardAction]}
+          {...contentPanHandlers}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
           automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
@@ -202,7 +211,7 @@ export function DiscussionDetailSheet({
             </TouchableOpacity>
           </View>
         ) : null}
-      </View>
+      </Animated.View>
     </KeyboardAvoidingView>
   );
 }
@@ -261,6 +270,10 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: '#111',
     marginBottom: 10,
+  },
+  handleArea: {
+    alignItems: 'center',
+    paddingVertical: 6,
   },
   header: {
     flexDirection: 'row',
