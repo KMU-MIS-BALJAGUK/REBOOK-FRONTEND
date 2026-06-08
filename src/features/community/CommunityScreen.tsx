@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Image,
   Keyboard,
@@ -34,6 +34,10 @@ import { API_BASE_URL } from '../../shared/constants/api';
 import { BottomNav } from '../../shared/ui/BottomNav';
 import { MyButton } from '../../shared/ui/MyButton';
 import { DiscussionDetailSheet } from './components/DiscussionDetailSheet';
+import { CommunityAiTopicsPanel } from './components/CommunityAiTopicsPanel';
+import { CommunityAiTopicSet } from './model/communityAiTopic.types';
+import { useGenerateCommunityAiTopics } from './hooks/useGenerateCommunityAiTopics';
+import { useCommunityAiTopics } from './hooks/useCommunityAiTopics';
 
 type Props = {
   nickname: string;
@@ -46,7 +50,9 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
   const [selectedDiscussionId, setSelectedDiscussionId] = useState<number | null>(null);
-  const [detailTab, setDetailTab] = useState<'TOP_QUOTES' | 'DISCUSSION' | 'VOTE'>('TOP_QUOTES');
+  const [detailTab, setDetailTab] = useState<'TOP_QUOTES' | 'DISCUSSION' | 'VOTE' | 'AI_TOPICS'>('TOP_QUOTES');
+  const [communityTopicSet, setCommunityTopicSet] = useState<CommunityAiTopicSet | null>(null);
+  const [communityTopicError, setCommunityTopicError] = useState<string | null>(null);
   const [isCreateDiscussionVisible, setIsCreateDiscussionVisible] = useState(false);
   const [newDiscussionCategory, setNewDiscussionCategory] = useState<CommunityDiscussionCategory>('QUESTION');
   const [newDiscussionTitle, setNewDiscussionTitle] = useState('');
@@ -132,6 +138,11 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
   );
   const createPollMutation = useCreateCommunityBookPoll(selectedBookId);
   const votePollMutation = useVoteCommunityBookPoll(selectedBookId);
+  const generateCommunityAiTopicsMutation = useGenerateCommunityAiTopics();
+  const communityAiTopicsQuery = useCommunityAiTopics({
+    bookId: selectedBookId,
+    enabled: selectedBookId !== null,
+  });
   const searchBooksQuery = useSearchCommunityBooks(
     useMemo(
       () => ({
@@ -144,6 +155,20 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
     trimmedKeyword.length > 0,
   );
   const searchBookItems = searchBooksQuery.data?.items ?? [];
+
+  useEffect(() => {
+    setCommunityTopicError(null);
+    generateCommunityAiTopicsMutation.reset();
+  }, [selectedBookId]);
+
+  useEffect(() => {
+    if (!communityAiTopicsQuery.data) {
+      setCommunityTopicSet(null);
+      return;
+    }
+
+    setCommunityTopicSet(communityAiTopicsQuery.data);
+  }, [communityAiTopicsQuery.data]);
 
   const closeDiscussionComposer = () => {
     Keyboard.dismiss();
@@ -175,6 +200,29 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
     }
 
     setSelectedBookId(null);
+    setCommunityTopicSet(null);
+    setCommunityTopicError(null);
+    generateCommunityAiTopicsMutation.reset();
+  };
+
+  const handleGenerateCommunityTopics = () => {
+    if (!selectedBookId) {
+      return;
+    }
+
+    setCommunityTopicError(null);
+    generateCommunityAiTopicsMutation.mutate(
+      { bookId: selectedBookId },
+      {
+        onSuccess: async () => {
+          await communityAiTopicsQuery.refetch();
+        },
+        onError: (error) => {
+          setCommunityTopicSet(null);
+          setCommunityTopicError(toUserMessage(error));
+        },
+      },
+    );
   };
 
   const handleCreateDiscussion = () => {
@@ -539,6 +587,14 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                         투표
                       </Text>
                     </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.detailTabButton, detailTab === 'AI_TOPICS' && styles.detailTabButtonActive]}
+                      onPress={() => setDetailTab('AI_TOPICS')}
+                    >
+                      <Text style={[styles.detailTabButtonText, detailTab === 'AI_TOPICS' && styles.detailTabButtonTextActive]}>
+                        AI 주제
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                   {detailTab === 'TOP_QUOTES' ? (
                     <>
@@ -618,7 +674,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                           ))
                         : null}
                     </>
-                  ) : (
+                  ) : detailTab === 'VOTE' ? (
                     <>
                       {pollsQuery.isLoading ? <Text style={styles.infoText}>투표 목록을 불러오는 중...</Text> : null}
                       {!pollsQuery.isLoading && pollsQuery.isError ? (
@@ -728,13 +784,41 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                           ))
                         : null}
                     </>
+                  ) : (
+                    <CommunityAiTopicsPanel
+                      bookTitle={bookDetailQuery.data.title}
+                      status={
+                        generateCommunityAiTopicsMutation.isPending
+                          ? 'loading'
+                          : communityAiTopicsQuery.isLoading && !communityAiTopicsQuery.data
+                            ? 'loading'
+                          : generateCommunityAiTopicsMutation.isError || communityAiTopicsQuery.isError || communityAiTopicsQuery.data?.fetchStatus === 'FAILED' || communityAiTopicsQuery.data?.lastRunStatus === 'FAILED'
+                            ? 'error'
+                            : communityAiTopicsQuery.data?.fetchStatus === 'GENERATING'
+                              ? 'loading'
+                              : communityAiTopicsQuery.data?.fetchStatus === 'READY'
+                                ? communityAiTopicsQuery.data.topics.length > 0
+                                  ? 'success'
+                                  : 'empty'
+                                : 'idle'
+                      }
+                      topicSet={communityTopicSet}
+                      errorMessage={
+                        communityTopicError
+                        ?? (generateCommunityAiTopicsMutation.isError ? toUserMessage(generateCommunityAiTopicsMutation.error) : null)
+                        ?? (communityAiTopicsQuery.isError ? toUserMessage(communityAiTopicsQuery.error) : null)
+                        ?? (communityAiTopicsQuery.data?.lastRunStatus === 'FAILED' ? '커뮤니티 주제 생성에 실패했어요.' : null)
+                      }
+                      onGenerate={handleGenerateCommunityTopics}
+                    />
                   )}
                 </ScrollView>
               ) : null}
               {!bookDetailQuery.isLoading
               && !bookDetailQuery.isError
               && bookDetailQuery.data
-              && detailTab !== 'TOP_QUOTES' ? (
+              && detailTab !== 'TOP_QUOTES'
+              && detailTab !== 'AI_TOPICS' ? (
                 <TouchableOpacity
                   style={styles.floatingCreateButton}
                   onPress={() => {
