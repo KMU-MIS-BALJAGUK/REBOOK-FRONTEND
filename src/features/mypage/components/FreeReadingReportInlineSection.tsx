@@ -110,11 +110,26 @@ export function FreeReadingReportInlineSection({
         clearTimers();
         setProgress(0);
         setShowResult(false);
-        animateProgressTo(80, 5000, () => {
+        animateProgressTo(60, 7000, () => {
           if (previousStatusRef.current !== 'loading') {
             return;
           }
-          animateProgressTo(90, 5000);
+          animateProgressTo(70, 5000, () => {
+            if (previousStatusRef.current !== 'loading') {
+              return;
+            }
+            animateProgressTo(80, 4000, () => {
+              if (previousStatusRef.current !== 'loading') {
+                return;
+              }
+              animateProgressTo(90, 2000, () => {
+                if (previousStatusRef.current !== 'loading') {
+                  return;
+                }
+                animateProgressTo(96, 1000);
+              });
+            });
+          });
         });
       }
       return;
@@ -122,13 +137,10 @@ export function FreeReadingReportInlineSection({
 
     if (previousStatusRef.current === 'loading') {
       setShowResult(false);
-      const baseProgress = Math.max(progressRef.current, 90);
+      const baseProgress = Math.min(Math.max(progressRef.current, 0), 96);
       setProgress(baseProgress);
       animateProgressTo(100, 1000, () => {
-        settleTimeoutRef.current = setTimeout(() => {
-          settleTimeoutRef.current = null;
-          setShowResult(true);
-        }, 1000);
+        setShowResult(true);
       });
     } else if (status === 'success') {
       setShowResult(true);
