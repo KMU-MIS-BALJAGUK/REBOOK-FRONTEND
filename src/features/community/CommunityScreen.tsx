@@ -32,7 +32,7 @@ import { useVoteCommunityBookPoll } from './hooks/useVoteCommunityBookPoll';
 import { useSearchCommunityBooks } from './hooks/useSearchCommunityBooks';
 import { API_BASE_URL } from '../../shared/constants/api';
 import { BottomNav } from '../../shared/ui/BottomNav';
-import { MyButton } from '../../shared/ui/MyButton';
+import { FeedTopBar } from '../../shared/ui/FeedTopBar';
 import { DiscussionDetailSheet } from './components/DiscussionDetailSheet';
 import { CommunityAiTopicsPanel } from './components/CommunityAiTopicsPanel';
 import { CommunityAiTopicSet } from './model/communityAiTopic.types';
@@ -44,9 +44,10 @@ type Props = {
   onPressHome: () => void;
   onPressAiChat: () => void;
   onPressMyPage: () => void;
+  showBottomNav?: boolean;
 };
 
-export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressMyPage }: Props) {
+export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressMyPage, showBottomNav = true }: Props) {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
   const [selectedDiscussionId, setSelectedDiscussionId] = useState<number | null>(null);
@@ -379,23 +380,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.container}>
-        <View style={styles.topPanel}>
-          <Text style={styles.brandTitle}>ReBook</Text>
-
-          <View style={styles.homeSearchRow}>
-            <View style={styles.searchPill}>
-              <Text style={styles.searchIcon}>⌕</Text>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="키워드를 검색하세요"
-                placeholderTextColor="#9f968a"
-                value={searchKeyword}
-                onChangeText={setSearchKeyword}
-              />
-            </View>
-            <MyButton onPress={onPressMyPage} />
-          </View>
-        </View>
+        <FeedTopBar searchKeyword={searchKeyword} onSearchKeywordChange={setSearchKeyword} onPressMyPage={onPressMyPage} />
 
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
           {trimmedKeyword ? (
@@ -1019,7 +1004,9 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
           </View>
         </Modal>
 
-        <BottomNav active="community" onPressCommunity={() => {}} onPressHome={onPressHome} onPressAiChat={onPressAiChat} />
+        {showBottomNav ? (
+          <BottomNav active="community" onPressCommunity={() => {}} onPressHome={onPressHome} onPressAiChat={onPressAiChat} />
+        ) : null}
       </View>
     </SafeAreaView>
   );
@@ -1108,9 +1095,9 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 15, color: '#141414', paddingVertical: 0 },
   scroll: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 14 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: 8 },
-  sectionTitleLarge: { fontSize: 12, color: '#4f463c', fontWeight: '700' },
-  sectionCountText: { fontSize: 12, color: '#8b8173', fontWeight: '600' },
-  infoText: { fontSize: 13, color: '#7b7369', marginBottom: 10 },
+  sectionTitleLarge: { fontSize: 12, color: '#111', fontWeight: '700' },
+  sectionCountText: { fontSize: 12, color: '#66707a', fontWeight: '600' },
+  infoText: { fontSize: 13, color: '#66707a', marginBottom: 10 },
   errorText: { fontSize: 13, color: '#b25555', marginBottom: 8 },
   stateWrap: { marginBottom: 10 },
   retryButton: {
@@ -1120,7 +1107,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    backgroundColor: '#f4efe7',
+    backgroundColor: '#fff',
   },
   retryButtonText: { color: '#5f564b', fontSize: 12, fontWeight: '600' },
   bookCard: {
@@ -1141,25 +1128,25 @@ const styles = StyleSheet.create({
     width: 60,
     height: 76,
     borderRadius: 10,
-    backgroundColor: '#eee8de',
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  coverText: { color: '#847a6d', fontSize: 11, fontWeight: '600' },
+  coverText: { color: '#66707a', fontSize: 11, fontWeight: '600' },
   bookContent: { flex: 1 },
-  bookTitle: { fontSize: 13, color: '#2f2921', fontWeight: '700', marginBottom: 4 },
-  bookAuthor: { fontSize: 11, color: '#6d6458', marginBottom: 6 },
-  bookMeta: { fontSize: 10, color: '#756b5f' },
+  bookTitle: { fontSize: 13, color: '#111', fontWeight: '700', marginBottom: 4 },
+  bookAuthor: { fontSize: 11, color: '#66707a', marginBottom: 6 },
+  bookMeta: { fontSize: 10, color: '#66707a' },
   previewBox: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e9dfd2',
-    backgroundColor: '#f4efe7',
+    borderColor: '#dbe3ea',
+    backgroundColor: '#fff',
     padding: 10,
   },
-  previewLabel: { fontSize: 10, color: '#7b7369', fontWeight: '700', marginBottom: 4 },
-  previewText: { fontSize: 12, color: '#2f2921', lineHeight: 18 },
+  previewLabel: { fontSize: 10, color: '#66707a', fontWeight: '700', marginBottom: 4 },
+  previewText: { fontSize: 12, color: '#111', lineHeight: 18 },
   smallCard: {
     minHeight: 92,
     borderRadius: 0,
@@ -1175,13 +1162,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
-  smallCardTitle: { fontSize: 12, color: '#3f362d', fontWeight: '600' },
+  smallCardTitle: { fontSize: 12, color: '#111', fontWeight: '600' },
   popularBookRow: { flexDirection: 'row', alignItems: 'center' },
   popularCoverPlaceholder: {
     width: 50,
     height: 62,
     borderRadius: 8,
-    backgroundColor: '#eee8de',
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -1208,10 +1195,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   modalCard: {
-    backgroundColor: '#f9f6f0',
+    backgroundColor: '#fff',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#d7d1c6',
+    borderColor: '#dbe3ea',
     padding: 16,
     maxHeight: '88%',
   },
@@ -1225,7 +1212,7 @@ const styles = StyleSheet.create({
   bookDetailScrollContent: {
     paddingBottom: 84,
   },
-  modalTitle: { fontSize: 16, color: '#2f2a24', fontWeight: '700', marginBottom: 10 },
+  modalTitle: { fontSize: 16, color: '#111', fontWeight: '700', marginBottom: 10 },
   detailHeaderCard: {
     borderRadius: 0,
     borderWidth: 1,
@@ -1392,7 +1379,7 @@ const styles = StyleSheet.create({
   composerSheet: {
     width: '100%',
     maxHeight: '84%',
-    backgroundColor: '#f9f6f0',
+    backgroundColor: '#fff',
     borderTopWidth: 2,
     borderColor: '#111',
     borderTopLeftRadius: 22,
@@ -1413,8 +1400,8 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   composerTitle: { color: '#111', fontSize: 20, fontWeight: '800', marginBottom: 6 },
-  composerDescription: { color: '#5f574e', fontSize: 12, lineHeight: 18, marginBottom: 18 },
-  inputLabel: { color: '#6c6256', fontSize: 12, fontWeight: '700', marginBottom: 6, marginTop: 2 },
+  composerDescription: { color: '#66707a', fontSize: 12, lineHeight: 18, marginBottom: 18 },
+  inputLabel: { color: '#66707a', fontSize: 12, fontWeight: '700', marginBottom: 6, marginTop: 2 },
   categoryRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   categoryChip: {
     borderRadius: 0,
@@ -1479,13 +1466,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#111',
+    marginRight: 10,
   },
   coverFallbackBase: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#eee8de',
+    backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#111',
+    marginRight: 10,
   },
   coverSmall: { width: 44, height: 56 },
   coverMedium: { width: 62, height: 80 },
