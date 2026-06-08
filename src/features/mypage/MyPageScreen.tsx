@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useMyProfile } from './hooks/useMyProfile';
 import { toUserMessage } from '../../shared/utils/apiError';
@@ -7,6 +7,10 @@ import { useUpdateMyBio } from './hooks/useUpdateMyBio';
 import { useMyInsights } from './hooks/useMyInsights';
 import { useLogout } from './hooks/useLogout';
 import { useDeleteAccount } from './hooks/useDeleteAccount';
+import { FreeReadingReportPanel } from './components/FreeReadingReportPanel';
+import { FreeReadingReportResult, FreeReadingReportStatus } from './model/freeReadingReport.types';
+import { useGenerateFreeReadingReport } from './hooks/useGenerateFreeReadingReport';
+import { useFreeReadingReport } from './hooks/useFreeReadingReport';
 
 type Props = {
   nickname: string;
@@ -28,12 +32,21 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
   const [bioInput, setBioInput] = useState('');
   const [nicknameError, setNicknameError] = useState<string | null>(null);
   const [bioError, setBioError] = useState<string | null>(null);
+  const [freeReportStatus, setFreeReportStatus] = useState<FreeReadingReportStatus>('idle');
+  const [freeReportResult, setFreeReportResult] = useState<FreeReadingReportResult | null>(null);
+  const [freeReportError, setFreeReportError] = useState<string | null>(null);
+  const [freeReportId, setFreeReportId] = useState<number | null>(null);
   const myProfileQuery = useMyProfile();
   const myInsightsQuery = useMyInsights();
   const updateNicknameMutation = useUpdateMyNickname();
   const updateBioMutation = useUpdateMyBio();
   const logoutMutation = useLogout();
   const deleteAccountMutation = useDeleteAccount();
+  const generateFreeReadingReportMutation = useGenerateFreeReadingReport();
+  const freeReadingReportQuery = useFreeReadingReport({
+    reportId: freeReportId,
+    enabled: freeReportId !== null,
+  });
   const profile = myProfileQuery.data;
   const insights = myInsightsQuery.data;
   const displayName = profile?.nickname?.trim() || (nickname.trim() ? nickname : '독서가');
@@ -45,6 +58,14 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
     { label: '작성한 게시글', value: String(insights?.writtenPostCount ?? 0) },
     { label: 'AI 대화 횟수', value: String(insights?.aiConversationCount ?? 0) },
   ];
+
+  useEffect(() => {
+    if (!freeReadingReportQuery.data) {
+      return;
+    }
+
+    setFreeReportResult(freeReadingReportQuery.data);
+  }, [freeReadingReportQuery.data]);
 
   const handleOpenNicknameEdit = () => {
     setNicknameInput(displayName);
@@ -160,6 +181,21 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
         },
       },
     ]);
+  };
+
+  const handleGenerateFreeReport = () => {
+    setFreeReportError(null);
+    generateFreeReadingReportMutation.mutate(undefined, {
+      onSuccess: async (result) => {
+        setFreeReportId(result.reportId);
+        await freeReadingReportQuery.refetch();
+      },
+      onError: (error) => {
+        setFreeReportResult(null);
+        setFreeReportError(toUserMessage(error));
+        setFreeReportStatus('error');
+      },
+    });
   };
 
   const editModals = (
@@ -359,6 +395,30 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
                 </View>
               </View>
             </View>
+
+            <FreeReadingReportPanel
+              status={
+                generateFreeReadingReportMutation.isPending
+                  ? 'loading'
+                  : freeReadingReportQuery.isLoading && !freeReadingReportQuery.data
+                    ? 'loading'
+                    : generateFreeReadingReportMutation.isError || freeReadingReportQuery.isError || freeReadingReportQuery.data?.fetchStatus === 'FAILED' || freeReadingReportQuery.data?.lastRunStatus === 'FAILED'
+                    ? 'error'
+                    : freeReadingReportQuery.data?.fetchStatus === 'GENERATING'
+                      ? 'loading'
+                      : freeReadingReportQuery.data?.fetchStatus === 'READY'
+                        ? 'success'
+                        : freeReportStatus
+              }
+              report={freeReportResult}
+              errorMessage={
+                freeReportError
+                ?? (generateFreeReadingReportMutation.isError ? toUserMessage(generateFreeReadingReportMutation.error) : null)
+                ?? (freeReadingReportQuery.isError ? toUserMessage(freeReadingReportQuery.error) : null)
+                ?? (freeReadingReportQuery.data?.lastRunStatus === 'FAILED' ? '무료 독서 리포트 생성에 실패했어요.' : null)
+              }
+              onGenerate={handleGenerateFreeReport}
+            />
           </ScrollView>
         </View>
       </SafeAreaView>
