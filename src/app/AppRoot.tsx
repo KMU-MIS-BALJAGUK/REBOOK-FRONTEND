@@ -13,9 +13,12 @@ import { CameraCaptureScreen } from '../features/quote/screens/CameraCaptureScre
 import { CameraCropScreen } from '../features/quote/screens/CameraCropScreen';
 import { OcrPreviewScreen } from '../features/quote/screens/OcrPreviewScreen';
 import { QuoteFormScreen } from '../features/quote/screens/QuoteFormScreen';
+import { QuoteQuestionCardsScreen } from '../features/quote/screens/QuoteQuestionCardsScreen';
 import { useQuoteImagePresignedUrl } from '../features/quote/hooks/useQuoteImagePresignedUrl';
 import { useQuoteImageOcr } from '../features/quote/hooks/useQuoteImageOcr';
 import { useQuoteImageUpload } from '../features/quote/hooks/useQuoteImageUpload';
+import { useGenerateQuoteQuestionCards } from '../features/quote/hooks/useGenerateQuoteQuestionCards';
+import { useQuoteQuestionCards } from '../features/quote/hooks/useQuoteQuestionCards';
 import { useAppleLogin } from '../features/onboarding/hooks/useAppleLogin';
 import { useAiStyles } from '../features/onboarding/hooks/useAiStyles';
 import { useSaveNickname } from '../features/onboarding/hooks/useSaveNickname';
@@ -29,6 +32,13 @@ import { QuoteOcrBlock } from '../features/quote/model/quoteOcr.types';
 import { QuoteImageUploadInput } from '../features/quote/model/quoteImageUpload.types';
 import { QuoteImageAttachmentResult } from '../features/quote/model/quoteImageAttachment.types';
 import { QuoteLocalImageAsset } from '../features/quote/model/quoteLocalImage.types';
+import { CreateQuoteResult } from '../features/quote/model/quoteCreate.types';
+import {
+  QuoteQuestionCardItem,
+  QuoteQuestionCardQuoteSummary,
+  QuoteQuestionCardStatus,
+} from '../features/quote/model/quoteQuestionCard.types';
+import { DeepReadingChatLaunchContext } from '../features/ai-chat/model/deepReadingChat.types';
 
 type OcrQuoteContext = QuoteImageAttachmentResult;
 
@@ -42,6 +52,16 @@ type PreparedQuoteImageAsset = {
   contentType: string;
   fileSize: number;
 };
+
+function toQuestionCardQuoteSummary(result: CreateQuoteResult): QuoteQuestionCardQuoteSummary {
+  return {
+    quoteId: result.quoteId,
+    bookTitle: result.book.title,
+    author: result.book.author,
+    pageNumber: result.pageNumber,
+    quoteText: result.quoteText,
+  };
+}
 
 function createUserFacingError(message: string): UserFacingError {
   const error = new Error(message) as UserFacingError;
@@ -111,12 +131,19 @@ export default function AppRoot() {
   const quoteImagePresignedUrlMutation = useQuoteImagePresignedUrl();
   const quoteImageUploadMutation = useQuoteImageUpload();
   const quoteImageOcrMutation = useQuoteImageOcr();
+  const generateQuoteQuestionCardsMutation = useGenerateQuoteQuestionCards();
   const { setAuthSession, setScreen } = actions;
   const [ocrPreviewBlocks, setOcrPreviewBlocks] = useState<QuoteOcrBlock[] | undefined>(undefined);
   const [ocrQuoteContext, setOcrQuoteContext] = useState<OcrQuoteContext | undefined>(undefined);
   const [quoteImageFlowError, setQuoteImageFlowError] = useState<string | null>(null);
   const [pendingCropAsset, setPendingCropAsset] = useState<QuoteLocalImageAsset | undefined>(undefined);
   const [pendingCropSource, setPendingCropSource] = useState<'camera' | 'gallery' | null>(null);
+  const [savedQuoteForQuestions, setSavedQuoteForQuestions] = useState<QuoteQuestionCardQuoteSummary | null>(null);
+  const [aiChatLaunchContext, setAiChatLaunchContext] = useState<DeepReadingChatLaunchContext | null>(null);
+  const quoteQuestionCardsQuery = useQuoteQuestionCards({
+    quoteId: savedQuoteForQuestions?.quoteId ?? null,
+    enabled: state.screen === 'quote-question-cards',
+  });
 
   const processQuoteImageAsset = async (
     asset: QuoteLocalImageAsset,
@@ -220,6 +247,71 @@ export default function AppRoot() {
     }
   };
 
+  const quoteQuestionStatus: QuoteQuestionCardStatus =
+    generateQuoteQuestionCardsMutation.isError ||
+    quoteQuestionCardsQuery.isError ||
+    quoteQuestionCardsQuery.data?.status === 'FAILED' ||
+    quoteQuestionCardsQuery.data?.lastRunStatus === 'FAILED'
+      ? 'error'
+      : generateQuoteQuestionCardsMutation.isPending ||
+          (quoteQuestionCardsQuery.isLoading && !quoteQuestionCardsQuery.data) ||
+          quoteQuestionCardsQuery.data?.status === 'GENERATING'
+        ? 'loading'
+        : quoteQuestionCardsQuery.data?.status === 'READY'
+          ? quoteQuestionCardsQuery.data.questions.length > 0
+            ? 'success'
+            : 'empty'
+          : 'idle';
+
+  const openQuoteQuestionCards = (result: CreateQuoteResult) => {
+    setSavedQuoteForQuestions(toQuestionCardQuoteSummary(result));
+    generateQuoteQuestionCardsMutation.reset();
+    actions.setScreen('quote-question-cards');
+  };
+
+  const requestQuoteQuestionCards = () => {
+    if (!savedQuoteForQuestions) {
+      return;
+    }
+    generateQuoteQuestionCardsMutation.mutate(
+      { quoteId: savedQuoteForQuestions.quoteId },
+      {
+        onSuccess: async () => {
+          await quoteQuestionCardsQuery.refetch();
+        },
+      },
+    );
+  };
+
+  const resetQuoteQuestionCards = () => {
+    setSavedQuoteForQuestions(null);
+    generateQuoteQuestionCardsMutation.reset();
+  };
+
+  const startAiChatFromQuestionCard = (card: QuoteQuestionCardItem) => {
+    if (!savedQuoteForQuestions) {
+      return;
+    }
+
+    setAiChatLaunchContext({
+      quoteSource: {
+        quoteId: savedQuoteForQuestions.quoteId,
+        bookTitle: savedQuoteForQuestions.bookTitle,
+        author: savedQuoteForQuestions.author,
+        pageNumber: savedQuoteForQuestions.pageNumber,
+        quoteText: savedQuoteForQuestions.quoteText,
+      },
+      starterQuestion: {
+        id: String(card.cardId),
+        type: card.type,
+        question: card.question,
+      },
+      initialMessage: `저장한 문장: "${savedQuoteForQuestions.quoteText}"\n선택한 질문: "${card.question}"\n이 질문으로 AI 채팅을 시작하고 싶어요.`,
+    });
+    resetQuoteQuestionCards();
+    actions.setScreen('ai-chat');
+  };
+
   useEffect(() => {
     const syncSession = async () => {
       const session = await hydrateSession();
@@ -255,6 +347,8 @@ export default function AppRoot() {
         onPressHome={() => actions.setScreen('home')}
         onPressCommunity={() => actions.setScreen('community')}
         onPressMyPage={() => actions.setScreen('mypage')}
+        launchContext={aiChatLaunchContext}
+        onConsumeLaunchContext={() => setAiChatLaunchContext(null)}
       />
     );
   }
@@ -416,7 +510,7 @@ export default function AppRoot() {
     return (
       <QuoteFormScreen
         onBack={() => actions.setScreen('home')}
-        onSaved={() => actions.setScreen('home')}
+        onSaved={(result) => openQuoteQuestionCards(result)}
         initialMethod={state.registerType}
         initialQuoteText={
           state.registerType === 'camera' || state.registerType === 'gallery' ? (ocrQuoteContext?.fullText ?? '') : ''
@@ -431,6 +525,44 @@ export default function AppRoot() {
             : undefined
         }
         onAttachImage={async (asset) => processQuoteImageAsset(asset, false)}
+      />
+    );
+  }
+
+  if (state.screen === 'quote-question-cards') {
+    if (!savedQuoteForQuestions) {
+      return null;
+    }
+
+    return (
+      <QuoteQuestionCardsScreen
+        quote={savedQuoteForQuestions}
+        status={quoteQuestionStatus}
+        cards={quoteQuestionCardsQuery.data?.questions ?? []}
+        questionsResult={quoteQuestionCardsQuery.data ?? null}
+        errorMessage={
+          generateQuoteQuestionCardsMutation.isError
+            ? toUserMessage(generateQuoteQuestionCardsMutation.error)
+            : quoteQuestionCardsQuery.isError
+              ? toUserMessage(quoteQuestionCardsQuery.error)
+              : quoteQuestionCardsQuery.data?.lastRunStatus === 'FAILED'
+                ? 'AI 질문 카드 생성에 실패했어요.'
+                : null
+        }
+        onBack={() => {
+          resetQuoteQuestionCards();
+          actions.setScreen('home');
+        }}
+        onSkip={() => {
+          resetQuoteQuestionCards();
+          actions.setScreen('home');
+        }}
+        onDone={() => {
+          resetQuoteQuestionCards();
+          actions.setScreen('home');
+        }}
+        onGenerate={requestQuoteQuestionCards}
+        onStartChat={startAiChatFromQuestionCard}
       />
     );
   }

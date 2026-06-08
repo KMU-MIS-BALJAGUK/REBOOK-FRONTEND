@@ -24,6 +24,7 @@ import { useQuoteBookSearch } from '../hooks/useQuoteBookSearch';
 import { useCreateQuote } from '../hooks/useCreateQuote';
 import { useFolders } from '../hooks/useFolders';
 import { CameraCropScreen } from './CameraCropScreen';
+import { CreateQuoteResult } from '../model/quoteCreate.types';
 
 const INPUT_ACCESSORY_IDS = {
   book: 'quote-form-book-accessory',
@@ -45,7 +46,7 @@ const INPUT_ACCESSORIES = [
 
 type Props = {
   onBack: () => void;
-  onSaved: () => void;
+  onSaved: (result: CreateQuoteResult) => void;
   initialMethod: RegisterType;
   initialQuoteText?: string;
   ocrSource?: {
@@ -149,8 +150,8 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
         ocrSource: quoteOcrSource,
       },
       {
-        onSuccess: () => {
-          onSaved();
+        onSuccess: (result) => {
+          onSaved(result);
         },
       },
     );

@@ -11,7 +11,8 @@ export type ScreenKey =
   | 'camera-crop'
   | 'gallery-picker'
   | 'ocr-preview'
-  | 'quote-form';
+  | 'quote-form'
+  | 'quote-question-cards';
 
 export type HomeTabKey = 'all' | 'book' | 'folder' | 'emotion';
 
