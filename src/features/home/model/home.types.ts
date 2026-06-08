@@ -61,6 +61,7 @@ export type HomeCardsResult = {
 
 export type HomeCardDetailResult = {
   cardId: number;
+  quoteId: number;
   bookId: number;
   bookTitle: string;
   author: string;

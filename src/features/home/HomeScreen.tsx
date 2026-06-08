@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   ActivityIndicator,
   Keyboard,
   Image,
@@ -28,7 +29,7 @@ import { HomeCardEmojiType, HomeCardItem, HomeCardSort, HomeCardView } from './m
 import { toUserMessage } from '../../shared/utils/apiError';
 import { API_BASE_URL } from '../../shared/constants/api';
 import { BottomNav } from '../../shared/ui/BottomNav';
-import { MyButton } from '../../shared/ui/MyButton';
+import { FeedTopBar } from '../../shared/ui/FeedTopBar';
 
 type Props = {
   nickname: string;
@@ -38,15 +39,34 @@ type Props = {
   onPressCommunity: () => void;
   onPressAiChat: () => void;
   onPressMyPage: () => void;
+  showBottomNav?: boolean;
+  onPressGenerateQuestions?: (quote: {
+    quoteId: number;
+    bookTitle: string;
+    author: string;
+    pageNumber: number;
+    quoteText: string;
+  }) => void;
 };
 
-export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPressCommunity, onPressAiChat, onPressMyPage }: Props) {
+export function HomeScreen({
+  nickname,
+  tab,
+  onChangeTab,
+  onPressRegister,
+  onPressCommunity,
+  onPressAiChat,
+  onPressMyPage,
+  showBottomNav = true,
+  onPressGenerateQuestions,
+}: Props) {
   const [searchKeyword, setSearchKeyword] = useState<string>('');
   const [selectedEmojiType, setSelectedEmojiType] = useState<HomeCardEmojiType | undefined>(undefined);
   const [selectedFolderId, setSelectedFolderId] = useState<number | undefined>(undefined);
   const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [reactionPickerCardId, setReactionPickerCardId] = useState<number | null>(null);
+  const [selectedCardReactionOverride, setSelectedCardReactionOverride] = useState<HomeCardEmojiType | null>(null);
   const [isFolderManageVisible, setIsFolderManageVisible] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [folderFormError, setFolderFormError] = useState<string | null>(null);
@@ -101,6 +121,14 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
   const homeFoldersQuery = useHomeFolders({ includeQuoteCount: true }, tab === 'folder' || isFolderManageVisible);
   const homeCreateFolderMutation = useHomeCreateFolder();
   const homeDeleteFolderMutation = useHomeDeleteFolder();
+
+  useEffect(() => {
+    setSelectedCardReactionOverride(null);
+  }, [selectedCardId]);
+
+  useEffect(() => {
+    setSelectedCardReactionOverride(homeCardDetailQuery.data?.reactionSummary.myReaction ?? null);
+  }, [homeCardDetailQuery.data?.reactionSummary.myReaction]);
 
   const activeQuery = isSearchMode
     ? homeSearchQuery
@@ -205,7 +233,10 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
     cardReactionMutation.mutate(
       { cardId, emojiType },
       {
-        onSuccess: () => {
+        onSuccess: (result) => {
+          if (selectedCardId === cardId) {
+            setSelectedCardReactionOverride(result.myReaction);
+          }
           void activeQuery.refetch();
           if (selectedCardId === cardId) {
             void homeCardDetailQuery.refetch();
@@ -227,6 +258,7 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
     }
 
     setFolderFormError(null);
+    Keyboard.dismiss();
     homeCreateFolderMutation.mutate(
       { folderName: trimmed },
       {
@@ -239,41 +271,31 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
   };
 
   const handleDeleteFolder = (folderId: number) => {
-    setFolderFormError(null);
-    homeDeleteFolderMutation.mutate(
-      { folderId },
+    Alert.alert('정말 삭제하시겠습니까?', '폴더 안의 문장이 있다면 먼저 이동하거나 삭제해야 합니다.', [
+      { text: '취소', style: 'cancel' },
       {
-        onSuccess: () => {
-          void homeFoldersQuery.refetch();
+        text: '삭제',
+        style: 'destructive',
+        onPress: () => {
+          setFolderFormError(null);
+          homeDeleteFolderMutation.mutate(
+            { folderId },
+            {
+              onSuccess: () => {
+                void homeFoldersQuery.refetch();
+              },
+            },
+          );
         },
       },
-    );
+    ]);
   };
 
   return (
     <SafeAreaView style={styles.homeSafeArea}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.homeContainer}>
-        <View style={styles.topPanel}>
-          <Text style={styles.brandTitle}>ReBook</Text>
-
-          <View style={styles.homeSearchRow}>
-            <View style={styles.searchPill}>
-              <Text style={styles.searchIcon}>⌕</Text>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="키워드를 검색하세요"
-                placeholderTextColor="#9f968a"
-                value={searchKeyword}
-                onChangeText={setSearchKeyword}
-                returnKeyType="search"
-                blurOnSubmit
-                onSubmitEditing={() => Keyboard.dismiss()}
-              />
-            </View>
-            <MyButton onPress={onPressMyPage} />
-          </View>
-
+        <FeedTopBar searchKeyword={searchKeyword} onSearchKeywordChange={setSearchKeyword} onPressMyPage={onPressMyPage}>
           <View style={styles.homeTabRow}>
             <HomeTabButton label="전체" active={tab === 'all'} onPress={() => onChangeTab('all')} />
             <HomeTabButton label="도서별" active={tab === 'book'} onPress={() => onChangeTab('book')} />
@@ -348,7 +370,7 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
               ) : null}
             </>
           ) : null}
-        </View>
+        </FeedTopBar>
 
         <View style={styles.homeContent}>
           {activeQuery.isLoading ? (
@@ -478,8 +500,9 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
         </View>
 
         <Modal visible={selectedCardId !== null} transparent animationType="fade" onRequestClose={() => setSelectedCardId(null)}>
-          <View style={styles.modalBackdrop}>
-            <View style={styles.modalCard}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setSelectedCardId(null)}>
+            <View style={styles.modalSheetWrap}>
+              <Pressable style={styles.modalCard} onPress={() => undefined}>
               {homeCardDetailQuery.isLoading ? <Text style={styles.stateText}>상세 정보를 불러오는 중...</Text> : null}
               {!homeCardDetailQuery.isLoading && homeCardDetailQuery.isError ? (
                 <>
@@ -501,6 +524,22 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
                   </Text>
                   <Text style={styles.detailMeta}>메모: {homeCardDetailQuery.data.memo ?? '없음'}</Text>
                   <Text style={styles.detailMeta}>수정: {homeCardDetailQuery.data.updatedAt}</Text>
+                  {onPressGenerateQuestions ? (
+                    <TouchableOpacity
+                      style={styles.questionButton}
+                      onPress={() =>
+                        onPressGenerateQuestions({
+                          quoteId: homeCardDetailQuery.data.quoteId,
+                          bookTitle: homeCardDetailQuery.data.bookTitle,
+                          author: homeCardDetailQuery.data.author,
+                          pageNumber: homeCardDetailQuery.data.pageNumber,
+                          quoteText: homeCardDetailQuery.data.quoteText,
+                        })
+                      }
+                    >
+                      <Text style={styles.questionButtonText}>AI 질문 생성하기</Text>
+                    </TouchableOpacity>
+                  ) : null}
                   {reactionEmojisQuery.isLoading ? <Text style={styles.inlineInfoText}>이모지 로딩 중...</Text> : null}
                   {reactionEmojisQuery.isError ? (
                     <View style={styles.inlineRow}>
@@ -515,13 +554,25 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
                       {(reactionEmojisQuery.data ?? []).map((chip) => (
                         <TouchableOpacity
                           key={`detail-${chip.emojiType}`}
-                          style={styles.detailReactionChip}
+                          style={[
+                            styles.detailReactionChip,
+                            (selectedCardReactionOverride ?? homeCardDetailQuery.data.reactionSummary.myReaction) === chip.emojiType &&
+                              styles.detailReactionChipActive,
+                          ]}
                           onPress={() => {
                             if (!selectedCardId) return;
                             handleReact(selectedCardId, chip.emojiType);
                           }}
                         >
-                          <Text style={styles.detailReactionChipText}>{emojiTypeToIcon(chip.emojiType)}</Text>
+                          <Text
+                            style={[
+                              styles.detailReactionChipText,
+                              (selectedCardReactionOverride ?? homeCardDetailQuery.data.reactionSummary.myReaction) === chip.emojiType &&
+                                styles.detailReactionChipTextActive,
+                            ]}
+                          >
+                            {emojiTypeToIcon(chip.emojiType)}
+                          </Text>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -531,8 +582,9 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
               <TouchableOpacity style={styles.modalCloseButton} onPress={() => setSelectedCardId(null)}>
                 <Text style={styles.modalCloseButtonText}>닫기</Text>
               </TouchableOpacity>
+              </Pressable>
             </View>
-          </View>
+          </Pressable>
         </Modal>
 
         <Modal visible={reactionPickerCardId !== null} transparent animationType="fade" onRequestClose={() => setReactionPickerCardId(null)}>
@@ -573,8 +625,9 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
         </Modal>
 
         <Modal visible={isFolderManageVisible} transparent animationType="fade" onRequestClose={() => setIsFolderManageVisible(false)}>
-          <View style={styles.modalBackdrop}>
-            <View style={styles.modalCard}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setIsFolderManageVisible(false)}>
+            <View style={styles.modalSheetWrap}>
+              <Pressable style={styles.modalCard} onPress={() => undefined}>
               <Text style={styles.detailTitle}>폴더 관리</Text>
               <View style={styles.folderCreateRow}>
                 <TextInput
@@ -640,15 +693,18 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
               <TouchableOpacity style={styles.modalCloseButton} onPress={() => setIsFolderManageVisible(false)}>
                 <Text style={styles.modalCloseButtonText}>닫기</Text>
               </TouchableOpacity>
+              </Pressable>
             </View>
-          </View>
+          </Pressable>
         </Modal>
 
         <Pressable style={styles.floatingButton} onPress={onPressRegister}>
           <Text style={styles.floatingButtonText}>＋</Text>
         </Pressable>
 
-        <BottomNav active="home" onPressCommunity={onPressCommunity} onPressHome={() => {}} onPressAiChat={onPressAiChat} />
+        {showBottomNav ? (
+          <BottomNav active="home" onPressCommunity={onPressCommunity} onPressHome={() => {}} onPressAiChat={onPressAiChat} />
+        ) : null}
       </View>
     </SafeAreaView>
   );
@@ -843,7 +899,7 @@ const styles = StyleSheet.create({
   folderChipActive: { backgroundColor: '#0d0d0d', borderColor: '#0d0d0d' },
   folderChipText: { color: '#0d0d0d', fontSize: 12, fontWeight: '700' },
   folderChipTextActive: { color: '#44c3f3' },
-  inlineInfoText: { color: '#7b7369', fontSize: 12, marginBottom: 8 },
+  inlineInfoText: { color: '#66707a', fontSize: 12, marginBottom: 8 },
   inlineRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   inlineErrorText: { color: '#b25555', fontSize: 12 },
   inlineRetryButton: {
@@ -852,7 +908,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: '#f4efe7',
+    backgroundColor: '#fff',
   },
   inlineRetryText: { color: '#5f564b', fontSize: 11, fontWeight: '600' },
   emojiChipRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
@@ -870,15 +926,15 @@ const styles = StyleSheet.create({
   emojiChipText: { fontSize: 16 },
   homeList: { flex: 1 },
   centerStateWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  stateText: { color: '#7c7468', fontSize: 13 },
+  stateText: { color: '#66707a', fontSize: 13 },
   retryButton: {
     marginTop: 10,
     borderWidth: 1,
-    borderColor: '#c8beaf',
+    borderColor: '#dbe3ea',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#f4efe7',
+    backgroundColor: '#fff',
   },
   retryButtonText: { color: '#5f564b', fontWeight: '600', fontSize: 13 },
   modalBackdrop: {
@@ -887,51 +943,75 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
+  modalSheetWrap: {
+    width: '100%',
+    alignItems: 'center',
+  },
   modalCard: {
-    backgroundColor: '#f9f6f0',
-    borderRadius: 14,
+    backgroundColor: '#fff',
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e8dfd2',
+    borderColor: '#dbe3ea',
     padding: 16,
     gap: 6,
   },
-  detailTitle: { fontSize: 16, fontWeight: '700', color: '#2f2a24', marginBottom: 4 },
-  detailQuote: { fontSize: 14, lineHeight: 22, color: '#322d27', marginBottom: 6 },
-  detailMeta: { fontSize: 12, color: '#756b5f' },
+  detailTitle: { fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 4 },
+  detailQuote: { fontSize: 14, lineHeight: 22, color: '#111', marginBottom: 6 },
+  detailMeta: { fontSize: 12, color: '#66707a' },
+  questionButton: {
+    marginTop: 12,
+    height: 48,
+    borderRadius: 0,
+    backgroundColor: '#181614',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  questionButtonText: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '700',
+  },
   detailReactionRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
   detailReactionChip: {
     width: 34,
     height: 34,
     borderRadius: 17,
     borderWidth: 1,
-    borderColor: '#d9d0c2',
+    borderColor: '#dbe3ea',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f4efe7',
+    backgroundColor: '#fff',
+  },
+  detailReactionChipActive: {
+    backgroundColor: '#e6f9ff',
+    borderColor: '#44c3f3',
   },
   detailReactionChipText: { fontSize: 16 },
+  detailReactionChipTextActive: {
+    transform: [{ scale: 1.08 }],
+  },
   folderCreateRow: { flexDirection: 'row', gap: 8, marginTop: 8, marginBottom: 8, alignItems: 'center' },
   folderCreateInput: {
     flex: 1,
     minHeight: 36,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e2d8cb',
-    backgroundColor: '#f7f2ea',
+    borderColor: '#dbe3ea',
+    backgroundColor: '#fff',
     paddingHorizontal: 10,
     fontSize: 12,
-    color: '#443d33',
+    color: '#111',
   },
   folderCreateButton: {
     minWidth: 56,
     minHeight: 36,
-    borderRadius: 8,
-    backgroundColor: '#8d7353',
+    borderRadius: 0,
+    backgroundColor: '#111',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 10,
   },
-  folderCreateButtonText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  folderCreateButtonText: { color: '#44c3f3', fontSize: 12, fontWeight: '700' },
   folderListWrap: { maxHeight: 220, marginTop: 8 },
   folderListItem: {
     flexDirection: 'row',
@@ -939,29 +1019,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#ece3d7',
+    borderBottomColor: '#dbe3ea',
   },
   folderListTextWrap: { flex: 1, paddingRight: 8 },
-  folderListName: { color: '#332d26', fontSize: 13, fontWeight: '700' },
-  folderListMeta: { color: '#7a6f62', fontSize: 11, marginTop: 2 },
+  folderListName: { color: '#111', fontSize: 13, fontWeight: '700' },
+  folderListMeta: { color: '#66707a', fontSize: 11, marginTop: 2 },
   folderDeleteButton: {
     borderWidth: 1,
-    borderColor: '#d7cbbc',
-    backgroundColor: '#f7f2ea',
-    borderRadius: 8,
+    borderColor: '#dbe3ea',
+    backgroundColor: '#fff',
+    borderRadius: 0,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  folderDeleteButtonText: { color: '#6f6557', fontSize: 11, fontWeight: '700' },
+  folderDeleteButtonText: { color: '#111', fontSize: 11, fontWeight: '700' },
   modalCloseButton: {
     marginTop: 10,
     alignSelf: 'flex-end',
-    backgroundColor: '#8d7353',
-    borderRadius: 10,
+    backgroundColor: '#111',
+    borderRadius: 0,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
-  modalCloseButtonText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  modalCloseButtonText: { color: '#44c3f3', fontWeight: '700', fontSize: 12 },
   reactionPickerBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(32, 26, 20, 0.38)',
@@ -969,23 +1049,23 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   reactionPickerCard: {
-    backgroundColor: '#f9f6f0',
+    backgroundColor: '#fff',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#e8dfd2',
+    borderColor: '#dbe3ea',
     padding: 14,
   },
-  reactionPickerTitle: { fontSize: 14, color: '#2f2a24', fontWeight: '700', marginBottom: 10 },
+  reactionPickerTitle: { fontSize: 14, color: '#111', fontWeight: '700', marginBottom: 10 },
   reactionPickerRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   reactionPickerChip: {
     width: 38,
     height: 38,
     borderRadius: 19,
     borderWidth: 1,
-    borderColor: '#d9d0c2',
+    borderColor: '#dbe3ea',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f4efe7',
+    backgroundColor: '#fff',
   },
   reactionPickerChipText: { fontSize: 17 },
   quoteCard: {
@@ -1001,10 +1081,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
-  quoteTitle: { fontSize: 13, color: '#3a342c', fontWeight: '700', marginBottom: 10 },
-  quoteText: { fontSize: 14, color: '#322d27', lineHeight: 22, marginBottom: 12 },
-  quoteMeta: { fontSize: 10, color: '#8b8173' },
-  quoteMark: { position: 'absolute', right: 12, bottom: 10, color: '#e6b545', fontSize: 13 },
+  quoteTitle: { fontSize: 13, color: '#111', fontWeight: '700', marginBottom: 10 },
+  quoteText: { fontSize: 14, color: '#111', lineHeight: 22, marginBottom: 12 },
+  quoteMeta: { fontSize: 10, color: '#66707a' },
+  quoteMark: { position: 'absolute', right: 12, bottom: 10, color: '#44c3f3', fontSize: 13 },
   gridWrap: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10 },
   gridCard: {
     width: '48.5%',
@@ -1020,18 +1100,18 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
-  gridTitle: { color: '#3f3830', fontWeight: '700', fontSize: 12, marginBottom: 4 },
-  gridPage: { color: '#8b8173', fontSize: 10, marginBottom: 8 },
-  gridQuote: { color: '#322d27', fontSize: 12, lineHeight: 18 },
-  gridReactionMark: { position: 'absolute', right: 10, bottom: 8, color: '#e6b545', fontSize: 11 },
+  gridTitle: { color: '#111', fontWeight: '700', fontSize: 12, marginBottom: 4 },
+  gridPage: { color: '#66707a', fontSize: 10, marginBottom: 8 },
+  gridQuote: { color: '#111', fontSize: 12, lineHeight: 18 },
+  gridReactionMark: { position: 'absolute', right: 10, bottom: 8, color: '#44c3f3', fontSize: 11 },
   bookShelfSection: { flex: 1 },
-  bookShelfHint: { color: '#7d7366', fontSize: 12, marginBottom: 10 },
+  bookShelfHint: { color: '#66707a', fontSize: 12, marginBottom: 10 },
   bookShelfGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12, paddingBottom: 12 },
   bookShelfCard: {
     width: '48.5%',
     borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#e8e8e8',
+    borderColor: '#dbe3ea',
     backgroundColor: '#fff',
     overflow: 'hidden',
     shadowColor: '#000',
@@ -1042,7 +1122,7 @@ const styles = StyleSheet.create({
   },
   bookShelfCover: {
     height: 180,
-    backgroundColor: '#f1f1f1',
+    backgroundColor: '#fff',
     position: 'relative',
   },
   bookShelfCoverImage: {
@@ -1054,10 +1134,10 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ececec',
+    backgroundColor: '#fff',
   },
   bookShelfCoverFallbackLabel: {
-    color: '#6f6457',
+    color: '#66707a',
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.5,
@@ -1073,8 +1153,8 @@ const styles = StyleSheet.create({
   },
   bookShelfCountChipText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   bookShelfBody: { paddingHorizontal: 10, paddingVertical: 9 },
-  bookShelfCardTitle: { color: '#3f3830', fontWeight: '700', fontSize: 12, marginBottom: 3 },
-  bookShelfCardAuthor: { color: '#7f7567', fontSize: 10 },
+  bookShelfCardTitle: { color: '#111', fontWeight: '700', fontSize: 12, marginBottom: 3 },
+  bookShelfCardAuthor: { color: '#66707a', fontSize: 10 },
   bookSentenceSection: { flex: 1 },
   bookSentenceHeader: {
     flexDirection: 'row',
@@ -1086,21 +1166,21 @@ const styles = StyleSheet.create({
   bookSentenceBackButton: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#ddd2c3',
-    backgroundColor: '#f5efe6',
+    borderColor: '#dbe3ea',
+    backgroundColor: '#fff',
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  bookSentenceBackText: { color: '#6f6457', fontSize: 11, fontWeight: '700' },
+  bookSentenceBackText: { color: '#111', fontSize: 11, fontWeight: '700' },
   bookSentenceMeta: { flex: 1 },
-  bookSentenceTitle: { color: '#3b352e', fontSize: 15, fontWeight: '700' },
-  bookSentenceAuthor: { color: '#7e7467', fontSize: 11, marginTop: 2 },
+  bookSentenceTitle: { color: '#111', fontSize: 15, fontWeight: '700' },
+  bookSentenceAuthor: { color: '#66707a', fontSize: 11, marginTop: 2 },
   floatingButton: {
     position: 'absolute',
     right: 16,
-    bottom: 90,
-    width: 44,
-    height: 44,
+    bottom: 72,
+    width: 66,
+    height: 66,
     borderRadius: 0,
     backgroundColor: '#111',
     alignItems: 'center',
@@ -1112,7 +1192,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 2,
   },
-  floatingButtonText: { color: '#fff', fontSize: 24, lineHeight: 24, marginTop: -1, fontWeight: '700' },
+  floatingButtonText: { color: '#fff', fontSize: 36, lineHeight: 36, marginTop: -2, fontWeight: '700' },
   bottomNav: {
     height: 84,
     borderTopWidth: 1,

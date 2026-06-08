@@ -59,6 +59,7 @@ export type HomeCardsFilterResponseDto = {
 
 export type HomeCardDetailResponseDto = {
   cardId: number;
+  quoteId?: number;
   bookId: number;
   bookTitle: string;
   author: string;

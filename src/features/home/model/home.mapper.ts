@@ -78,6 +78,7 @@ export function toHomeCardsFilterResult(dto: HomeCardsFilterResponseDto): HomeCa
 export function toHomeCardDetailResult(dto: HomeCardDetailResponseDto): HomeCardDetailResult {
   return {
     cardId: dto.cardId,
+    quoteId: dto.quoteId ?? dto.cardId,
     bookId: dto.bookId,
     bookTitle: dto.bookTitle,
     author: dto.author,
