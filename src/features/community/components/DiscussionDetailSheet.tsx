@@ -63,7 +63,17 @@ export function DiscussionDetailSheet({
   const [isShowingAllComments, setIsShowingAllComments] = useState(false);
   const visibleComments = isShowingAllComments ? comments : comments.slice(0, 5);
   const hasHiddenComments = comments.length > 5;
-  const { contentPanHandlers, handlePanHandlers, onScroll, onSheetLayout, requestClose, sheetAnimatedStyle } =
+  const {
+    contentPanHandlers,
+    handlePanHandlers,
+    onScroll,
+    onScrollBeginDrag,
+    onScrollEndDrag,
+    onMomentumScrollEnd,
+    onSheetLayout,
+    requestClose,
+    sheetAnimatedStyle,
+  } =
     useDismissableBottomSheet({ visible: true, onClose });
 
   useEffect(() => {
@@ -91,6 +101,9 @@ export function DiscussionDetailSheet({
           contentContainerStyle={[styles.content, isCommentInputFocused && styles.contentWithKeyboardAction]}
           {...contentPanHandlers}
           onScroll={onScroll}
+          onScrollBeginDrag={onScrollBeginDrag}
+          onScrollEndDrag={onScrollEndDrag}
+          onMomentumScrollEnd={onMomentumScrollEnd}
           scrollEventThrottle={16}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"

@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Animated,
   Image,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
+  Pressable,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -34,10 +36,10 @@ import { API_BASE_URL } from '../../shared/constants/api';
 import { BottomNav } from '../../shared/ui/BottomNav';
 import { FeedTopBar } from '../../shared/ui/FeedTopBar';
 import { DiscussionDetailSheet } from './components/DiscussionDetailSheet';
-import { CommunityAiTopicsPanel } from './components/CommunityAiTopicsPanel';
-import { CommunityAiTopicSet } from './model/communityAiTopic.types';
 import { useGenerateCommunityAiTopics } from './hooks/useGenerateCommunityAiTopics';
 import { useCommunityAiTopics } from './hooks/useCommunityAiTopics';
+import { useDismissableBottomSheet } from '../../shared/hooks/useDismissableBottomSheet';
+import { CommunityAiDiscussionGenerationModal } from './components/CommunityAiDiscussionGenerationModal';
 
 type Props = {
   nickname: string;
@@ -51,9 +53,13 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
   const [selectedDiscussionId, setSelectedDiscussionId] = useState<number | null>(null);
-  const [detailTab, setDetailTab] = useState<'TOP_QUOTES' | 'DISCUSSION' | 'VOTE' | 'AI_TOPICS'>('TOP_QUOTES');
-  const [communityTopicSet, setCommunityTopicSet] = useState<CommunityAiTopicSet | null>(null);
-  const [communityTopicError, setCommunityTopicError] = useState<string | null>(null);
+  const [detailTab, setDetailTab] = useState<'TOP_QUOTES' | 'DISCUSSION' | 'VOTE'>('TOP_QUOTES');
+  const [showAllMyBooks, setShowAllMyBooks] = useState(false);
+  const [showAllPopularBooks, setShowAllPopularBooks] = useState(false);
+  const [isAiDiscussionGeneratorVisible, setIsAiDiscussionGeneratorVisible] = useState(false);
+  const [isAiDiscussionGenerationRequested, setIsAiDiscussionGenerationRequested] = useState(false);
+  const [selectedAiDiscussionSuggestionId, setSelectedAiDiscussionSuggestionId] = useState<string | null>(null);
+  const [aiDiscussionError, setAiDiscussionError] = useState<string | null>(null);
   const [isCreateDiscussionVisible, setIsCreateDiscussionVisible] = useState(false);
   const [newDiscussionCategory, setNewDiscussionCategory] = useState<CommunityDiscussionCategory>('QUESTION');
   const [newDiscussionTitle, setNewDiscussionTitle] = useState('');
@@ -79,6 +85,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
   );
   const myBookItems = myBooksQuery.data?.items ?? [];
   const myBookCount = myBooksQuery.data?.totalCount ?? 0;
+  const visibleMyBookItems = showAllMyBooks ? myBookItems : myBookItems.slice(0, 2);
   const popularBooksQuery = usePopularCommunityBooks(
     useMemo(
       () => ({
@@ -90,6 +97,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
     ),
   );
   const popularBookItems = popularBooksQuery.data?.items ?? [];
+  const visiblePopularBookItems = showAllPopularBooks ? popularBookItems : popularBookItems.slice(0, 3);
   const bookDetailQuery = useCommunityBookDetail(selectedBookId);
   const topQuotesQuery = useCommunityBookTopQuotes(
     selectedBookId,
@@ -158,32 +166,52 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
   const searchBookItems = searchBooksQuery.data?.items ?? [];
 
   useEffect(() => {
-    setCommunityTopicError(null);
-    generateCommunityAiTopicsMutation.reset();
-  }, [selectedBookId]);
+    setShowAllMyBooks(false);
+    setShowAllPopularBooks(false);
+  }, [trimmedKeyword]);
 
-  useEffect(() => {
-    if (!communityAiTopicsQuery.data) {
-      setCommunityTopicSet(null);
-      return;
-    }
+  const aiDiscussionSuggestionCards = useMemo(
+    () =>
+      (communityAiTopicsQuery.data?.topics ?? []).map((topic) => ({
+        id: topic.id,
+        title: topic.title,
+        content: communityAiTopicsQuery.data?.featuredQuote
+          ? `${topic.description}\n\n대표 문장: “${communityAiTopicsQuery.data.featuredQuote.quoteText}”`
+          : topic.description,
+      })),
+    [communityAiTopicsQuery.data],
+  );
 
-    setCommunityTopicSet(communityAiTopicsQuery.data);
-  }, [communityAiTopicsQuery.data]);
-
-  const closeDiscussionComposer = () => {
+  function closeDiscussionComposer() {
     Keyboard.dismiss();
     setCreateDiscussionError(null);
     setIsCreateDiscussionVisible(false);
-  };
+  }
 
-  const closePollComposer = () => {
+  function closePollComposer() {
     Keyboard.dismiss();
     setCreatePollError(null);
     setIsCreatePollVisible(false);
-  };
+  }
+
+  const discussionComposerSheet = useDismissableBottomSheet({
+    visible: isCreateDiscussionVisible,
+    onClose: closeDiscussionComposer,
+    closeThresholdRatio: 0.12,
+    contentActivationDistance: 12,
+  });
+  const pollComposerSheet = useDismissableBottomSheet({
+    visible: isCreatePollVisible,
+    onClose: closePollComposer,
+    closeThresholdRatio: 0.12,
+    contentActivationDistance: 12,
+  });
 
   const handleCloseBookDetail = () => {
+    if (isAiDiscussionGeneratorVisible) {
+      closeAiDiscussionGenerator();
+      return;
+    }
     if (selectedDiscussionId !== null) {
       Keyboard.dismiss();
       setCreateCommentError(null);
@@ -201,17 +229,34 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
     }
 
     setSelectedBookId(null);
-    setCommunityTopicSet(null);
-    setCommunityTopicError(null);
     generateCommunityAiTopicsMutation.reset();
   };
 
-  const handleGenerateCommunityTopics = () => {
+  const closeAiDiscussionGenerator = () => {
+    setIsAiDiscussionGeneratorVisible(false);
+    setIsAiDiscussionGenerationRequested(false);
+    setSelectedAiDiscussionSuggestionId(null);
+    setAiDiscussionError(null);
+    generateCommunityAiTopicsMutation.reset();
+  };
+
+  const handleOpenAiDiscussionGenerator = () => {
+    setIsAiDiscussionGeneratorVisible(true);
+    setIsAiDiscussionGenerationRequested(false);
+    setSelectedAiDiscussionSuggestionId(null);
+    setAiDiscussionError(null);
+    generateCommunityAiTopicsMutation.reset();
+  };
+
+  const handleGenerateAiDiscussionContent = () => {
     if (!selectedBookId) {
       return;
     }
 
-    setCommunityTopicError(null);
+    setIsAiDiscussionGenerationRequested(true);
+    setSelectedAiDiscussionSuggestionId(null);
+    setAiDiscussionError(null);
+    generateCommunityAiTopicsMutation.reset();
     generateCommunityAiTopicsMutation.mutate(
       { bookId: selectedBookId },
       {
@@ -219,11 +264,29 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
           await communityAiTopicsQuery.refetch();
         },
         onError: (error) => {
-          setCommunityTopicSet(null);
-          setCommunityTopicError(toUserMessage(error));
+          setAiDiscussionError(toUserMessage(error));
         },
       },
     );
+  };
+
+  const handleSelectAiDiscussionSuggestion = (suggestionId: string) => {
+    setSelectedAiDiscussionSuggestionId(suggestionId);
+  };
+
+  const handleUseSelectedAiDiscussionSuggestion = () => {
+    const selectedSuggestion = aiDiscussionSuggestionCards.find((item) => item.id === selectedAiDiscussionSuggestionId);
+
+    if (!selectedSuggestion) {
+      return;
+    }
+
+    setNewDiscussionCategory('QUESTION');
+    setNewDiscussionTitle(selectedSuggestion.title);
+    setNewDiscussionContent(selectedSuggestion.content);
+    closeAiDiscussionGenerator();
+    setCreateDiscussionError(null);
+    setIsCreateDiscussionVisible(true);
   };
 
   const handleCreateDiscussion = () => {
@@ -453,7 +516,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
           ) : null}
 
           {!myBooksQuery.isLoading && !myBooksQuery.isError
-            ? myBookItems.map((book) => (
+            ? visibleMyBookItems.map((book) => (
                 <TouchableOpacity
                   key={book.bookId}
                   style={styles.bookCard}
@@ -471,7 +534,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                     </View>
                   </View>
                   <View style={styles.previewBox}>
-                    <Text style={styles.previewLabel}>↗ 많이 저장한 문장</Text>
+                    <Text style={styles.previewLabel}>↗ 많은 저장</Text>
                     <Text style={styles.previewText} numberOfLines={1}>
                       {book.savedQuotePreview ?? '아직 저장한 문장이 없어요.'}
                     </Text>
@@ -479,8 +542,13 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                 </TouchableOpacity>
               ))
             : null}
+          {!myBooksQuery.isLoading && !myBooksQuery.isError && myBookItems.length > 2 ? (
+            <TouchableOpacity style={styles.moreButton} onPress={() => setShowAllMyBooks((prev) => !prev)}>
+              <Text style={styles.moreButtonText}>{showAllMyBooks ? '접기' : '더보기'}</Text>
+            </TouchableOpacity>
+          ) : null}
 
-          <Text style={styles.sectionTitleLarge}>인기 책 커뮤니티</Text>
+          <Text style={[styles.sectionTitleLarge, styles.popularSectionTitle]}>인기 책 커뮤니티</Text>
           {popularBooksQuery.isLoading ? <Text style={styles.infoText}>인기 책을 불러오는 중...</Text> : null}
           {!popularBooksQuery.isLoading && popularBooksQuery.isError ? (
             <View style={styles.stateWrap}>
@@ -494,7 +562,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
             <Text style={styles.infoText}>인기 책이 아직 없어요.</Text>
           ) : null}
           {!popularBooksQuery.isLoading && !popularBooksQuery.isError
-            ? popularBookItems.map((book) => (
+            ? visiblePopularBookItems.map((book) => (
                 <TouchableOpacity
                   key={`popular-${book.bookId}`}
                   style={styles.smallCard}
@@ -514,6 +582,11 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                 </TouchableOpacity>
               ))
             : null}
+          {!popularBooksQuery.isLoading && !popularBooksQuery.isError && popularBookItems.length > 3 ? (
+            <TouchableOpacity style={styles.moreButton} onPress={() => setShowAllPopularBooks((prev) => !prev)}>
+              <Text style={styles.moreButtonText}>{showAllPopularBooks ? '접기' : '더보기'}</Text>
+            </TouchableOpacity>
+          ) : null}
         </ScrollView>
 
         <Modal visible={selectedBookId !== null} transparent animationType="fade" onRequestClose={handleCloseBookDetail}>
@@ -553,7 +626,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                       onPress={() => setDetailTab('TOP_QUOTES')}
                     >
                       <Text style={[styles.detailTabButtonText, detailTab === 'TOP_QUOTES' && styles.detailTabButtonTextActive]}>
-                        많이 저장한 문장
+                        많은 저장
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -572,18 +645,10 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                         투표
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.detailTabButton, detailTab === 'AI_TOPICS' && styles.detailTabButtonActive]}
-                      onPress={() => setDetailTab('AI_TOPICS')}
-                    >
-                      <Text style={[styles.detailTabButtonText, detailTab === 'AI_TOPICS' && styles.detailTabButtonTextActive]}>
-                        AI 주제
-                      </Text>
-                    </TouchableOpacity>
                   </View>
                   {detailTab === 'TOP_QUOTES' ? (
                     <>
-                      {topQuotesQuery.isLoading ? <Text style={styles.infoText}>많이 저장한 문장을 불러오는 중...</Text> : null}
+                      {topQuotesQuery.isLoading ? <Text style={styles.infoText}>많은 저장을 불러오는 중...</Text> : null}
                       {!topQuotesQuery.isLoading && topQuotesQuery.isError ? (
                         <View style={styles.stateWrap}>
                           <Text style={styles.errorText}>{toUserMessage(topQuotesQuery.error)}</Text>
@@ -593,7 +658,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                         </View>
                       ) : null}
                       {!topQuotesQuery.isLoading && !topQuotesQuery.isError && (topQuotesQuery.data?.items ?? []).length === 0 ? (
-                        <Text style={styles.infoText}>많이 저장한 문장이 아직 없어요.</Text>
+                        <Text style={styles.infoText}>많은 저장이 아직 없어요.</Text>
                       ) : null}
                       {!topQuotesQuery.isLoading && !topQuotesQuery.isError
                         ? (topQuotesQuery.data?.items ?? []).map((item) => (
@@ -769,58 +834,50 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                           ))
                         : null}
                     </>
-                  ) : (
-                    <CommunityAiTopicsPanel
-                      bookTitle={bookDetailQuery.data.title}
-                      status={
-                        generateCommunityAiTopicsMutation.isPending
-                          ? 'loading'
-                          : communityAiTopicsQuery.isLoading && !communityAiTopicsQuery.data
-                            ? 'loading'
-                          : generateCommunityAiTopicsMutation.isError || communityAiTopicsQuery.isError || communityAiTopicsQuery.data?.fetchStatus === 'FAILED' || communityAiTopicsQuery.data?.lastRunStatus === 'FAILED'
-                            ? 'error'
-                            : communityAiTopicsQuery.data?.fetchStatus === 'GENERATING'
-                              ? 'loading'
-                              : communityAiTopicsQuery.data?.fetchStatus === 'READY'
-                                ? communityAiTopicsQuery.data.topics.length > 0
-                                  ? 'success'
-                                  : 'empty'
-                                : 'idle'
-                      }
-                      topicSet={communityTopicSet}
-                      errorMessage={
-                        communityTopicError
-                        ?? (generateCommunityAiTopicsMutation.isError ? toUserMessage(generateCommunityAiTopicsMutation.error) : null)
-                        ?? (communityAiTopicsQuery.isError ? toUserMessage(communityAiTopicsQuery.error) : null)
-                        ?? (communityAiTopicsQuery.data?.lastRunStatus === 'FAILED' ? '커뮤니티 주제 생성에 실패했어요.' : null)
-                      }
-                      onGenerate={handleGenerateCommunityTopics}
-                    />
-                  )}
+                  ) : null}
                 </ScrollView>
               ) : null}
               {!bookDetailQuery.isLoading
               && !bookDetailQuery.isError
               && bookDetailQuery.data
-              && detailTab !== 'TOP_QUOTES'
-              && detailTab !== 'AI_TOPICS' ? (
+              && detailTab === 'DISCUSSION' ? (
                 <TouchableOpacity
                   style={styles.floatingCreateButton}
                   onPress={() => {
-                    if (detailTab === 'DISCUSSION') {
-                      setCreateDiscussionError(null);
-                      setIsCreateDiscussionVisible(true);
-                      return;
-                    }
-
+                    setCreateDiscussionError(null);
+                    setIsCreateDiscussionVisible(true);
+                  }}
+                >
+                  <Text style={styles.floatingCreateButtonIcon}>＋</Text>
+                  <Text style={styles.floatingCreateButtonText}>토론 작성</Text>
+                </TouchableOpacity>
+              ) : null}
+              {!bookDetailQuery.isLoading
+              && !bookDetailQuery.isError
+              && bookDetailQuery.data
+              && detailTab !== 'TOP_QUOTES'
+              && detailTab !== 'DISCUSSION' ? (
+                <TouchableOpacity
+                  style={styles.floatingCreateButton}
+                  onPress={() => {
                     setCreatePollError(null);
                     setIsCreatePollVisible(true);
                   }}
                 >
                   <Text style={styles.floatingCreateButtonIcon}>＋</Text>
-                  <Text style={styles.floatingCreateButtonText}>
-                    {detailTab === 'DISCUSSION' ? '토론 작성' : '투표 생성'}
-                  </Text>
+                  <Text style={styles.floatingCreateButtonText}>투표 생성</Text>
+                </TouchableOpacity>
+              ) : null}
+              {!bookDetailQuery.isLoading
+              && !bookDetailQuery.isError
+              && bookDetailQuery.data
+              && detailTab === 'DISCUSSION' ? (
+                <TouchableOpacity
+                  style={[styles.floatingCreateButton, styles.aiDiscussionFloatingButton]}
+                  onPress={handleOpenAiDiscussionGenerator}
+                >
+                  <Text style={styles.floatingCreateButtonIcon}>＋</Text>
+                  <Text style={styles.floatingCreateButtonText}>AI 토론 콘텐츠 생성</Text>
                 </TouchableOpacity>
               ) : null}
               <TouchableOpacity style={styles.closeButton} onPress={handleCloseBookDetail}>
@@ -829,17 +886,30 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
             </View>
 
             {isCreateDiscussionVisible ? (
-              <KeyboardAvoidingView
-                style={styles.composerOverlay}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              >
-                <View style={styles.composerSheet}>
+              <View style={styles.composerOverlay}>
+                <Pressable style={styles.composerBackdrop} onPress={discussionComposerSheet.requestClose} />
+                <KeyboardAvoidingView
+                  style={styles.composerSheetWrap}
+                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                >
+                  <Animated.View
+                    style={[styles.composerSheet, discussionComposerSheet.sheetAnimatedStyle]}
+                    onLayout={discussionComposerSheet.onSheetLayout}
+                  >
+                    <View style={styles.composerHandleArea} {...discussionComposerSheet.handlePanHandlers}>
+                      <View style={styles.composerHandle} />
+                    </View>
                   <ScrollView
                     contentContainerStyle={styles.composerContent}
+                    {...discussionComposerSheet.contentPanHandlers}
+                    onScroll={discussionComposerSheet.onScroll}
+                    onScrollBeginDrag={discussionComposerSheet.onScrollBeginDrag}
+                    onScrollEndDrag={discussionComposerSheet.onScrollEndDrag}
+                    onMomentumScrollEnd={discussionComposerSheet.onMomentumScrollEnd}
+                    scrollEventThrottle={16}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                   >
-                    <View style={styles.composerHandle} />
                     <Text style={styles.composerTitle}>토론 글 작성</Text>
                     <Text style={styles.composerDescription}>이 책을 읽은 사람들과 나누고 싶은 이야기를 작성해보세요.</Text>
                     <Text style={styles.inputLabel}>카테고리</Text>
@@ -893,22 +963,36 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                       </TouchableOpacity>
                     </View>
                   </ScrollView>
-                </View>
-              </KeyboardAvoidingView>
+                  </Animated.View>
+                </KeyboardAvoidingView>
+              </View>
             ) : null}
 
             {isCreatePollVisible ? (
-              <KeyboardAvoidingView
-                style={styles.composerOverlay}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              >
-                <View style={styles.composerSheet}>
+              <View style={styles.composerOverlay}>
+                <Pressable style={styles.composerBackdrop} onPress={pollComposerSheet.requestClose} />
+                <KeyboardAvoidingView
+                  style={styles.composerSheetWrap}
+                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                >
+                  <Animated.View
+                    style={[styles.composerSheet, pollComposerSheet.sheetAnimatedStyle]}
+                    onLayout={pollComposerSheet.onSheetLayout}
+                  >
+                    <View style={styles.composerHandleArea} {...pollComposerSheet.handlePanHandlers}>
+                      <View style={styles.composerHandle} />
+                    </View>
                   <ScrollView
                     contentContainerStyle={styles.composerContent}
+                    {...pollComposerSheet.contentPanHandlers}
+                    onScroll={pollComposerSheet.onScroll}
+                    onScrollBeginDrag={pollComposerSheet.onScrollBeginDrag}
+                    onScrollEndDrag={pollComposerSheet.onScrollEndDrag}
+                    onMomentumScrollEnd={pollComposerSheet.onMomentumScrollEnd}
+                    scrollEventThrottle={16}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                   >
-                    <View style={styles.composerHandle} />
                     <Text style={styles.composerTitle}>투표 생성</Text>
                     <Text style={styles.composerDescription}>서로 다른 생각을 확인할 수 있는 질문과 두 선택지를 작성해주세요.</Text>
                     <Text style={styles.inputLabel}>질문</Text>
@@ -956,9 +1040,45 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                       </TouchableOpacity>
                     </View>
                   </ScrollView>
-                </View>
-              </KeyboardAvoidingView>
+                  </Animated.View>
+                </KeyboardAvoidingView>
+              </View>
             ) : null}
+
+            <CommunityAiDiscussionGenerationModal
+              visible={isAiDiscussionGeneratorVisible}
+              mode={isAiDiscussionGenerationRequested ? 'loading' : 'intro'}
+              status={
+                isAiDiscussionGenerationRequested
+                  ? generateCommunityAiTopicsMutation.isPending
+                    ? 'loading'
+                    : communityAiTopicsQuery.isLoading && !communityAiTopicsQuery.data
+                      ? 'loading'
+                      : generateCommunityAiTopicsMutation.isError || communityAiTopicsQuery.isError || communityAiTopicsQuery.data?.fetchStatus === 'FAILED' || communityAiTopicsQuery.data?.lastRunStatus === 'FAILED'
+                        ? 'error'
+                        : communityAiTopicsQuery.data?.fetchStatus === 'GENERATING'
+                          ? 'loading'
+                          : communityAiTopicsQuery.data?.fetchStatus === 'READY'
+                            ? communityAiTopicsQuery.data.topics.length > 0
+                              ? 'success'
+                              : 'empty'
+                            : 'idle'
+                  : 'idle'
+              }
+              bookTitle={bookDetailQuery.data?.title ?? '이 책'}
+              topicSet={communityAiTopicsQuery.data ?? null}
+              errorMessage={
+                aiDiscussionError
+                ?? (generateCommunityAiTopicsMutation.isError ? toUserMessage(generateCommunityAiTopicsMutation.error) : null)
+                ?? (communityAiTopicsQuery.isError ? toUserMessage(communityAiTopicsQuery.error) : null)
+                ?? (communityAiTopicsQuery.data?.lastRunStatus === 'FAILED' ? 'AI 토론 콘텐츠 생성에 실패했어요.' : null)
+              }
+              selectedSuggestionId={selectedAiDiscussionSuggestionId}
+              onClose={closeAiDiscussionGenerator}
+              onGenerate={handleGenerateAiDiscussionContent}
+              onSelectSuggestion={handleSelectAiDiscussionSuggestion}
+              onUseSelectedSuggestion={handleUseSelectedAiDiscussionSuggestion}
+            />
 
             {selectedDiscussionId !== null ? (
               <DiscussionDetailSheet
@@ -1095,8 +1215,9 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 15, color: '#141414', paddingVertical: 0 },
   scroll: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 14 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: 8 },
-  sectionTitleLarge: { fontSize: 12, color: '#111', fontWeight: '700' },
-  sectionCountText: { fontSize: 12, color: '#66707a', fontWeight: '600' },
+  sectionTitleLarge: { fontSize: 17, color: '#111', fontWeight: '800' },
+  popularSectionTitle: { marginTop: 8, marginBottom: 12 },
+  sectionCountText: { fontSize: 13, color: '#66707a', fontWeight: '700' },
   infoText: { fontSize: 13, color: '#66707a', marginBottom: 10 },
   errorText: { fontSize: 13, color: '#b25555', marginBottom: 8 },
   stateWrap: { marginBottom: 10 },
@@ -1135,9 +1256,9 @@ const styles = StyleSheet.create({
   },
   coverText: { color: '#66707a', fontSize: 11, fontWeight: '600' },
   bookContent: { flex: 1 },
-  bookTitle: { fontSize: 13, color: '#111', fontWeight: '700', marginBottom: 4 },
-  bookAuthor: { fontSize: 11, color: '#66707a', marginBottom: 6 },
-  bookMeta: { fontSize: 10, color: '#66707a' },
+  bookTitle: { fontSize: 15, color: '#111', fontWeight: '700', marginBottom: 4 },
+  bookAuthor: { fontSize: 12, color: '#66707a', marginBottom: 6 },
+  bookMeta: { fontSize: 11, color: '#66707a' },
   previewBox: {
     borderRadius: 12,
     borderWidth: 1,
@@ -1145,8 +1266,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 10,
   },
-  previewLabel: { fontSize: 10, color: '#66707a', fontWeight: '700', marginBottom: 4 },
-  previewText: { fontSize: 12, color: '#111', lineHeight: 18 },
+  previewLabel: { fontSize: 11, color: '#66707a', fontWeight: '700', marginBottom: 4 },
+  previewText: { fontSize: 13, color: '#111', lineHeight: 19 },
   smallCard: {
     minHeight: 92,
     borderRadius: 0,
@@ -1162,7 +1283,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
-  smallCardTitle: { fontSize: 12, color: '#111', fontWeight: '600' },
+  smallCardTitle: { fontSize: 14, color: '#111', fontWeight: '600' },
   popularBookRow: { flexDirection: 'row', alignItems: 'center' },
   popularCoverPlaceholder: {
     width: 50,
@@ -1185,6 +1306,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   bottomItem: { alignItems: 'center', justifyContent: 'center', flex: 1, paddingVertical: 8 },
+  moreButton: {
+    alignSelf: 'center',
+    marginTop: 2,
+    marginBottom: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#0d0d0d',
+    backgroundColor: '#fff',
+  },
+  moreButtonText: {
+    color: '#111',
+    fontSize: 12,
+    fontWeight: '800',
+  },
   bottomIcon: { fontSize: 22, color: '#111', marginBottom: 5 },
   bottomLabel: { fontSize: 11, color: '#111', fontWeight: '700' },
   bottomLabelActive: { fontSize: 11, color: '#fff', fontWeight: '700' },
@@ -1311,6 +1447,12 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 5,
   },
+  aiDiscussionFloatingButton: {
+    bottom: 118,
+  },
+  discussionCreateFloatingButton: {
+    bottom: 58,
+  },
   floatingCreateButtonIcon: { color: '#111', fontSize: 18, fontWeight: '900', lineHeight: 20 },
   floatingCreateButtonText: { color: '#111', fontSize: 12, fontWeight: '800' },
   pollCard: {
@@ -1376,6 +1518,17 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(17, 17, 17, 0.48)',
   },
+  composerBackdrop: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  composerSheetWrap: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
   composerSheet: {
     width: '100%',
     maxHeight: '84%',
@@ -1385,6 +1538,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     overflow: 'hidden',
+  },
+  composerHandleArea: {
+    alignItems: 'center',
+    paddingVertical: 6,
   },
   composerContent: {
     paddingHorizontal: 20,
