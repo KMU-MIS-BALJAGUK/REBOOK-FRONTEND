@@ -4,6 +4,7 @@ export type CreateQuoteRequestDto = {
   book: {
     title: string;
     author: string;
+    coverImageUrl?: string;
   };
   pageNumber: number;
   quoteText: string;

@@ -30,6 +30,7 @@ import { toUserMessage } from '../../shared/utils/apiError';
 import { API_BASE_URL } from '../../shared/constants/api';
 import { BottomNav } from '../../shared/ui/BottomNav';
 import { FeedTopBar } from '../../shared/ui/FeedTopBar';
+import { formatChatMessageAt } from '../../shared/utils/formatChatMessageAt';
 
 type Props = {
   nickname: string;
@@ -304,14 +305,7 @@ export function HomeScreen({
           </View>
 
           {tab === 'folder' ? (
-            <View style={styles.folderManageRow}>
-              <TouchableOpacity style={styles.folderManageButton} onPress={() => setIsFolderManageVisible(true)}>
-                <Text style={styles.folderManageButtonText}>폴더 관리</Text>
-              </TouchableOpacity>
-            </View>
-          ) : null}
-          {tab === 'folder' ? (
-            <>
+            <View style={styles.folderControlRow}>
               {homeFoldersQuery.isLoading ? <Text style={styles.inlineInfoText}>폴더를 불러오는 중...</Text> : null}
               {homeFoldersQuery.isError ? (
                 <View style={styles.inlineRow}>
@@ -322,7 +316,7 @@ export function HomeScreen({
                 </View>
               ) : null}
               {!homeFoldersQuery.isLoading && !homeFoldersQuery.isError && (homeFoldersQuery.data ?? []).length > 0 ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.folderChipRow}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.folderChipRow} style={styles.folderChipScroll}>
                   {(homeFoldersQuery.data ?? []).map((folder) => (
                     <TouchableOpacity
                       key={`folder-chip-${folder.folderId}`}
@@ -341,7 +335,10 @@ export function HomeScreen({
                   ))}
                 </ScrollView>
               ) : null}
-            </>
+              <TouchableOpacity style={styles.folderManageButton} onPress={() => setIsFolderManageVisible(true)}>
+                <Text style={styles.folderManageButtonText}>폴더 관리</Text>
+              </TouchableOpacity>
+            </View>
           ) : null}
 
           {tab === 'emotion' ? (
@@ -523,7 +520,9 @@ export function HomeScreen({
                     폴더: {homeCardDetailQuery.data.folder ? homeCardDetailQuery.data.folder.folderName : '없음'}
                   </Text>
                   <Text style={styles.detailMeta}>메모: {homeCardDetailQuery.data.memo ?? '없음'}</Text>
-                  <Text style={styles.detailMeta}>수정: {homeCardDetailQuery.data.updatedAt}</Text>
+                  <Text style={styles.detailMeta}>
+                    수정: {formatChatMessageAt(homeCardDetailQuery.data.updatedAt) || homeCardDetailQuery.data.updatedAt}
+                  </Text>
                   {onPressGenerateQuestions ? (
                     <TouchableOpacity
                       style={styles.questionButton}
@@ -875,17 +874,29 @@ const styles = StyleSheet.create({
   homeTabButtonActive: { backgroundColor: '#0d0d0d', borderColor: '#0d0d0d' },
   homeTabText: { color: '#0d0d0d', fontSize: 12, fontWeight: '700' },
   homeTabTextActive: { color: '#44c3f3' },
-  folderManageRow: { marginBottom: 10, alignItems: 'flex-end' },
+  folderControlRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 10,
+  },
   folderManageButton: {
+    flexShrink: 0,
     borderWidth: 1,
     borderColor: '#0d0d0d',
     backgroundColor: '#44c3f3',
     borderRadius: 0,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 9,
+    marginTop: 16,
   },
   folderManageButtonText: { color: '#0d0d0d', fontSize: 11, fontWeight: '800' },
-  folderChipRow: { gap: 8, paddingBottom: 10 },
+  folderChipScroll: {
+    flex: 1,
+    minWidth: 0,
+    marginTop: 16,
+  },
+  folderChipRow: { gap: 8, paddingBottom: 12 },
   folderChip: {
     minHeight: 34,
     paddingHorizontal: 14,
@@ -948,6 +959,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalCard: {
+    width: '100%',
     backgroundColor: '#fff',
     borderRadius: 0,
     borderWidth: 1,
@@ -1178,7 +1190,7 @@ const styles = StyleSheet.create({
   floatingButton: {
     position: 'absolute',
     right: 16,
-    bottom: 72,
+      bottom: 30,
     width: 66,
     height: 66,
     borderRadius: 0,

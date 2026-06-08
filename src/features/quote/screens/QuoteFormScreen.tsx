@@ -71,6 +71,7 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
   const formScrollRef = useRef<ScrollView | null>(null);
   const [book, setBook] = useState('');
   const [author, setAuthor] = useState('');
+  const [bookCoverImageUrl, setBookCoverImageUrl] = useState<string | null>(null);
   const [showBookResults, setShowBookResults] = useState(false);
   const [page, setPage] = useState('');
   const [quote, setQuote] = useState(initialQuoteText ?? '');
@@ -142,6 +143,7 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
       {
         bookTitle: trimmedBook,
         author: author.trim(),
+        coverImageUrl: bookCoverImageUrl ?? undefined,
         pageNumber,
         quoteText: trimmedQuote,
         memo: memo.trim() ? memo.trim() : undefined,
@@ -295,6 +297,7 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
           value={book}
           onChangeText={(value) => {
             setShowBookResults(true);
+            setBookCoverImageUrl(null);
             setBook(value);
           }}
           placeholder="책 제목을 입력하세요"
@@ -318,6 +321,7 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
                     onPress={() => {
                       setBook(searchedBook.title);
                       setAuthor(searchedBook.author);
+                      setBookCoverImageUrl(searchedBook.coverImageUrl);
                       setShowBookResults(false);
                     }}
                   >
@@ -335,6 +339,7 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
           value={author}
           onChangeText={(value) => {
             setShowBookResults(true);
+            setBookCoverImageUrl(null);
             setAuthor(value);
           }}
           placeholder="저자를 입력하세요"
@@ -405,7 +410,21 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
               </TouchableOpacity>
             </View>
           ) : (foldersQuery.data ?? []).length === 0 ? (
-            <Text style={styles.helperText}>등록된 폴더가 없어요.</Text>
+            <View style={styles.emptyFolderWrap}>
+              <Text style={styles.helperText}>등록된 폴더가 없어요.</Text>
+              <TouchableOpacity
+                style={styles.createEmptyFolderButton}
+                onPress={() => {
+                  setFolderError(null);
+                  setIsCreatingFolder(true);
+                  setTimeout(() => {
+                    formScrollRef.current?.scrollToEnd({ animated: true });
+                  }, 120);
+                }}
+              >
+                <Text style={styles.createEmptyFolderButtonText}>새 폴더 만들기</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             <>
               {(foldersQuery.data ?? []).map((folder) => {
@@ -724,6 +743,25 @@ const styles = StyleSheet.create({
   helperText: {
     color: '#626262',
     fontSize: 12,
+  },
+  emptyFolderWrap: {
+    gap: 8,
+  },
+  createEmptyFolderButton: {
+    alignSelf: 'flex-start',
+    height: 36,
+    borderRadius: 0,
+    borderWidth: 1.5,
+    borderColor: '#0d0d0d',
+    backgroundColor: '#44c3f3',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  createEmptyFolderButtonText: {
+    color: '#0d0d0d',
+    fontSize: 12,
+    fontWeight: '900',
   },
   inlineRow: {
     flexDirection: 'row',

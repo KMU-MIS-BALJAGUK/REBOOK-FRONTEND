@@ -16,6 +16,7 @@ export function toCreateQuoteRequestDto(input: CreateQuoteInput): CreateQuoteReq
     book: {
       title: input.bookTitle,
       author: input.author,
+      ...(input.coverImageUrl ? { coverImageUrl: input.coverImageUrl } : {}),
     },
     pageNumber: input.pageNumber,
     quoteText: input.quoteText,

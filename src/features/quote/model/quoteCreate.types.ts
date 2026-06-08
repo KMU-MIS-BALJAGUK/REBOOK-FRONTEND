@@ -5,6 +5,7 @@ export type QuoteSourceType = 'IMAGE_OCR' | 'MANUAL';
 export type CreateQuoteInput = {
   bookTitle: string;
   author: string;
+  coverImageUrl?: string;
   pageNumber: number;
   quoteText: string;
   memo?: string;

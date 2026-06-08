@@ -259,7 +259,7 @@ export function CameraCropScreen({ asset, onBack, onConfirm, isSubmitting, submi
       {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
       <View style={styles.bottomBar}>
         <TouchableOpacity style={styles.secondaryButton} onPress={onBack} disabled={isSubmitting}>
-          <Text style={styles.secondaryButtonText}>다시 촬영</Text>
+          <Text style={styles.secondaryButtonText}>다시 선택하기</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.primaryButton} onPress={() => void handleConfirm()} disabled={isSubmitting}>
           {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>이 영역으로 진행</Text>}
