@@ -22,7 +22,7 @@ import { useCommunityBookDetail } from './hooks/useCommunityBookDetail';
 import { useCommunityBookTopQuotes } from './hooks/useCommunityBookTopQuotes';
 import { useBookDiscussions } from './hooks/useBookDiscussions';
 import { useCreateBookDiscussion } from './hooks/useCreateBookDiscussion';
-import { CommunityDiscussionCategory } from './model/communityBook.types';
+import { CommunityBookTopQuoteItem, CommunityDiscussionCategory } from './model/communityBook.types';
 import { useDiscussionDetail } from './hooks/useDiscussionDetail';
 import { useToggleDiscussionLike } from './hooks/useToggleDiscussionLike';
 import { useDiscussionComments } from './hooks/useDiscussionComments';
@@ -40,6 +40,7 @@ import { useGenerateCommunityAiTopics } from './hooks/useGenerateCommunityAiTopi
 import { useCommunityAiTopics } from './hooks/useCommunityAiTopics';
 import { useDismissableBottomSheet } from '../../shared/hooks/useDismissableBottomSheet';
 import { CommunityAiDiscussionGenerationModal } from './components/CommunityAiDiscussionGenerationModal';
+import { CommunityTopQuoteDetailModal } from './components/CommunityTopQuoteDetailModal';
 
 type Props = {
   nickname: string;
@@ -53,7 +54,8 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
   const [selectedDiscussionId, setSelectedDiscussionId] = useState<number | null>(null);
-  const [detailTab, setDetailTab] = useState<'TOP_QUOTES' | 'DISCUSSION' | 'VOTE'>('TOP_QUOTES');
+  const [selectedTopQuote, setSelectedTopQuote] = useState<CommunityBookTopQuoteItem | null>(null);
+  const [detailTab, setDetailTab] = useState<'TOP_QUOTES' | 'DISCUSSION' | 'VOTE'>('DISCUSSION');
   const [showAllMyBooks, setShowAllMyBooks] = useState(false);
   const [showAllPopularBooks, setShowAllPopularBooks] = useState(false);
   const [isAiDiscussionGeneratorVisible, setIsAiDiscussionGeneratorVisible] = useState(false);
@@ -194,6 +196,10 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
     setIsCreatePollVisible(false);
   }
 
+  const handleCloseTopQuoteDetail = () => {
+    setSelectedTopQuote(null);
+  };
+
   const discussionComposerSheet = useDismissableBottomSheet({
     visible: isCreateDiscussionVisible,
     onClose: closeDiscussionComposer,
@@ -208,6 +214,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
   });
 
   const handleCloseBookDetail = () => {
+    setSelectedTopQuote(null);
     if (isAiDiscussionGeneratorVisible) {
       closeAiDiscussionGenerator();
       return;
@@ -469,8 +476,9 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                       key={`search-${book.bookId}`}
                       style={styles.bookCard}
                       onPress={() => {
-                        setDetailTab('TOP_QUOTES');
+                        setDetailTab('DISCUSSION');
                         setSelectedBookId(book.bookId);
+                        setSelectedTopQuote(null);
                       }}
                     >
                       <View style={styles.bookRow}>
@@ -521,8 +529,9 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                   key={book.bookId}
                   style={styles.bookCard}
                   onPress={() => {
-                    setDetailTab('TOP_QUOTES');
+                    setDetailTab('DISCUSSION');
                     setSelectedBookId(book.bookId);
+                    setSelectedTopQuote(null);
                   }}
                 >
                   <View style={styles.bookRow}>
@@ -567,8 +576,9 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                   key={`popular-${book.bookId}`}
                   style={styles.smallCard}
                   onPress={() => {
-                    setDetailTab('TOP_QUOTES');
+                    setDetailTab('DISCUSSION');
                     setSelectedBookId(book.bookId);
+                    setSelectedTopQuote(null);
                   }}
                 >
                   <View style={styles.popularBookRow}>
@@ -603,6 +613,7 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                 </View>
               ) : null}
               {!bookDetailQuery.isLoading && !bookDetailQuery.isError && bookDetailQuery.data ? (
+                <>
                 <ScrollView
                   style={styles.bookDetailScroll}
                   contentContainerStyle={styles.bookDetailScrollContent}
@@ -622,14 +633,6 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                   </View>
                   <View style={styles.detailTabRow}>
                     <TouchableOpacity
-                      style={[styles.detailTabButton, detailTab === 'TOP_QUOTES' && styles.detailTabButtonActive]}
-                      onPress={() => setDetailTab('TOP_QUOTES')}
-                    >
-                      <Text style={[styles.detailTabButtonText, detailTab === 'TOP_QUOTES' && styles.detailTabButtonTextActive]}>
-                        많은 저장
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
                       style={[styles.detailTabButton, detailTab === 'DISCUSSION' && styles.detailTabButtonActive]}
                       onPress={() => setDetailTab('DISCUSSION')}
                     >
@@ -645,36 +648,16 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                         투표
                       </Text>
                     </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.detailTabButton, detailTab === 'TOP_QUOTES' && styles.detailTabButtonActive]}
+                      onPress={() => setDetailTab('TOP_QUOTES')}
+                    >
+                      <Text style={[styles.detailTabButtonText, detailTab === 'TOP_QUOTES' && styles.detailTabButtonTextActive]}>
+                        많은 저장
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-                  {detailTab === 'TOP_QUOTES' ? (
-                    <>
-                      {topQuotesQuery.isLoading ? <Text style={styles.infoText}>많은 저장을 불러오는 중...</Text> : null}
-                      {!topQuotesQuery.isLoading && topQuotesQuery.isError ? (
-                        <View style={styles.stateWrap}>
-                          <Text style={styles.errorText}>{toUserMessage(topQuotesQuery.error)}</Text>
-                          <TouchableOpacity style={styles.retryButton} onPress={() => void topQuotesQuery.refetch()}>
-                            <Text style={styles.retryButtonText}>다시 시도</Text>
-                          </TouchableOpacity>
-                        </View>
-                      ) : null}
-                      {!topQuotesQuery.isLoading && !topQuotesQuery.isError && (topQuotesQuery.data?.items ?? []).length === 0 ? (
-                        <Text style={styles.infoText}>많은 저장이 아직 없어요.</Text>
-                      ) : null}
-                      {!topQuotesQuery.isLoading && !topQuotesQuery.isError
-                        ? (topQuotesQuery.data?.items ?? []).map((item) => (
-                            <View key={item.quoteId} style={styles.quoteRankCard}>
-                              <View style={styles.rankBadge}>
-                                <Text style={styles.rankBadgeText}>{item.rank}</Text>
-                              </View>
-                              <View style={styles.rankContent}>
-                                <Text style={styles.rankQuoteText} numberOfLines={1}>{item.quoteText}</Text>
-                                <Text style={styles.rankMetaText}>저장 {item.savedCount}회</Text>
-                              </View>
-                            </View>
-                          ))
-                        : null}
-                    </>
-                  ) : detailTab === 'DISCUSSION' ? (
+                  {detailTab === 'DISCUSSION' ? (
                     <>
                       {discussionsQuery.isLoading ? <Text style={styles.infoText}>토론 목록을 불러오는 중...</Text> : null}
                       {!discussionsQuery.isLoading && discussionsQuery.isError ? (
@@ -760,13 +743,14 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                                         poll.myVoteOptionId === poll.optionA.optionId && styles.pollOptionPercentageSelected,
                                       ]}
                                     >
-                                      {poll.optionA.percentage}%
+                                      {Math.round(poll.optionA.percentage)}%
                                     </Text>
                                     <Text
                                       style={[
                                         styles.pollOptionLabel,
                                         poll.myVoteOptionId === poll.optionA.optionId && styles.pollOptionLabelDark,
                                       ]}
+                                      numberOfLines={2}
                                     >
                                       {poll.optionA.label}
                                     </Text>
@@ -795,13 +779,14 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                                         poll.myVoteOptionId === poll.optionB.optionId && styles.pollOptionPercentageSelected,
                                       ]}
                                     >
-                                      {poll.optionB.percentage}%
+                                      {Math.round(poll.optionB.percentage)}%
                                     </Text>
                                     <Text
                                       style={[
                                         styles.pollOptionLabel,
                                         poll.myVoteOptionId === poll.optionB.optionId && styles.pollOptionLabelDark,
                                       ]}
+                                      numberOfLines={2}
                                     >
                                       {poll.optionB.label}
                                     </Text>
@@ -834,15 +819,55 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                           ))
                         : null}
                     </>
+                  ) : detailTab === 'TOP_QUOTES' ? (
+                    <>
+                      {topQuotesQuery.isLoading ? <Text style={styles.infoText}>많은 저장을 불러오는 중...</Text> : null}
+                      {!topQuotesQuery.isLoading && topQuotesQuery.isError ? (
+                        <View style={styles.stateWrap}>
+                          <Text style={styles.errorText}>{toUserMessage(topQuotesQuery.error)}</Text>
+                          <TouchableOpacity style={styles.retryButton} onPress={() => void topQuotesQuery.refetch()}>
+                            <Text style={styles.retryButtonText}>다시 시도</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : null}
+                      {!topQuotesQuery.isLoading && !topQuotesQuery.isError && (topQuotesQuery.data?.items ?? []).length === 0 ? (
+                        <Text style={styles.infoText}>많은 저장이 아직 없어요.</Text>
+                      ) : null}
+                      {!topQuotesQuery.isLoading && !topQuotesQuery.isError
+                        ? (topQuotesQuery.data?.items ?? []).map((item) => (
+                            <TouchableOpacity
+                              key={item.quoteId}
+                              style={styles.quoteRankCard}
+                              activeOpacity={0.92}
+                              onPress={() => setSelectedTopQuote(item)}
+                            >
+                              <View style={styles.rankBadge}>
+                                <Text style={styles.rankBadgeText}>{item.rank}</Text>
+                              </View>
+                              <View style={styles.rankContent}>
+                                <Text style={styles.rankQuoteText}>{item.quoteText}</Text>
+                                <Text style={styles.rankMetaText}>저장 {item.savedCount}회</Text>
+                              </View>
+                            </TouchableOpacity>
+                          ))
+                        : null}
+                    </>
                   ) : null}
                 </ScrollView>
+                </>
               ) : null}
-              {!bookDetailQuery.isLoading
-              && !bookDetailQuery.isError
-              && bookDetailQuery.data
-              && detailTab === 'DISCUSSION' ? (
+              {!bookDetailQuery.isLoading && !bookDetailQuery.isError && bookDetailQuery.data && detailTab === 'DISCUSSION' ? (
                 <TouchableOpacity
-                  style={styles.floatingCreateButton}
+                  style={[styles.floatingCreateButton, styles.aiDiscussionFloatingButton]}
+                  onPress={handleOpenAiDiscussionGenerator}
+                >
+                  <Text style={styles.floatingCreateButtonIcon}>＋</Text>
+                  <Text style={styles.floatingCreateButtonText}>AI 토론 콘텐츠 생성</Text>
+                </TouchableOpacity>
+              ) : null}
+              {!bookDetailQuery.isLoading && !bookDetailQuery.isError && bookDetailQuery.data && detailTab === 'DISCUSSION' ? (
+                <TouchableOpacity
+                  style={[styles.floatingCreateButton, styles.discussionCreateFloatingButton]}
                   onPress={() => {
                     setCreateDiscussionError(null);
                     setIsCreateDiscussionVisible(true);
@@ -852,13 +877,9 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                   <Text style={styles.floatingCreateButtonText}>토론 작성</Text>
                 </TouchableOpacity>
               ) : null}
-              {!bookDetailQuery.isLoading
-              && !bookDetailQuery.isError
-              && bookDetailQuery.data
-              && detailTab !== 'TOP_QUOTES'
-              && detailTab !== 'DISCUSSION' ? (
+              {!bookDetailQuery.isLoading && !bookDetailQuery.isError && bookDetailQuery.data && detailTab === 'VOTE' ? (
                 <TouchableOpacity
-                  style={styles.floatingCreateButton}
+                  style={[styles.floatingCreateButton, styles.pollCreateFloatingButton]}
                   onPress={() => {
                     setCreatePollError(null);
                     setIsCreatePollVisible(true);
@@ -866,18 +887,6 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                 >
                   <Text style={styles.floatingCreateButtonIcon}>＋</Text>
                   <Text style={styles.floatingCreateButtonText}>투표 생성</Text>
-                </TouchableOpacity>
-              ) : null}
-              {!bookDetailQuery.isLoading
-              && !bookDetailQuery.isError
-              && bookDetailQuery.data
-              && detailTab === 'DISCUSSION' ? (
-                <TouchableOpacity
-                  style={[styles.floatingCreateButton, styles.aiDiscussionFloatingButton]}
-                  onPress={handleOpenAiDiscussionGenerator}
-                >
-                  <Text style={styles.floatingCreateButtonIcon}>＋</Text>
-                  <Text style={styles.floatingCreateButtonText}>AI 토론 콘텐츠 생성</Text>
                 </TouchableOpacity>
               ) : null}
               <TouchableOpacity style={styles.closeButton} onPress={handleCloseBookDetail}>
@@ -1121,6 +1130,11 @@ export function CommunityScreen({ nickname, onPressHome, onPressAiChat, onPressM
                 onSubmitComment={handleCreateComment}
               />
             ) : null}
+            <CommunityTopQuoteDetailModal
+              visible={selectedTopQuote !== null}
+              quote={selectedTopQuote}
+              onClose={handleCloseTopQuoteDetail}
+            />
           </View>
         </Modal>
 
@@ -1398,6 +1412,10 @@ const styles = StyleSheet.create({
   },
   rankBadgeText: { color: '#111', fontSize: 13, fontWeight: '800' },
   rankContent: { flex: 1 },
+  rankQuotePressable: {
+    alignSelf: 'stretch',
+    marginBottom: 4,
+  },
   rankQuoteText: { color: '#111', fontSize: 13, marginBottom: 4, fontWeight: '600' },
   rankMetaText: { color: '#444', fontSize: 11 },
   discussionCard: {
@@ -1451,6 +1469,9 @@ const styles = StyleSheet.create({
     bottom: 118,
   },
   discussionCreateFloatingButton: {
+    bottom: 58,
+  },
+  pollCreateFloatingButton: {
     bottom: 58,
   },
   floatingCreateButtonIcon: { color: '#111', fontSize: 18, fontWeight: '900', lineHeight: 20 },

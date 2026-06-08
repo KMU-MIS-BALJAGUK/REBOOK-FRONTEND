@@ -215,10 +215,6 @@ export function CameraCropScreen({ asset, onBack, onConfirm, isSubmitting, submi
           <Image source={{ uri: asset.uri }} style={[styles.image, { aspectRatio: sourceWidth / sourceHeight }]} resizeMode="contain" />
           {imageHeight > 0 && imageWidth > 0 ? (
             <>
-              <View style={[styles.shade, { top: 0, height: topPx }]} pointerEvents="none" />
-              <View style={[styles.shade, { top: topPx, height: cropHeightPx, left: 0, right: imageWidth - leftPx }]} pointerEvents="none" />
-              <View style={[styles.shade, { top: topPx, height: cropHeightPx, left: imageWidth - rightPx, right: 0 }]} pointerEvents="none" />
-              <View style={[styles.shade, { top: bottomPx, bottom: 0 }]} pointerEvents="none" />
               <View style={[styles.cropFrame, { top: topPx, left: leftPx, width: cropWidthPx, height: cropHeightPx }]} pointerEvents="none" />
               <View
                 style={[styles.handleHorizontal, { top: topPx - 22, left: leftPx, width: cropWidthPx }]}
@@ -259,7 +255,7 @@ export function CameraCropScreen({ asset, onBack, onConfirm, isSubmitting, submi
       {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
       <View style={styles.bottomBar}>
         <TouchableOpacity style={styles.secondaryButton} onPress={onBack} disabled={isSubmitting}>
-          <Text style={styles.secondaryButtonText}>다시 선택하기</Text>
+          <Text style={styles.secondaryButtonText}>뒤로가기</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.primaryButton} onPress={() => void handleConfirm()} disabled={isSubmitting}>
           {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>이 영역으로 진행</Text>}
@@ -310,10 +306,6 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     backgroundColor: '#111',
-  },
-  shade: {
-    position: 'absolute',
-    backgroundColor: 'rgba(0,0,0,0.56)',
   },
   cropFrame: {
     position: 'absolute',

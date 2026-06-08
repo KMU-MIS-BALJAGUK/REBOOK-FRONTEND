@@ -5,7 +5,7 @@ import { QuoteOcrInput, QuoteOcrResult } from '../model/quoteOcr.types';
 
 export async function createQuoteImageOcr(input: QuoteOcrInput): Promise<QuoteOcrResult> {
   const dto = toCreateQuoteOcrRequestDto(input);
-  const response = await postJson<CreateQuoteOcrResponseDto>('/api/v1/quotes/images/ocr', {
+  const response = await postJson<CreateQuoteOcrResponseDto>('/api/v2/quotes/images/ocr', {
     auth: true,
     body: dto,
   });

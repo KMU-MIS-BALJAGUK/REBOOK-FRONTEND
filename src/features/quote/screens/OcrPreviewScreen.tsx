@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Image,
   InputAccessoryView,
   Keyboard,
   NativeSyntheticEvent,
@@ -24,7 +23,6 @@ type Props = {
   onNext: (selectedText: string, blockIds: number[]) => void;
   blocks?: QuoteOcrBlock[];
   text?: string;
-  imageUri?: string;
 };
 
 type TextRange = {
@@ -85,7 +83,7 @@ function findOverlappingBlockIds(selection: TextRange, blockRanges: OcrTextBlock
     .map((blockRange) => blockRange.blockId);
 }
 
-export function OcrPreviewScreen({ onBack, onNext, blocks, text, imageUri }: Props) {
+export function OcrPreviewScreen({ onBack, onNext, blocks, text }: Props) {
   const displayBlocks = useMemo(
     () =>
       blocks ??
@@ -124,10 +122,26 @@ export function OcrPreviewScreen({ onBack, onNext, blocks, text, imageUri }: Pro
     }));
   };
 
+  const startEditing = () => {
+    setIsEditing(true);
+    requestAnimationFrame(() => {
+      textInputRef.current?.focus();
+    });
+  };
+
   const finishEditing = () => {
     textInputRef.current?.blur();
     Keyboard.dismiss();
     setIsEditing(false);
+  };
+
+  const handleEditToggle = () => {
+    if (isEditing) {
+      finishEditing();
+      return;
+    }
+
+    startEditing();
   };
 
   return (
@@ -145,21 +159,19 @@ export function OcrPreviewScreen({ onBack, onNext, blocks, text, imageUri }: Pro
         <Text style={styles.title}>기록할 문장을 선택해주세요</Text>
         <Text style={styles.description}>잘못 인식된 글자를 수정한 뒤, 원하는 부분을 길게 눌러 선택해주세요.</Text>
 
-        {imageUri ? (
-          <View style={styles.previewImageWrap}>
-            <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="contain" />
+        <View style={styles.selectionSummary}>
+          <View style={styles.selectionSummaryHeader}>
+            <Text style={styles.selectionSummaryLabel}>선택한 문장</Text>
+            <TouchableOpacity style={styles.editToggleButton} onPress={handleEditToggle}>
+              <Text style={styles.editToggleText}>{isEditing ? '완료' : '수정하기'}</Text>
+            </TouchableOpacity>
           </View>
-        ) : null}
+          <Text style={[styles.selectionSummaryText, !hasSelection && styles.selectionSummaryPlaceholder]} numberOfLines={3}>
+            {hasSelection ? selectedText.trim() : '텍스트에서 원하는 부분을 길게 눌러 선택하세요.'}
+          </Text>
+        </View>
 
         <View style={styles.textCard}>
-          {isEditing && Platform.OS !== 'ios' ? (
-            <View style={styles.editToolbar}>
-              <Text style={styles.editToolbarLabel}>텍스트 수정 중</Text>
-              <TouchableOpacity style={styles.editDoneButton} onPress={finishEditing}>
-                <Text style={styles.editDoneText}>완료</Text>
-              </TouchableOpacity>
-            </View>
-          ) : null}
           <TextInput
             ref={textInputRef}
             style={styles.ocrText}
@@ -168,6 +180,8 @@ export function OcrPreviewScreen({ onBack, onNext, blocks, text, imageUri }: Pro
             scrollEnabled
             autoCorrect={false}
             spellCheck={false}
+            readOnly={!isEditing}
+            showSoftInputOnFocus={isEditing}
             onChangeText={handleTextChange}
             selectionColor="#44c3f3"
             selectionHandleColor="#0d0d0d"
@@ -177,16 +191,7 @@ export function OcrPreviewScreen({ onBack, onNext, blocks, text, imageUri }: Pro
             placeholderTextColor="#8c8780"
             accessibilityLabel="OCR 인식 텍스트 편집"
             inputAccessoryViewID={Platform.OS === 'ios' ? OCR_INPUT_ACCESSORY_ID : undefined}
-            onFocus={() => setIsEditing(true)}
-            onBlur={() => setIsEditing(false)}
           />
-        </View>
-
-        <View style={styles.selectionSummary}>
-          <Text style={styles.selectionSummaryLabel}>선택한 문장</Text>
-          <Text style={[styles.selectionSummaryText, !hasSelection && styles.selectionSummaryPlaceholder]} numberOfLines={3}>
-            {hasSelection ? selectedText.trim() : '텍스트에서 원하는 부분을 드래그해 선택하세요.'}
-          </Text>
         </View>
       </View>
 
@@ -202,8 +207,8 @@ export function OcrPreviewScreen({ onBack, onNext, blocks, text, imageUri }: Pro
         <InputAccessoryView nativeID={OCR_INPUT_ACCESSORY_ID}>
           <View style={styles.keyboardAccessory}>
             <Text style={styles.editToolbarLabel}>텍스트 수정 중</Text>
-            <TouchableOpacity style={styles.editDoneButton} onPress={finishEditing}>
-              <Text style={styles.editDoneText}>완료</Text>
+            <TouchableOpacity style={styles.editToggleButton} onPress={finishEditing}>
+              <Text style={styles.editToggleText}>완료</Text>
             </TouchableOpacity>
           </View>
         </InputAccessoryView>
@@ -234,19 +239,36 @@ const styles = StyleSheet.create({
   },
   title: { color: '#0d0d0d', fontSize: 20, fontWeight: '900', marginBottom: 6 },
   description: { color: '#625c54', fontSize: 12, lineHeight: 18, marginBottom: 14 },
-  previewImageWrap: {
-    width: '100%',
-    height: 120,
+  selectionSummary: {
+    minHeight: 132,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#0d0d0d',
-    overflow: 'hidden',
-    backgroundColor: '#eef9fd',
-    marginBottom: 12,
+    backgroundColor: '#b8e8f9',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  previewImage: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#eef9fd',
+  selectionSummaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 8,
+  },
+  editToggleButton: {
+    minWidth: 66,
+    height: 30,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#0d0d0d',
+    backgroundColor: '#0d0d0d',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editToggleText: {
+    color: '#44c3f3',
+    fontSize: 12,
+    fontWeight: '900',
   },
   textCard: {
     flex: 1,
@@ -254,16 +276,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#0d0d0d',
     backgroundColor: '#fff',
-  },
-  editToolbar: {
-    height: 42,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#0d0d0d',
-    backgroundColor: '#b8e8f9',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
   keyboardAccessory: {
     minHeight: 46,
@@ -281,21 +293,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  editDoneButton: {
-    minWidth: 58,
-    height: 32,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#0d0d0d',
-    backgroundColor: '#0d0d0d',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  editDoneText: {
-    color: '#44c3f3',
-    fontSize: 12,
-    fontWeight: '900',
-  },
   ocrText: {
     flex: 1,
     paddingHorizontal: 16,
@@ -304,15 +301,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 25,
     backgroundColor: '#fff',
-  },
-  selectionSummary: {
-    minHeight: 88,
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: '#0d0d0d',
-    backgroundColor: '#b8e8f9',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
   },
   selectionSummaryLabel: {
     color: '#0d0d0d',

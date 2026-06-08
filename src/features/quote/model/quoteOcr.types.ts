@@ -1,6 +1,6 @@
 export type QuoteOcrInput = {
   imageId: number;
-  imageUrl?: string;
+  imageUrl: string;
 };
 
 export type QuoteOcrBlock = {

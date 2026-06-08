@@ -1,4 +1,4 @@
-export type CreateQuoteOcrRequestDto = {
+export type QuoteImageOcrRequestDto = {
   imageId: number;
   imageUrl?: string;
 };
@@ -15,7 +15,7 @@ export type QuoteOcrBlockDto = {
   };
 };
 
-export type CreateQuoteOcrResponseDto = {
+export type QuoteImageOcrResponseDto = {
   ocrId: number;
   imageId: number;
   status: 'PENDING' | 'COMPLETED' | 'FAILED';
@@ -24,3 +24,6 @@ export type CreateQuoteOcrResponseDto = {
   detectedLanguage?: string;
   confidence?: number;
 };
+
+export type CreateQuoteOcrRequestDto = QuoteImageOcrRequestDto;
+export type CreateQuoteOcrResponseDto = QuoteImageOcrResponseDto;

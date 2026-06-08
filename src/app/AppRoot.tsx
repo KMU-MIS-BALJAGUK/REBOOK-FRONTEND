@@ -27,6 +27,7 @@ import { useSaveAiStyle } from '../features/onboarding/hooks/useSaveAiStyle';
 import { useCompleteOnboarding } from '../features/onboarding/hooks/useCompleteOnboarding';
 import { useSearchOnboardingBooks } from '../features/onboarding/hooks/useSearchOnboardingBooks';
 import { hydrateSession, setSession } from '../shared/auth/authSession';
+import { API_BASE_URL } from '../shared/constants/api';
 import { toUserMessage } from '../shared/utils/apiError';
 import { QuoteOcrBlock } from '../features/quote/model/quoteOcr.types';
 import { QuoteImageUploadInput } from '../features/quote/model/quoteImageUpload.types';
@@ -103,6 +104,31 @@ function resolveQuoteImageFileExtension(contentType: string, fileName?: string |
   if (contentType === 'image/png') return 'png';
   if (contentType === 'image/webp') return 'webp';
   return 'jpg';
+}
+
+function resolveRemoteImageUrl(url: string | null | undefined): string {
+  if (typeof url !== 'string') {
+    return '';
+  }
+
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  if (/^https?:\/\//i.test(trimmed) || /^data:/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith('//')) {
+    return `https:${trimmed}`;
+  }
+
+  if (trimmed.startsWith('/')) {
+    return `${API_BASE_URL}${trimmed}`;
+  }
+
+  return `${API_BASE_URL}/${trimmed}`;
 }
 
 async function prepareQuoteImageAsset(asset: QuoteLocalImageAsset): Promise<PreparedQuoteImageAsset> {
@@ -205,6 +231,8 @@ export default function AppRoot() {
       expiresIn: presigned.expiresIn,
       publicUrl: presigned.publicUrl,
     });
+    const resolvedImageUrl =
+      resolveRemoteImageUrl(presigned.publicUrl) || resolveRemoteImageUrl(presigned.objectKey);
 
     await quoteImageUploadMutation.mutateAsync({
       uploadUrl: presigned.uploadUrl,
@@ -220,7 +248,7 @@ export default function AppRoot() {
 
     const ocr = await quoteImageOcrMutation.mutateAsync({
       imageId: presigned.imageId,
-      imageUrl: presigned.publicUrl,
+      imageUrl: resolvedImageUrl,
     });
     console.log('[QUOTE_IMAGE] ocr done', {
       imageId: ocr.imageId,
@@ -558,7 +586,6 @@ export default function AppRoot() {
         }}
         blocks={ocrPreviewBlocks}
         text={ocrQuoteContext?.fullText}
-        imageUri={ocrQuoteContext?.previewImageUri}
       />
     );
   }

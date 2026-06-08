@@ -151,7 +151,7 @@ export function CommunityAiDiscussionGenerationModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <View style={styles.sheetWrap}>
-          <Pressable style={styles.card} onPress={() => undefined}>
+          <Pressable style={[styles.card, mode === 'loading' ? styles.cardLoading : null]} onPress={() => undefined}>
             {mode === 'intro' ? (
               <>
                 <Text style={styles.eyebrow}>AI DISCUSSION CONTENT</Text>
@@ -171,10 +171,13 @@ export function CommunityAiDiscussionGenerationModal({
               <View style={styles.loadingWrap}>
                 <Text style={styles.title}>
                   {status === 'error'
-                    ? '토론 초안을 다시 정리하고 있어요'
-                    : 'AI가 토론 제목과 내용을 정리하고 있어요'}
+                    ? '토론 초안을 다시\n정리하고 있어요'
+                    : 'AI가 토론 제목과 내용을\n정리하고 있어요'}
                 </Text>
-                <Text style={styles.loadingText}>책에서 뽑은 흐름을 바탕으로 가장 자연스러운 초안을 찾는 중입니다.</Text>
+                <Text style={styles.loadingText}>
+                  책에서 뽑은 흐름을 바탕으로{"\n"}
+                  가장 자연스러운 초안을 찾는 중입니다.
+                </Text>
                 <View style={styles.progressTrack}>
                   <View style={[styles.progressFill, { width: `${progress}%` }]} />
                   <Text style={styles.progressText}>{progress}%</Text>
@@ -255,20 +258,29 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.68)',
     justifyContent: 'center',
-    paddingHorizontal: 18,
+    paddingHorizontal: 34,
+    paddingVertical: 36,
   },
   sheetWrap: {
     alignItems: 'center',
     width: '100%',
+    flex: 0,
   },
   card: {
     width: '100%',
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#44c3f3',
-    padding: 16,
+    padding: 18,
+    maxWidth: 360,
     maxHeight: '86%',
     gap: 12,
+  },
+  cardLoading: {
+    marginVertical: 28,
+    maxWidth: 320,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   eyebrow: { fontSize: 10, color: '#66707a', fontWeight: '900', letterSpacing: 0.8 },
   title: { fontSize: 20, lineHeight: 27, color: '#111', fontWeight: '900' },
