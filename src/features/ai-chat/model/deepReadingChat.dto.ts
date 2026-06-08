@@ -28,6 +28,7 @@ export type SendDeepReadingMessageResponseDto = {
   conversationId: string;
   messageId: string;
   answer: string;
+  messageAt: string;
   metadata?: {
     usage?: {
       prompt_tokens?: number;
@@ -41,6 +42,7 @@ export type DeepReadingMessageDto = {
   messageId: number;
   role: string;
   content: string;
+  createdAt: string;
 };
 
 export type GetDeepReadingMessagesResponseDto = {

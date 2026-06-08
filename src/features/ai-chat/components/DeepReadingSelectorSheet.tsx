@@ -667,13 +667,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    color: '#2d261f',
+    color: '#111',
     fontWeight: '900',
   },
   subtitle: {
     fontSize: 13,
     lineHeight: 19,
-    color: '#766b5d',
+    color: '#66707a',
   },
   searchRow: {
     paddingHorizontal: 16,
@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
     height: 46,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#ddd2c3',
+    borderColor: '#dbe3ea',
     backgroundColor: '#fff',
     paddingHorizontal: 12,
     flexDirection: 'row',
@@ -692,13 +692,13 @@ const styles = StyleSheet.create({
   },
   searchIcon: {
     fontSize: 15,
-    color: '#7e7367',
+    color: '#66707a',
     fontWeight: '700',
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#2d261f',
+    color: '#111',
     paddingVertical: 0,
   },
   tabRow: {
@@ -712,18 +712,18 @@ const styles = StyleSheet.create({
     minHeight: 42,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#ddd2c3',
+    borderColor: '#dbe3ea',
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
   },
   tabChipActive: {
-    borderColor: '#2d261f',
-    backgroundColor: '#2d261f',
+    borderColor: '#111',
+    backgroundColor: '#111',
   },
   tabChipIcon: {
     fontSize: 14,
-    color: '#685e53',
+    color: '#66707a',
     marginBottom: 2,
   },
   tabChipIconActive: {
@@ -731,7 +731,7 @@ const styles = StyleSheet.create({
   },
   tabChipText: {
     fontSize: 12,
-    color: '#685e53',
+    color: '#66707a',
     fontWeight: '700',
   },
   tabChipTextActive: {
@@ -747,15 +747,15 @@ const styles = StyleSheet.create({
     minHeight: 38,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#ddd2c3',
+    borderColor: '#dbe3ea',
     backgroundColor: '#fff',
     paddingHorizontal: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   filterChipActive: {
-    borderColor: '#2d261f',
-    backgroundColor: '#2d261f',
+    borderColor: '#111',
+    backgroundColor: '#111',
   },
   filterChipText: {
     fontSize: 12,
@@ -767,13 +767,13 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
-    backgroundColor: '#f7f2ea',
+    backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#111',
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingTop: 14,
+    paddingTop: 18,
     paddingBottom: 96,
     gap: 10,
   },
@@ -808,6 +808,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     rowGap: 12,
+    paddingTop: 4,
     paddingBottom: 12,
   },
   bookShelfCard: {
@@ -825,7 +826,7 @@ const styles = StyleSheet.create({
   },
   bookShelfCover: {
     height: 180,
-    backgroundColor: '#f1f1f1',
+    backgroundColor: '#fff',
     position: 'relative',
   },
   bookShelfCoverImage: {
@@ -837,7 +838,7 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ececec',
+    backgroundColor: '#fff',
   },
   bookShelfCoverFallbackLabel: {
     color: '#6f6457',
@@ -860,7 +861,7 @@ const styles = StyleSheet.create({
   bookShelfCardAuthor: { color: '#7f7567', fontSize: 10 },
   bookSentenceSection: {
     gap: 10,
-    paddingTop: 2,
+    paddingTop: 12,
   },
   bookSentenceHeader: {
     flexDirection: 'row',
@@ -872,8 +873,8 @@ const styles = StyleSheet.create({
   bookSentenceBackButton: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#ddd2c3',
-    backgroundColor: '#f5efe6',
+    borderColor: '#dbe3ea',
+    backgroundColor: '#fff',
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
@@ -887,39 +888,39 @@ const styles = StyleSheet.create({
   },
   bookSentenceTitle: {
     fontSize: 16,
-    color: '#2d261f',
+    color: '#111',
     fontWeight: '900',
   },
   bookSentenceSub: {
     fontSize: 12,
-    color: '#766b5d',
+    color: '#66707a',
     marginBottom: 4,
   },
   card: {
     borderWidth: 1,
-    borderColor: '#e8e8e8',
-    backgroundColor: '#fffdf8',
+    borderColor: '#dbe3ea',
+    backgroundColor: '#fff',
     padding: 14,
     gap: 10,
   },
   cardActive: {
-    backgroundColor: '#f8f2e7',
+    backgroundColor: '#eef8fd',
   },
   meta: {
     fontSize: 11,
-    color: '#75695c',
+    color: '#66707a',
     fontWeight: '700',
   },
   quoteText: {
     fontSize: 15,
     lineHeight: 22,
-    color: '#2d261f',
+    color: '#111',
     fontWeight: '600',
   },
   memoText: {
     fontSize: 12,
     lineHeight: 18,
-    color: '#6d6358',
+    color: '#66707a',
   },
   cardFooter: {
     flexDirection: 'row',
@@ -928,7 +929,7 @@ const styles = StyleSheet.create({
   },
   cardFooterText: {
     fontSize: 11,
-    color: '#85796c',
+    color: '#66707a',
     fontWeight: '600',
   },
   emptyState: {
@@ -938,12 +939,12 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 16,
-    color: '#2d261f',
+    color: '#111',
     fontWeight: '800',
   },
   emptyBody: {
     fontSize: 13,
-    color: '#766b5d',
+    color: '#66707a',
     textAlign: 'center',
     lineHeight: 19,
   },
@@ -952,8 +953,8 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 16,
     borderTopWidth: 1,
-    borderTopColor: '#e7ded0',
-    backgroundColor: '#f7f2ea',
+    borderTopColor: '#dbe3ea',
+    backgroundColor: '#fff',
   },
   startButton: {
     minHeight: 54,
@@ -978,7 +979,7 @@ const styles = StyleSheet.create({
     height: 54,
     borderRadius: 27,
     borderWidth: 1,
-    borderColor: '#ddd2c3',
+    borderColor: '#dbe3ea',
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',

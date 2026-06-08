@@ -91,6 +91,7 @@ export type SendDeepReadingMessageResult = {
   conversationId: string;
   messageId: string;
   answer: string;
+  messageAt: string;
   usage?: {
     promptTokens?: number;
     completionTokens?: number;

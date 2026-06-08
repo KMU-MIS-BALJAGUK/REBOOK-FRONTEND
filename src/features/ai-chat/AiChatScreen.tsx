@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { SafeAreaView, StatusBar, StyleSheet, View } from 'react-native';
 import { BottomNav } from '../../shared/ui/BottomNav';
 import { toUserMessage } from '../../shared/utils/apiError';
+import { formatChatMessageAt } from '../../shared/utils/formatChatMessageAt';
 import { DeepReadingChatList } from './components/DeepReadingChatList';
 import { DeepReadingRoom } from './components/DeepReadingRoom';
 import { DeepReadingSelectorSheet } from './components/DeepReadingSelectorSheet';
@@ -28,6 +29,7 @@ type Props = {
   onPressHome: () => void;
   onPressCommunity: () => void;
   onPressMyPage: () => void;
+  showBottomNav?: boolean;
   launchContext?: DeepReadingChatLaunchContext | null;
   onConsumeLaunchContext?: () => void;
 };
@@ -37,6 +39,7 @@ export function AiChatScreen({
   onPressHome,
   onPressCommunity,
   onPressMyPage,
+  showBottomNav = true,
   launchContext = null,
   onConsumeLaunchContext,
 }: Props) {
@@ -90,6 +93,7 @@ export function AiChatScreen({
     assistantMessageId: string,
     answer: string,
     conversationId: string,
+    messageAt: string,
   ) =>
     new Promise<void>((resolve) => {
       clearTypingAnimation();
@@ -99,7 +103,9 @@ export function AiChatScreen({
       if (answer.length === 0) {
         setMessages((current) =>
           current.map((message) =>
-            message.id === assistantMessageId ? { ...message, text: '' } : message,
+            message.id === assistantMessageId
+              ? { ...message, text: '', createdAt: formatChatMessageAt(messageAt) }
+              : message,
           ),
         );
         setSelectedChat((current) =>
@@ -107,7 +113,7 @@ export function AiChatScreen({
             ? {
                 ...current,
                 preview: '',
-                lastMessageAt: '방금 전',
+                lastMessageAt: formatChatMessageAt(messageAt),
                 sessionStatus: 'active',
                 messageCount: current.messageCount + 2,
                 conversationId,
@@ -136,17 +142,25 @@ export function AiChatScreen({
         );
 
         if (index >= answer.length) {
+          const formattedMessageAt = formatChatMessageAt(messageAt);
           setSelectedChat((current) =>
             current && current.chatId === chatId
               ? {
                   ...current,
                   preview: answer,
-                  lastMessageAt: '방금 전',
+                  lastMessageAt: formattedMessageAt,
                   sessionStatus: 'active',
                   messageCount: current.messageCount + 2,
                 conversationId,
               }
             : current,
+          );
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantMessageId
+                ? { ...message, createdAt: formattedMessageAt }
+                : message,
+            ),
           );
           typingTimerRef.current = null;
           typingResolveRef.current = null;
@@ -271,19 +285,20 @@ export function AiChatScreen({
   };
 
   const appendConversationTurn = (userText: string, assistantMessageId: string, isPendingAssistant = false) => {
+    const now = formatChatMessageAt(Date.now());
     setMessages((current) => [
       ...current,
       {
         id: `user-${Date.now()}`,
         role: 'user',
         text: userText,
-        createdAt: '지금',
+        createdAt: now,
       },
       {
         id: `assistant-${assistantMessageId}`,
         role: 'assistant',
         text: '',
-        createdAt: '방금 전',
+        createdAt: now,
         remoteMessageId: isPendingAssistant ? 'pending' : assistantMessageId,
       },
     ]);
@@ -312,6 +327,7 @@ export function AiChatScreen({
         `assistant-${assistantPlaceholderId}`,
         result.answer,
         result.conversationId,
+        result.messageAt,
       );
     } catch {
       setMessages((current) =>
@@ -349,7 +365,7 @@ export function AiChatScreen({
         preview: '',
         messageCount: 0,
         sessionStatus: 'active',
-        lastMessageAt: '방금 전',
+        lastMessageAt: formatChatMessageAt(Date.now()),
         conversationId: null,
         quoteSource,
       };
@@ -561,15 +577,22 @@ export function AiChatScreen({
           ) : null}
         </View>
 
-        <View style={styles.bottomNavShell}>
-          <BottomNav active="ai-chat" onPressCommunity={onPressCommunity} onPressHome={onPressHome} onPressAiChat={() => {}} />
-        </View>
+        {showBottomNav && view === 'list' ? (
+          <View style={styles.bottomNavShell}>
+            <BottomNav
+              active="ai-chat"
+              onPressCommunity={onPressCommunity}
+              onPressHome={onPressHome}
+              onPressAiChat={() => {}}
+            />
+          </View>
+        ) : null}
 
-        <DeepReadingSelectorSheet
-          visible={showSelector}
-          onClose={() => setShowSelector(false)}
-          onSelectQuote={handleSelectQuote}
-        />
+      <DeepReadingSelectorSheet
+        visible={showSelector}
+        onClose={() => setShowSelector(false)}
+        onSelectQuote={handleSelectQuote}
+      />
       </View>
     </SafeAreaView>
   );

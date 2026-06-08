@@ -11,9 +11,15 @@ type Options = {
   visible: boolean;
   onClose: () => void;
   closeThresholdRatio?: number;
+  contentActivationDistance?: number;
 };
 
-export function useDismissableBottomSheet({ visible, onClose, closeThresholdRatio = 0.2 }: Options) {
+export function useDismissableBottomSheet({
+  visible,
+  onClose,
+  closeThresholdRatio = 0.2,
+  contentActivationDistance = 24,
+}: Options) {
   const windowDimensions = useWindowDimensions();
   const translateY = useRef(new Animated.Value(0)).current;
   const [sheetHeight, setSheetHeight] = useState(0);
@@ -106,7 +112,11 @@ export function useDismissableBottomSheet({ visible, onClose, closeThresholdRati
             return true;
           }
 
-          return scrollOffsetRef.current <= 0;
+          if (scrollOffsetRef.current > 0) {
+            return false;
+          }
+
+          return gestureState.dy > contentActivationDistance;
         },
         onPanResponderGrant: () => {
           translateY.stopAnimation((value) => {
@@ -135,7 +145,16 @@ export function useDismissableBottomSheet({ visible, onClose, closeThresholdRati
           resetPosition();
         },
       }).panHandlers,
-    [closeThresholdRatio, requestClose, resetPosition, sheetHeight, translateY, visible, windowDimensions.height],
+    [
+      closeThresholdRatio,
+      contentActivationDistance,
+      requestClose,
+      resetPosition,
+      sheetHeight,
+      translateY,
+      visible,
+      windowDimensions.height,
+    ],
   );
 
   const handlePanHandlers = useMemo(() => buildPanHandlers(false), [buildPanHandlers]);

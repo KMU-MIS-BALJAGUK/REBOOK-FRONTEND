@@ -108,7 +108,7 @@ function formatRelativeTime(isoDate: string) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#f7f2ea',
+    backgroundColor: '#fff',
   },
   header: {
     paddingTop: 10,
@@ -123,14 +123,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 29,
     lineHeight: 35,
-    color: '#2d261f',
+    color: '#111',
     fontWeight: '900',
     marginBottom: 10,
   },
   subtitle: {
     fontSize: 14,
     lineHeight: 20,
-    color: '#6c6155',
+    color: '#66707a',
   },
   startButton: {
     marginHorizontal: 18,
@@ -166,12 +166,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    color: '#2d261f',
+    color: '#111',
     fontWeight: '900',
   },
   sectionMeta: {
     fontSize: 12,
-    color: '#7a6f63',
+    color: '#66707a',
   },
   scroll: {
     flex: 1,
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   },
   stateText: {
     fontSize: 13,
-    color: '#6c6155',
+    color: '#66707a',
     paddingVertical: 8,
   },
   stateRow: {
@@ -209,22 +209,23 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 15,
-    color: '#2d261f',
+    color: '#111',
     fontWeight: '800',
   },
   emptyBody: {
     fontSize: 13,
-    color: '#766b5d',
+    color: '#66707a',
     textAlign: 'center',
     lineHeight: 19,
   },
   card: {
     borderWidth: 1.5,
     borderColor: '#111',
-    backgroundColor: '#fffdf8',
+    backgroundColor: '#fff',
     padding: 12,
     marginBottom: 10,
     gap: 10,
+    borderRadius: 0,
   },
   quoteBox: {
     borderWidth: 1.5,
@@ -236,12 +237,12 @@ const styles = StyleSheet.create({
   quoteTitle: {
     fontSize: 16,
     lineHeight: 22,
-    color: '#2b241d',
+    color: '#111',
     fontWeight: '700',
   },
   quoteMeta: {
     fontSize: 11,
-    color: '#85796c',
+    color: '#66707a',
     fontWeight: '700',
   },
   messageRow: {
@@ -251,14 +252,14 @@ const styles = StyleSheet.create({
   },
   messageIcon: {
     fontSize: 16,
-    color: '#7a6f63',
+    color: '#48c3f2',
     marginTop: 1,
   },
   messageText: {
     flex: 1,
     fontSize: 13,
     lineHeight: 20,
-    color: '#2d261f',
+    color: '#111',
     fontWeight: '600',
   },
   footerRow: {
@@ -268,7 +269,7 @@ const styles = StyleSheet.create({
   },
   footerMeta: {
     fontSize: 10,
-    color: '#37a7e8',
+    color: '#48c3f2',
     fontWeight: '700',
   },
 });

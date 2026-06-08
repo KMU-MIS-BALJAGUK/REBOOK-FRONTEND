@@ -21,6 +21,7 @@ import {
   SendDeepReadingMessageInput,
   SendDeepReadingMessageResult,
 } from './deepReadingChat.types';
+import { formatChatMessageAt } from '../../../shared/utils/formatChatMessageAt';
 
 export function toCreateDeepReadingChatRequestDto(
   input: CreateDeepReadingChatInput,
@@ -58,6 +59,7 @@ export function toSendDeepReadingMessageResult(
     conversationId: dto.conversationId,
     messageId: dto.messageId,
     answer: dto.answer,
+    messageAt: dto.messageAt,
     usage: dto.metadata?.usage
       ? {
           promptTokens: dto.metadata.usage.prompt_tokens,
@@ -94,7 +96,7 @@ function toDeepReadingMessage(dto: DeepReadingMessageDto): DeepReadingMessage {
     id: String(dto.messageId),
     role: toDeepReadingMessageRole(dto.role),
     text: dto.content,
-    createdAt: '',
+    createdAt: formatChatMessageAt(dto.createdAt),
     remoteMessageId: String(dto.messageId),
   };
 }
