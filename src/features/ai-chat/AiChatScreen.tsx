@@ -176,7 +176,7 @@ export function AiChatScreen({
         typingTimerRef.current = setTimeout(step, delay);
       };
 
-      typingTimerRef.current = setTimeout(step, 18);
+      typingTimerRef.current = setTimeout(step, 420);
     });
 
   useEffect(() => {
@@ -210,8 +210,12 @@ export function AiChatScreen({
       return;
     }
 
+    if (deepReadingMessagesQuery.data.messages.length === 0 && messages.length > 0) {
+      return;
+    }
+
     setMessages(deepReadingMessagesQuery.data.messages);
-  }, [deepReadingMessagesQuery.data]);
+  }, [deepReadingMessagesQuery.data, messages.length]);
 
   useEffect(() => {
     return () => {
