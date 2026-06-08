@@ -32,6 +32,7 @@ type Props = {
   showBottomNav?: boolean;
   launchContext?: DeepReadingChatLaunchContext | null;
   onConsumeLaunchContext?: () => void;
+  onViewChange?: (view: DeepReadingChatView) => void;
 };
 
 export function AiChatScreen({
@@ -42,6 +43,7 @@ export function AiChatScreen({
   showBottomNav = true,
   launchContext = null,
   onConsumeLaunchContext,
+  onViewChange,
 }: Props) {
   const closeDeepReadingChatMutation = useCloseDeepReadingChat();
   const createDeepReadingChatMutation = useCreateDeepReadingChat();
@@ -64,6 +66,7 @@ export function AiChatScreen({
   const [sessionValidationMessage, setSessionValidationMessage] = useState<string | null>(null);
   const [draftMessage, setDraftMessage] = useState('');
   const [messages, setMessages] = useState<DeepReadingMessage[]>([]);
+  const [hideQuickPrompts, setHideQuickPrompts] = useState(false);
   const handledLaunchKeyRef = useRef<string | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingTokenRef = useRef(0);
@@ -216,6 +219,10 @@ export function AiChatScreen({
     };
   }, []);
 
+  useEffect(() => {
+    onViewChange?.(view);
+  }, [onViewChange, view]);
+
   const recentChats = deepReadingChatsQuery.data ?? [];
 
   const handleOpenChat = (chat: DeepReadingChatListItem) => {
@@ -242,6 +249,7 @@ export function AiChatScreen({
     setMessages([]);
     setSessionStatus('active');
     setSelectedStarterQuestion(null);
+    setHideQuickPrompts(false);
     setSessionValidationMessage(null);
     setDraftMessage('');
     createDeepReadingChatMutation.reset();
@@ -263,6 +271,7 @@ export function AiChatScreen({
       setSelectedChat(null);
       setMessages([]);
       setDraftMessage('');
+      setHideQuickPrompts(false);
       setView('list');
     } catch {
       // Mutation error is rendered in room.
@@ -277,6 +286,7 @@ export function AiChatScreen({
     setMessages([]);
     setSessionStatus('idle');
     setSelectedStarterQuestion(null);
+    setHideQuickPrompts(false);
     setSessionValidationMessage(null);
     setDraftMessage('');
     createDeepReadingChatMutation.reset();
@@ -408,6 +418,7 @@ export function AiChatScreen({
     setSessionStatus('idle');
     setSessionValidationMessage(null);
     setDraftMessage(launchContext.initialMessage);
+    setHideQuickPrompts(true);
     closeDeepReadingChatMutation.reset();
     createDeepReadingChatMutation.reset();
     sendDeepReadingMessageMutation.reset();
@@ -491,102 +502,95 @@ export function AiChatScreen({
               onPressChat={handleOpenChat}
             />
           ) : selectedQuote ? (
-            <DeepReadingRoom
-              quoteSource={selectedQuote}
-              sessionStatus={sessionStatus}
-              messages={messages}
-              selectedStarterQuestion={selectedStarterQuestion}
-              inputValue={draftMessage}
-              quickPrompts={mockQuickPrompts}
-              sessionErrorMessage={
-                sessionValidationMessage ??
-                (closeDeepReadingChatMutation.isError ? toUserMessage(closeDeepReadingChatMutation.error) : null) ??
-                (deepReadingChatQuery.isError ? toUserMessage(deepReadingChatQuery.error) : null) ??
-                (deepReadingMessagesQuery.isError ? toUserMessage(deepReadingMessagesQuery.error) : null) ??
-                (sendDeepReadingMessageMutation.isError ? toUserMessage(sendDeepReadingMessageMutation.error) : null) ??
-                (createDeepReadingChatMutation.isError ? toUserMessage(createDeepReadingChatMutation.error) : null)
-              }
-              isSubmitting={
-                closeDeepReadingChatMutation.isPending ||
-                deepReadingChatQuery.isLoading ||
-                deepReadingMessagesQuery.isLoading ||
-                createDeepReadingChatMutation.isPending ||
-                sendDeepReadingMessageMutation.isPending ||
-                typingTimerRef.current !== null ||
-                typingResolveRef.current !== null
-              }
-              canCloseSession={Boolean(selectedChat?.chatId) && sessionStatus === 'active'}
-              onBack={() => {
-                clearTypingAnimation();
-                setView('list');
-                setSelectedChat(null);
-                setDraftMessage('');
-                setSessionValidationMessage(null);
-                closeDeepReadingChatMutation.reset();
-                createDeepReadingChatMutation.reset();
-                sendDeepReadingMessageMutation.reset();
-              }}
-              onCloseSession={handleCloseSession}
-              onChangeInput={(value) => {
-                if (closeDeepReadingChatMutation.isError) {
+            <>
+              <DeepReadingRoom
+                quoteSource={selectedQuote}
+                sessionStatus={sessionStatus}
+                messages={messages}
+                selectedStarterQuestion={selectedStarterQuestion}
+                inputValue={draftMessage}
+                quickPrompts={mockQuickPrompts}
+                hideQuickPrompts={hideQuickPrompts}
+                sessionErrorMessage={
+                  sessionValidationMessage ??
+                  (closeDeepReadingChatMutation.isError ? toUserMessage(closeDeepReadingChatMutation.error) : null) ??
+                  (deepReadingChatQuery.isError ? toUserMessage(deepReadingChatQuery.error) : null) ??
+                  (deepReadingMessagesQuery.isError ? toUserMessage(deepReadingMessagesQuery.error) : null) ??
+                  (sendDeepReadingMessageMutation.isError ? toUserMessage(sendDeepReadingMessageMutation.error) : null) ??
+                  (createDeepReadingChatMutation.isError ? toUserMessage(createDeepReadingChatMutation.error) : null)
+                }
+                isSubmitting={
+                  closeDeepReadingChatMutation.isPending ||
+                  deepReadingChatQuery.isLoading ||
+                  deepReadingMessagesQuery.isLoading ||
+                  createDeepReadingChatMutation.isPending ||
+                  sendDeepReadingMessageMutation.isPending ||
+                  typingTimerRef.current !== null ||
+                  typingResolveRef.current !== null
+                }
+                canCloseSession={Boolean(selectedChat?.chatId) && sessionStatus === 'active'}
+                onBack={() => {
+                  clearTypingAnimation();
+                  setView('list');
+                  setSelectedChat(null);
+                  setDraftMessage('');
+                  setHideQuickPrompts(false);
+                  setSessionValidationMessage(null);
                   closeDeepReadingChatMutation.reset();
-                }
-                if (deepReadingChatQuery.isError) {
-                  void deepReadingChatQuery.refetch();
-                }
-                if (deepReadingMessagesQuery.isError) {
-                  void deepReadingMessagesQuery.refetch();
-                }
-                if (createDeepReadingChatMutation.isError) {
                   createDeepReadingChatMutation.reset();
-                  if (sessionStatus === 'error') {
-                    setSessionStatus('idle');
-                  }
-                }
-                if (sendDeepReadingMessageMutation.isError) {
                   sendDeepReadingMessageMutation.reset();
-                }
-                setSessionValidationMessage(null);
-                setDraftMessage(value);
-              }}
-              onSend={handleSend}
-              onPressQuickPrompt={(prompt) => {
-                if (closeDeepReadingChatMutation.isError) {
-                  closeDeepReadingChatMutation.reset();
-                }
-                if (deepReadingChatQuery.isError) {
-                  void deepReadingChatQuery.refetch();
-                }
-                if (deepReadingMessagesQuery.isError) {
-                  void deepReadingMessagesQuery.refetch();
-                }
-                if (createDeepReadingChatMutation.isError) {
-                  createDeepReadingChatMutation.reset();
-                  if (sessionStatus === 'error') {
-                    setSessionStatus('idle');
+                }}
+                onCloseSession={handleCloseSession}
+                onChangeInput={(value) => {
+                  if (closeDeepReadingChatMutation.isError) {
+                    closeDeepReadingChatMutation.reset();
                   }
-                }
-                if (sendDeepReadingMessageMutation.isError) {
-                  sendDeepReadingMessageMutation.reset();
-                }
-                setSessionValidationMessage(null);
-                setSelectedStarterQuestion(prompt);
-                setDraftMessage(prompt.question);
-              }}
-            />
+                  if (deepReadingChatQuery.isError) {
+                    void deepReadingChatQuery.refetch();
+                  }
+                  if (deepReadingMessagesQuery.isError) {
+                    void deepReadingMessagesQuery.refetch();
+                  }
+                  if (createDeepReadingChatMutation.isError) {
+                    createDeepReadingChatMutation.reset();
+                    if (sessionStatus === 'error') {
+                      setSessionStatus('idle');
+                    }
+                  }
+                  if (sendDeepReadingMessageMutation.isError) {
+                    sendDeepReadingMessageMutation.reset();
+                  }
+                  setSessionValidationMessage(null);
+                  setDraftMessage(value);
+                }}
+                onSend={handleSend}
+                onPressQuickPrompt={(prompt) => {
+                  if (closeDeepReadingChatMutation.isError) {
+                    closeDeepReadingChatMutation.reset();
+                  }
+                  if (deepReadingChatQuery.isError) {
+                    void deepReadingChatQuery.refetch();
+                  }
+                  if (deepReadingMessagesQuery.isError) {
+                    void deepReadingMessagesQuery.refetch();
+                  }
+                  if (createDeepReadingChatMutation.isError) {
+                    createDeepReadingChatMutation.reset();
+                    if (sessionStatus === 'error') {
+                      setSessionStatus('idle');
+                    }
+                  }
+                  if (sendDeepReadingMessageMutation.isError) {
+                    sendDeepReadingMessageMutation.reset();
+                  }
+                  setSessionValidationMessage(null);
+                  setSelectedStarterQuestion(prompt);
+                  setDraftMessage(prompt.question);
+                }}
+              />
+            </>
           ) : null}
         </View>
-
-        {showBottomNav && view === 'list' ? (
-          <View style={styles.bottomNavShell}>
-            <BottomNav
-              active="ai-chat"
-              onPressCommunity={onPressCommunity}
-              onPressHome={onPressHome}
-              onPressAiChat={() => {}}
-            />
-          </View>
-        ) : null}
 
       <DeepReadingSelectorSheet
         visible={showSelector}
@@ -601,6 +605,5 @@ export function AiChatScreen({
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#fff' },
   container: { flex: 1, backgroundColor: '#fff' },
-  contentSurface: { flex: 1, backgroundColor: '#fff' },
-  bottomNavShell: { backgroundColor: '#44c3f3' },
+  contentSurface: { flex: 1, backgroundColor: '#fff', position: 'relative' },
 });

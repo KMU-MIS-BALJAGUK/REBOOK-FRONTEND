@@ -46,8 +46,10 @@ export function DeepReadingSelectorSheet({ visible, onClose, onSelectQuote }: Pr
   const [selectedEmojiType, setSelectedEmojiType] = useState<HomeCardEmojiType | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
-  const { contentPanHandlers, handlePanHandlers, onScroll, onSheetLayout, requestClose, sheetAnimatedStyle } =
-    useDismissableBottomSheet({ visible, onClose });
+  const { onScroll, onSheetLayout, requestClose, sheetAnimatedStyle } = useDismissableBottomSheet({
+    visible,
+    onClose,
+  });
 
   const sort: HomeCardSort = activeTab === 'emotion' ? 'MOST_REACTED' : 'LATEST';
   const trimmedKeyword = searchKeyword.trim();
@@ -231,10 +233,10 @@ export function DeepReadingSelectorSheet({ visible, onClose, onSelectQuote }: Pr
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={requestClose} />
       <Animated.View style={[styles.sheet, sheetAnimatedStyle]} onLayout={onSheetLayout}>
-        <View style={styles.handleArea} {...handlePanHandlers}>
+        <View style={styles.handleArea}>
           <View style={styles.handle} />
         </View>
-        <View style={styles.topPanel}>
+        <Pressable style={styles.topPanel} onPress={Keyboard.dismiss}>
           <View style={styles.sheetHeader}>
             <Text style={styles.title}>문장 선택하기</Text>
             <Text style={styles.subtitle}>저장한 문장을 분류해서 고를 수 있어요</Text>
@@ -334,13 +336,12 @@ export function DeepReadingSelectorSheet({ visible, onClose, onSelectQuote }: Pr
               ))}
             </ScrollView>
           ) : null}
-        </View>
+        </Pressable>
 
         <ScrollView
           style={styles.list}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
-          {...contentPanHandlers}
           onScroll={onScroll}
           scrollEventThrottle={16}
         >

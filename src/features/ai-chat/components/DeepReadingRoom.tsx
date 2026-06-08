@@ -30,6 +30,7 @@ type Props = {
   selectedStarterQuestion: DeepReadingStarterQuestion | null;
   inputValue: string;
   quickPrompts: DeepReadingStarterQuestion[];
+  hideQuickPrompts?: boolean;
   sessionErrorMessage?: string | null;
   isSubmitting?: boolean;
   canCloseSession?: boolean;
@@ -47,6 +48,7 @@ export function DeepReadingRoom({
   selectedStarterQuestion,
   inputValue,
   quickPrompts,
+  hideQuickPrompts = false,
   sessionErrorMessage,
   isSubmitting = false,
   onBack,
@@ -61,7 +63,7 @@ export function DeepReadingRoom({
   const edgeSwipeAnimating = useRef(false);
   const [composerHeight, setComposerHeight] = useState(76);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const showPromptArea = messages.length === 0;
+  const showPromptArea = messages.length === 0 && !hideQuickPrompts;
   const isIOS = Platform.OS === 'ios';
 
   const resetEdgeSwipe = () => {
@@ -610,6 +612,7 @@ const styles = StyleSheet.create({
   inputShellAccessory: {
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
+    backgroundColor: '#fff',
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 10,

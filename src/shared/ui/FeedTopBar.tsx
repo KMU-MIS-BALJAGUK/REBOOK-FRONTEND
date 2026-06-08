@@ -30,7 +30,7 @@ export function FeedTopBar({ searchKeyword, onSearchKeywordChange, onPressMyPage
         <MyButton onPress={onPressMyPage} />
       </View>
 
-      {children}
+      {children ? <View style={styles.childrenWrap}>{children}</View> : null}
     </View>
   );
 }
@@ -54,6 +54,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     marginBottom: 10,
+  },
+  childrenWrap: {
+    paddingHorizontal: 16,
   },
   searchPill: {
     flex: 1,

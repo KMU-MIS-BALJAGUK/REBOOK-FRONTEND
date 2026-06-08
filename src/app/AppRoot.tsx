@@ -75,18 +75,22 @@ function MainTabShell({
   onPressCommunity,
   onPressHome,
   onPressAiChat,
+  showBottomNav = true,
   children,
 }: {
   active: 'community' | 'home' | 'ai-chat';
   onPressCommunity: () => void;
   onPressHome: () => void;
   onPressAiChat: () => void;
+  showBottomNav?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <View style={{ flex: 1 }}>
       {children}
-      <BottomNav active={active} onPressCommunity={onPressCommunity} onPressHome={onPressHome} onPressAiChat={onPressAiChat} />
+      {showBottomNav ? (
+        <BottomNav active={active} onPressCommunity={onPressCommunity} onPressHome={onPressHome} onPressAiChat={onPressAiChat} />
+      ) : null}
     </View>
   );
 }
@@ -162,6 +166,7 @@ export default function AppRoot() {
   const [pendingCropSource, setPendingCropSource] = useState<'camera' | 'gallery' | null>(null);
   const [savedQuoteForQuestions, setSavedQuoteForQuestions] = useState<QuoteQuestionCardQuoteSummary | null>(null);
   const [aiChatLaunchContext, setAiChatLaunchContext] = useState<DeepReadingChatLaunchContext | null>(null);
+  const [aiChatView, setAiChatView] = useState<'list' | 'room'>('list');
   const quoteQuestionCardsQuery = useQuoteQuestionCards({
     quoteId: savedQuoteForQuestions?.quoteId ?? null,
     enabled: state.screen === 'quote-question-cards',
@@ -381,6 +386,7 @@ export default function AppRoot() {
         onPressCommunity={() => actions.setScreen('community')}
         onPressHome={() => actions.setScreen('home')}
         onPressAiChat={() => {}}
+        showBottomNav={aiChatView === 'list'}
       >
         <AiChatScreen
           nickname={state.nickname}
@@ -390,6 +396,7 @@ export default function AppRoot() {
           launchContext={aiChatLaunchContext}
           onConsumeLaunchContext={() => setAiChatLaunchContext(null)}
           showBottomNav={false}
+          onViewChange={setAiChatView}
         />
       </MainTabShell>
     );

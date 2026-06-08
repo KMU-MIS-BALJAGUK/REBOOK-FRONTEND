@@ -24,10 +24,12 @@ export function useDismissableBottomSheet({
   const translateY = useRef(new Animated.Value(0)).current;
   const [sheetHeight, setSheetHeight] = useState(0);
   const scrollOffsetRef = useRef(0);
+  const isScrollingRef = useRef(false);
   const dragStartTranslateYRef = useRef(0);
   const currentTranslateYRef = useRef(0);
   const isClosingRef = useRef(false);
   const hasOpenedRef = useRef(false);
+  const contentTouchEligibleRef = useRef(true);
 
   const animateOpen = useCallback(() => {
     if (!visible || sheetHeight <= 0 || hasOpenedRef.current) {
@@ -55,6 +57,8 @@ export function useDismissableBottomSheet({
     hasOpenedRef.current = false;
     isClosingRef.current = false;
     scrollOffsetRef.current = 0;
+    isScrollingRef.current = false;
+    contentTouchEligibleRef.current = true;
     translateY.stopAnimation();
     translateY.setValue(0);
   }, [animateOpen, translateY, visible]);
@@ -95,6 +99,20 @@ export function useDismissableBottomSheet({
   const buildPanHandlers = useCallback(
     (allowOnlyFromTop: boolean) =>
       PanResponder.create({
+        onStartShouldSetPanResponderCapture: () => {
+          if (!visible || isClosingRef.current) {
+            contentTouchEligibleRef.current = false;
+            return false;
+          }
+
+          if (!allowOnlyFromTop) {
+            contentTouchEligibleRef.current = true;
+            return false;
+          }
+
+          contentTouchEligibleRef.current = scrollOffsetRef.current <= 0 && !isScrollingRef.current;
+          return false;
+        },
         onMoveShouldSetPanResponderCapture: (_, gestureState) => {
           if (!visible || isClosingRef.current) {
             return false;
@@ -112,11 +130,15 @@ export function useDismissableBottomSheet({
             return true;
           }
 
-          if (scrollOffsetRef.current > 0) {
+          if (!contentTouchEligibleRef.current) {
             return false;
           }
 
-          return gestureState.dy > contentActivationDistance;
+          if (scrollOffsetRef.current > 0 || isScrollingRef.current) {
+            return false;
+          }
+
+          return gestureState.dy > contentActivationDistance && gestureState.moveY > gestureState.y0;
         },
         onPanResponderGrant: () => {
           translateY.stopAnimation((value) => {
@@ -142,6 +164,7 @@ export function useDismissableBottomSheet({
           resetPosition();
         },
         onPanResponderTerminate: () => {
+          contentTouchEligibleRef.current = true;
           resetPosition();
         },
       }).panHandlers,
@@ -164,6 +187,18 @@ export function useDismissableBottomSheet({
     scrollOffsetRef.current = Math.max(0, event.nativeEvent.contentOffset.y);
   }, []);
 
+  const onScrollBeginDrag = useCallback(() => {
+    isScrollingRef.current = true;
+  }, []);
+
+  const onScrollEndDrag = useCallback(() => {
+    isScrollingRef.current = false;
+  }, []);
+
+  const onMomentumScrollEnd = useCallback(() => {
+    isScrollingRef.current = false;
+  }, []);
+
   const onSheetLayout = useCallback((event: LayoutChangeEvent) => {
     const nextHeight = Math.ceil(event.nativeEvent.layout.height);
     setSheetHeight((current) => (current === nextHeight ? current : nextHeight));
@@ -180,6 +215,9 @@ export function useDismissableBottomSheet({
     handlePanHandlers,
     contentPanHandlers,
     onScroll,
+    onScrollBeginDrag,
+    onScrollEndDrag,
+    onMomentumScrollEnd,
     onSheetLayout,
     requestClose,
     sheetAnimatedStyle,
