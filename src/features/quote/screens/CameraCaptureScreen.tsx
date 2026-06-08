@@ -122,15 +122,11 @@ export function CameraCaptureScreen({ onBack, onCapture, isUploading, uploadErro
           onCameraReady={() => setIsReady(true)}
         />
       </View>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>문장 촬영</Text>
-        <View style={styles.headerSpacer} />
-      </View>
       <View style={styles.bottomBar}>
         {localError || uploadError ? <Text style={styles.errorText}>{localError ?? uploadError}</Text> : null}
+        <TouchableOpacity style={styles.bottomBackButton} onPress={onBack}>
+          <Text style={styles.backText}>← 뒤로</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.shutterButton} onPress={() => void handleCapture()} disabled={isBusy}>
           {isBusy ? (
             <ActivityIndicator color="#45c2f1" />
@@ -155,21 +151,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 56,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    zIndex: 3,
-  },
-  backText: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  headerTitle: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  headerSpacer: { width: 18 },
+  backText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   bottomBar: {
     position: 'absolute',
     left: 0,
@@ -180,6 +162,19 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     alignItems: 'center',
     zIndex: 3,
+  },
+  bottomBackButton: {
+    position: 'absolute',
+    left: 18,
+    bottom: 38,
+    minHeight: 40,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.68)',
+    borderWidth: 1,
+    borderColor: '#45c2f1',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   shutterButton: {
     width: 84,

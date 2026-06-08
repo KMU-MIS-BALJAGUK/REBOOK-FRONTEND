@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   Image,
   Modal,
   Pressable,
@@ -265,6 +266,9 @@ export function HomeScreen({ nickname, tab, onChangeTab, onPressRegister, onPres
                 placeholderTextColor="#9f968a"
                 value={searchKeyword}
                 onChangeText={setSearchKeyword}
+                returnKeyType="search"
+                blurOnSubmit
+                onSubmitEditing={() => Keyboard.dismiss()}
               />
             </View>
             <MyButton onPress={onPressMyPage} />
