@@ -51,6 +51,64 @@ export function CameraCropScreen({ asset, onBack, onConfirm, isSubmitting, submi
   const rightStartRef = useRef(0);
   const topStartRef = useRef(0);
   const bottomStartRef = useRef(0);
+  const [progress, setProgress] = useState(0);
+  const [isLocalProcessing, setIsLocalProcessing] = useState(false);
+  const progressRef = useRef(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const settleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearTimers = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (settleTimeoutRef.current) {
+      clearTimeout(settleTimeoutRef.current);
+      settleTimeoutRef.current = null;
+    }
+  };
+
+  const animateProgressTo = (target: number, duration: number, onComplete?: () => void) => {
+    clearTimers();
+    const current = progressRef.current;
+
+    if (current === target) {
+      if (onComplete) {
+        settleTimeoutRef.current = setTimeout(() => {
+          settleTimeoutRef.current = null;
+          onComplete();
+        }, 0);
+      }
+      return;
+    }
+
+    const step = target > current ? 1 : -1;
+    const distance = Math.abs(target - current);
+    const intervalMs = Math.max(20, Math.round(duration / Math.max(distance, 1)));
+    let nextValue = current;
+
+    intervalRef.current = setInterval(() => {
+      nextValue += step;
+      const reachedTarget = step > 0 ? nextValue >= target : nextValue <= target;
+      const safeValue = reachedTarget ? target : nextValue;
+      setProgress(safeValue);
+
+      if (reachedTarget) {
+        clearTimers();
+        if (onComplete) {
+          settleTimeoutRef.current = setTimeout(() => {
+            settleTimeoutRef.current = null;
+            onComplete();
+          }, 0);
+        }
+      }
+    }, intervalMs);
+  };
+
+  const animateProgressToAsync = (target: number, duration: number) =>
+    new Promise<void>((resolve) => {
+      animateProgressTo(target, duration, resolve);
+    });
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -60,8 +118,13 @@ export function CameraCropScreen({ asset, onBack, onConfirm, isSubmitting, submi
 
     return () => {
       subscription.remove();
+      clearTimers();
     };
   }, [onBack]);
+
+  useEffect(() => {
+    progressRef.current = progress;
+  }, [progress]);
 
   const cropWidthPx = Math.max(0, imageWidth - leftPx - rightPx);
   const cropHeightPx = Math.max(0, bottomPx - topPx);
@@ -173,6 +236,10 @@ export function CameraCropScreen({ asset, onBack, onConfirm, isSubmitting, submi
       return;
     }
 
+    if (isSubmitting || isLocalProcessing) {
+      return;
+    }
+
     const originX = Math.round((leftPx / imageWidth) * sourceWidth);
     const originY = Math.round((topPx / imageHeight) * sourceHeight);
     const cropWidth = Math.max(1, Math.round((cropWidthPx / imageWidth) * sourceWidth));
@@ -184,20 +251,33 @@ export function CameraCropScreen({ asset, onBack, onConfirm, isSubmitting, submi
       width: Math.min(cropWidth, sourceWidth - originX),
       height: Math.min(cropHeight, sourceHeight - originY),
     });
-    const croppedImage = await cropContext.renderAsync();
-    const manipulated = await croppedImage.saveAsync({
-      format: ImageManipulator.SaveFormat.JPEG,
-      compress: 0.92,
-    });
+    setIsLocalProcessing(true);
+    clearTimers();
+    setProgress(0);
+    animateProgressTo(99, 1000);
 
-    await onConfirm({
-      uri: manipulated.uri,
-      fileName: asset.fileName,
-      mimeType: 'image/jpeg',
-      fileSize: undefined,
-      width: manipulated.width,
-      height: manipulated.height,
-    });
+    try {
+      const croppedImage = await cropContext.renderAsync();
+      const manipulated = await croppedImage.saveAsync({
+        format: ImageManipulator.SaveFormat.JPEG,
+        compress: 0.92,
+      });
+
+      await onConfirm({
+        uri: manipulated.uri,
+        fileName: asset.fileName,
+        mimeType: 'image/jpeg',
+        fileSize: undefined,
+        width: manipulated.width,
+        height: manipulated.height,
+      });
+
+      clearTimers();
+      setProgress(100);
+    } finally {
+      clearTimers();
+      setIsLocalProcessing(false);
+    }
   };
 
   return (
@@ -254,11 +334,19 @@ export function CameraCropScreen({ asset, onBack, onConfirm, isSubmitting, submi
       </View>
       {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.secondaryButton} onPress={onBack} disabled={isSubmitting}>
-          <Text style={styles.secondaryButtonText}>뒤로가기</Text>
-        </TouchableOpacity>
+        {isSubmitting || isLocalProcessing ? (
+          <View style={styles.progressWrap}>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${progress}%` }]} />
+              <Text style={styles.progressText}>{progress}%</Text>
+            </View>
+          </View>
+        ) : null}
         <TouchableOpacity style={styles.primaryButton} onPress={() => void handleConfirm()} disabled={isSubmitting}>
           {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>이 영역으로 진행</Text>}
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.secondaryButton} onPress={onBack} disabled={isSubmitting}>
+          <Text style={styles.secondaryButtonText}>뒤로가기</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -349,6 +437,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 28,
     gap: 12,
+  },
+  progressWrap: {
+    marginBottom: 2,
+  },
+  progressTrack: {
+    width: '100%',
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    overflow: 'hidden',
+    justifyContent: 'center',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: '#45c2f1',
+  },
+  progressText: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '700',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
   },
   secondaryButton: {
     height: 48,

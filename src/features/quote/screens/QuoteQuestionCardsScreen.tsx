@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { BookshelfLoader } from '../../../shared/ui/BookshelfLoader';
 import {
   GetQuoteQuestionCardsResult,
   QuoteQuestionCardItem,
@@ -203,9 +202,6 @@ export function QuoteQuestionCardsScreen({
           <View style={styles.loadingBlock}>
             <Text style={styles.loadingTitle}>질문을 만들고 있어요</Text>
             <Text style={styles.loadingBody}>문장을 읽고 생각을 확장할 수 있는 질문을 정리하고 있습니다.</Text>
-            <View style={styles.loaderWrap}>
-              <BookshelfLoader width={280} />
-            </View>
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: `${loadingProgress}%` }]} />
               <Text style={styles.progressText}>{loadingProgress}%</Text>
@@ -378,11 +374,6 @@ const styles = StyleSheet.create({
   loadingBlock: {
     paddingVertical: 8,
     gap: 12,
-  },
-  loaderWrap: {
-    alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 2,
   },
   loadingTitle: {
     fontSize: 18,

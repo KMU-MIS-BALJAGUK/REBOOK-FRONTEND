@@ -1,10 +1,11 @@
-import React, { useDeferredValue, useEffect, useRef, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import {
   ActivityIndicator,
-  InputAccessoryView,
+  Animated,
   Keyboard,
   KeyboardAvoidingView,
+  PanResponder,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -25,24 +26,6 @@ import { useCreateQuote } from '../hooks/useCreateQuote';
 import { useFolders } from '../hooks/useFolders';
 import { CameraCropScreen } from './CameraCropScreen';
 import { CreateQuoteResult } from '../model/quoteCreate.types';
-
-const INPUT_ACCESSORY_IDS = {
-  book: 'quote-form-book-accessory',
-  author: 'quote-form-author-accessory',
-  page: 'quote-form-page-accessory',
-  quote: 'quote-form-quote-accessory',
-  memo: 'quote-form-memo-accessory',
-  folder: 'quote-form-folder-accessory',
-} as const;
-
-const INPUT_ACCESSORIES = [
-  { id: INPUT_ACCESSORY_IDS.book, label: '책 제목' },
-  { id: INPUT_ACCESSORY_IDS.author, label: '저자' },
-  { id: INPUT_ACCESSORY_IDS.page, label: '페이지' },
-  { id: INPUT_ACCESSORY_IDS.quote, label: '추출된 문장' },
-  { id: INPUT_ACCESSORY_IDS.memo, label: '내 코멘트' },
-  { id: INPUT_ACCESSORY_IDS.folder, label: '새 폴더 이름' },
-] as const;
 
 type Props = {
   onBack: () => void;
@@ -69,6 +52,12 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
   const createFolderMutation = useCreateFolder();
   const foldersQuery = useFolders({ includeQuoteCount: true });
   const formScrollRef = useRef<ScrollView | null>(null);
+  const bookInputRef = useRef<TextInput | null>(null);
+  const authorInputRef = useRef<TextInput | null>(null);
+  const pageInputRef = useRef<TextInput | null>(null);
+  const quoteInputRef = useRef<TextInput | null>(null);
+  const memoInputRef = useRef<TextInput | null>(null);
+  const folderInputRef = useRef<TextInput | null>(null);
   const [book, setBook] = useState('');
   const [author, setAuthor] = useState('');
   const [bookCoverImageUrl, setBookCoverImageUrl] = useState<string | null>(null);
@@ -83,14 +72,13 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [pendingAttachmentAsset, setPendingAttachmentAsset] = useState<QuoteLocalImageAsset | null>(null);
   const [isAttachmentSubmitting, setIsAttachmentSubmitting] = useState(false);
-  const [activeInputLabel, setActiveInputLabel] = useState<string | null>(null);
+  const [validationErrorField, setValidationErrorField] = useState<'book' | 'author' | 'page' | 'quote' | null>(null);
+  const [validationErrorMessage, setValidationErrorMessage] = useState<string | null>(null);
   const [attachedImage, setAttachedImage] = useState<AttachedOcrSource | null>(
     ocrSource ? { ...ocrSource, fullText: initialQuoteText ?? '' } : null,
   );
-  const [validationError, setValidationError] = useState<string | null>(null);
   const methodLabel = initialMethod === 'manual' ? '직접입력' : initialMethod === 'camera' ? '사진찍기' : '갤러리';
   const apiError = createQuoteMutation.isError ? toUserMessage(createQuoteMutation.error) : null;
-  const submitError = validationError ?? apiError;
   const isSubmitDisabled = createQuoteMutation.isPending || createFolderMutation.isPending;
   const deferredBook = useDeferredValue(book);
   const deferredAuthor = useDeferredValue(author);
@@ -98,6 +86,9 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
   const quoteBookSearchQuery = useQuoteBookSearch(bookSearchQuery, bookSearchQuery.length > 0);
   const createFolderError = createFolderMutation.isError ? toUserMessage(createFolderMutation.error) : null;
   const bookSearchError = quoteBookSearchQuery.isError ? toUserMessage(quoteBookSearchQuery.error) : null;
+  const edgeSwipeTranslateX = useRef(new Animated.Value(0)).current;
+  const edgeSwipeStartX = useRef(0);
+  const edgeSwipeAnimating = useRef(false);
   const quoteOcrSource = attachedImage
     ? {
         imageId: attachedImage.imageId,
@@ -118,31 +109,147 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
     }
   }, [author, book]);
 
+  useEffect(() => {
+    if (validationErrorField === 'book' && book.trim()) {
+      setValidationErrorField(null);
+      setValidationErrorMessage(null);
+    }
+  }, [book, validationErrorField]);
+
+  useEffect(() => {
+    if (validationErrorField === 'author' && author.trim()) {
+      setValidationErrorField(null);
+      setValidationErrorMessage(null);
+    }
+  }, [author, validationErrorField]);
+
+  useEffect(() => {
+    if (validationErrorField === 'page' && page.trim()) {
+      setValidationErrorField(null);
+      setValidationErrorMessage(null);
+    }
+  }, [page, validationErrorField]);
+
+  useEffect(() => {
+    if (validationErrorField === 'quote' && quote.trim()) {
+      setValidationErrorField(null);
+      setValidationErrorMessage(null);
+    }
+  }, [quote, validationErrorField]);
+
+  const resetEdgeSwipe = () => {
+    Animated.spring(edgeSwipeTranslateX, {
+      toValue: 0,
+      friction: 9,
+      tension: 80,
+      useNativeDriver: true,
+    }).start(() => {
+      edgeSwipeAnimating.current = false;
+    });
+  };
+
+  const dismissEdgeSwipe = () => {
+    edgeSwipeAnimating.current = true;
+    Keyboard.dismiss();
+    Animated.timing(edgeSwipeTranslateX, {
+      toValue: 110,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      edgeSwipeAnimating.current = false;
+      edgeSwipeTranslateX.setValue(0);
+      onBack();
+    });
+  };
+
+  const edgeSwipeResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: (_, gestureState) => gestureState.x0 <= 28 && !edgeSwipeAnimating.current,
+        onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+          if (edgeSwipeAnimating.current) {
+            return false;
+          }
+          if (gestureState.x0 > 28) {
+            return false;
+          }
+
+          const absDx = Math.abs(gestureState.dx);
+          const absDy = Math.abs(gestureState.dy);
+          return gestureState.dx > 8 && absDx > absDy * 1.08;
+        },
+        onPanResponderGrant: () => {
+          edgeSwipeTranslateX.stopAnimation((value) => {
+            edgeSwipeStartX.current = value;
+          });
+        },
+        onPanResponderMove: (_, gestureState) => {
+          const next = Math.max(0, edgeSwipeStartX.current + gestureState.dx);
+          edgeSwipeTranslateX.setValue(Math.min(next, 110));
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          const threshold = 110 * 0.2;
+          if (gestureState.dx >= threshold) {
+            dismissEdgeSwipe();
+            return;
+          }
+          resetEdgeSwipe();
+        },
+        onPanResponderTerminate: () => {
+          resetEdgeSwipe();
+        },
+      }),
+    [edgeSwipeTranslateX],
+  );
+
   const handleSubmit = () => {
     const trimmedBook = book.trim();
+    const trimmedAuthor = author.trim();
     const trimmedQuote = quote.trim();
     const pageNumber = Number(page.trim());
 
     if (!trimmedBook) {
-      setValidationError('책 제목을 입력해주세요.');
+      setValidationErrorField('book');
+      setValidationErrorMessage('책 제목을 입력해주세요.');
+      setTimeout(() => {
+        bookInputRef.current?.focus();
+      }, 0);
+      return;
+    }
+
+    if (!trimmedAuthor) {
+      setValidationErrorField('author');
+      setValidationErrorMessage('저자를 입력해주세요.');
+      setTimeout(() => {
+        authorInputRef.current?.focus();
+      }, 0);
       return;
     }
 
     if (!trimmedQuote) {
-      setValidationError('문장을 입력해주세요.');
+      setValidationErrorField('quote');
+      setValidationErrorMessage('문장을 입력해주세요.');
+      setTimeout(() => {
+        quoteInputRef.current?.focus();
+      }, 0);
       return;
     }
 
     if (!Number.isInteger(pageNumber) || pageNumber <= 0) {
-      setValidationError('페이지는 1 이상의 숫자로 입력해주세요.');
+      setValidationErrorField('page');
+      setValidationErrorMessage('페이지는 1 이상의 숫자로 입력해주세요.');
+      setTimeout(() => {
+        pageInputRef.current?.focus();
+      }, 0);
       return;
     }
 
-    setValidationError(null);
+    setValidationErrorField(null);
+    setValidationErrorMessage(null);
     createQuoteMutation.mutate(
       {
         bookTitle: trimmedBook,
-        author: author.trim(),
+        author: trimmedAuthor,
         coverImageUrl: bookCoverImageUrl ?? undefined,
         pageNumber,
         quoteText: trimmedQuote,
@@ -177,7 +284,6 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
       setNewFolderName('');
       setIsCreatingFolder(false);
       Keyboard.dismiss();
-      setActiveInputLabel(null);
       await foldersQuery.refetch();
     } catch {
       // The mutation error is rendered from createFolderMutation below.
@@ -216,11 +322,9 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
 
   const finishInput = () => {
     Keyboard.dismiss();
-    setActiveInputLabel(null);
   };
 
   const handleInputFocus = (label: string, scrollToBottom = false) => {
-    setActiveInputLabel(label);
     if (!scrollToBottom) {
       return;
     }
@@ -261,39 +365,33 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
   }
 
   return (
-    <SafeAreaView style={styles.formSafeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#44c3f3" />
-      <View style={styles.formHeader}>
-        <TouchableOpacity onPress={onBack}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.formHeaderTitle}>문장 저장하기</Text>
-        <View style={styles.formHeaderRight} />
-      </View>
-      {activeInputLabel && Platform.OS !== 'ios' ? (
-        <View style={styles.keyboardToolbar}>
-          <Text style={styles.keyboardToolbarLabel}>{activeInputLabel} 입력 중</Text>
-          <TouchableOpacity style={styles.keyboardDoneButton} onPress={finishInput}>
-            <Text style={styles.keyboardDoneText}>완료</Text>
+    <Animated.View style={[styles.formScreen, { transform: [{ translateX: edgeSwipeTranslateX }] }]}>
+      <SafeAreaView style={styles.formSafeArea}>
+        <StatusBar barStyle="dark-content" backgroundColor="#44c3f3" />
+        <View style={styles.formHeader}>
+          <TouchableOpacity onPress={onBack}>
+            <Text style={styles.backText}>←</Text>
           </TouchableOpacity>
+          <Text style={styles.formHeaderTitle}>문장 저장하기</Text>
+          <View style={styles.formHeaderRight} />
         </View>
-      ) : null}
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoidingView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-      >
-        <ScrollView
-          ref={formScrollRef}
-          style={styles.formScroll}
-          contentContainerStyle={styles.formBody}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoidingView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
         >
+          <ScrollView
+            ref={formScrollRef}
+            style={styles.formScroll}
+            contentContainerStyle={styles.formBody}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          >
         <Text style={styles.formLabel}>책 제목</Text>
         <TextInput
-          style={styles.formInput}
+          ref={bookInputRef}
+          style={[styles.formInput, validationErrorField === 'book' && styles.formInputError]}
           value={book}
           onChangeText={(value) => {
             setShowBookResults(true);
@@ -301,10 +399,12 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
             setBook(value);
           }}
           placeholder="책 제목을 입력하세요"
-          inputAccessoryViewID={Platform.OS === 'ios' ? INPUT_ACCESSORY_IDS.book : undefined}
           onFocus={() => handleInputFocus('책 제목')}
-          onBlur={() => setActiveInputLabel(null)}
-        />
+          returnKeyType="done"
+          blurOnSubmit
+          onSubmitEditing={finishInput}
+          />
+        {validationErrorField === 'book' ? <Text style={styles.fieldErrorText}>{validationErrorMessage}</Text> : null}
         {showBookResults && (book.trim() || author.trim()) ? (
           <View style={styles.searchResultsWrap}>
             {quoteBookSearchQuery.isLoading ? <Text style={styles.helperText}>검색 결과를 불러오는 중...</Text> : null}
@@ -335,7 +435,8 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
         ) : null}
         <Text style={styles.formLabel}>저자</Text>
         <TextInput
-          style={styles.formInput}
+          ref={authorInputRef}
+          style={[styles.formInput, validationErrorField === 'author' && styles.formInputError]}
           value={author}
           onChangeText={(value) => {
             setShowBookResults(true);
@@ -343,60 +444,74 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
             setAuthor(value);
           }}
           placeholder="저자를 입력하세요"
-          inputAccessoryViewID={Platform.OS === 'ios' ? INPUT_ACCESSORY_IDS.author : undefined}
           onFocus={() => handleInputFocus('저자')}
-          onBlur={() => setActiveInputLabel(null)}
+          returnKeyType="done"
+          blurOnSubmit
+          onSubmitEditing={finishInput}
         />
+        {validationErrorField === 'author' ? <Text style={styles.fieldErrorText}>{validationErrorMessage}</Text> : null}
         <Text style={styles.formLabel}>페이지</Text>
         <TextInput
-          style={styles.formInput}
+          ref={pageInputRef}
+          style={[styles.formInput, validationErrorField === 'page' && styles.formInputError]}
           value={page}
           onChangeText={setPage}
           keyboardType="number-pad"
           placeholder="페이지 번호"
-          inputAccessoryViewID={Platform.OS === 'ios' ? INPUT_ACCESSORY_IDS.page : undefined}
           onFocus={() => handleInputFocus('페이지')}
-          onBlur={() => setActiveInputLabel(null)}
+          returnKeyType="done"
+          blurOnSubmit
+          onSubmitEditing={finishInput}
         />
-        <Text style={styles.formLabel}>추출된 문장</Text>
-        <View style={styles.quoteAttachmentHeader}>
-          <Text style={styles.quoteAttachmentHeaderText}>이미지 첨부</Text>
-          <TouchableOpacity style={styles.quoteAttachButton} onPress={() => void handleAttachImage()}>
-            <Text style={styles.quoteAttachButtonText}>갤러리에서 선택</Text>
-          </TouchableOpacity>
-        </View>
-        {attachedImage ? (
-          <View style={styles.attachmentCard}>
-            <View style={styles.attachmentInfo}>
-              <Text style={styles.attachmentTitle}>이미지 첨부됨</Text>
-              <Text style={styles.attachmentSub}>OCR 결과를 문장 칸에 반영했어요.</Text>
+        {validationErrorField === 'page' ? <Text style={styles.fieldErrorText}>{validationErrorMessage}</Text> : null}
+        <Text style={styles.formLabel}>{initialMethod === 'manual' ? '인상 깊은 문장' : '추출된 문장'}</Text>
+        {initialMethod === 'manual' ? null : (
+          <>
+            <View style={styles.quoteAttachmentHeader}>
+              <Text style={styles.quoteAttachmentHeaderText}>이미지 첨부</Text>
+              <TouchableOpacity style={styles.quoteAttachButton} onPress={() => void handleAttachImage()}>
+                <Text style={styles.quoteAttachButtonText}>갤러리에서 선택</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={handleRemoveAttachment}>
-              <Text style={styles.attachmentRemoveText}>삭제</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-        {attachmentError ? <Text style={styles.errorText}>{attachmentError}</Text> : null}
+            {attachedImage ? (
+              <View style={styles.attachmentCard}>
+                <View style={styles.attachmentInfo}>
+                  <Text style={styles.attachmentTitle}>이미지 첨부됨</Text>
+                  <Text style={styles.attachmentSub}>OCR 결과를 문장 칸에 반영했어요.</Text>
+                </View>
+                <TouchableOpacity onPress={handleRemoveAttachment}>
+                  <Text style={styles.attachmentRemoveText}>삭제</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+            {attachmentError ? <Text style={styles.errorText}>{attachmentError}</Text> : null}
+          </>
+        )}
         <TextInput
-          style={[styles.formTextArea, styles.quoteTextArea]}
+          ref={quoteInputRef}
+          style={[styles.formTextArea, styles.quoteTextArea, validationErrorField === 'quote' && styles.formTextAreaError]}
           value={quote}
           onChangeText={setQuote}
           multiline
           placeholder="인상 깊은 문장을 입력하세요"
-          inputAccessoryViewID={Platform.OS === 'ios' ? INPUT_ACCESSORY_IDS.quote : undefined}
           onFocus={() => handleInputFocus('추출된 문장')}
-          onBlur={() => setActiveInputLabel(null)}
+          returnKeyType="done"
+          blurOnSubmit
+          onSubmitEditing={finishInput}
         />
+        {validationErrorField === 'quote' ? <Text style={styles.fieldErrorText}>{validationErrorMessage}</Text> : null}
         <Text style={styles.formLabel}>내 코멘트 (선택)</Text>
         <TextInput
+          ref={memoInputRef}
           style={[styles.formTextArea, styles.memoTextArea]}
           value={memo}
           onChangeText={setMemo}
           multiline
           placeholder="이 문장이 만든 생각을 자유롭게 적어보세요"
-          inputAccessoryViewID={Platform.OS === 'ios' ? INPUT_ACCESSORY_IDS.memo : undefined}
           onFocus={() => handleInputFocus('내 코멘트', true)}
-          onBlur={() => setActiveInputLabel(null)}
+          returnKeyType="done"
+          blurOnSubmit
+          onSubmitEditing={finishInput}
         />
         <Text style={styles.formLabel}>폴더 선택</Text>
         <View style={styles.tagRow}>
@@ -451,14 +566,16 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
         {isCreatingFolder ? (
           <View style={styles.createFolderContainer}>
             <TextInput
+              ref={folderInputRef}
               style={styles.formInput}
               value={newFolderName}
               onChangeText={setNewFolderName}
               placeholder="새 폴더 이름 (최대 20자)"
               maxLength={20}
-              inputAccessoryViewID={Platform.OS === 'ios' ? INPUT_ACCESSORY_IDS.folder : undefined}
               onFocus={() => handleInputFocus('새 폴더 이름', true)}
-              onBlur={() => setActiveInputLabel(null)}
+              returnKeyType="done"
+              blurOnSubmit
+              onSubmitEditing={() => void handleCreateFolder()}
             />
             <TouchableOpacity
               style={[styles.createFolderButton, createFolderMutation.isPending && styles.submitButtonDisabled]}
@@ -481,37 +598,29 @@ export function QuoteFormScreen({ onBack, onSaved, initialMethod, initialQuoteTe
             <Text style={styles.tagChipTextActive}>{methodLabel}</Text>
           </View>
         </View>
-        {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
-        </ScrollView>
-        <View style={styles.submitBar}>
-          <TouchableOpacity style={[styles.submitButton, isSubmitDisabled && styles.submitButtonDisabled]} disabled={isSubmitDisabled} onPress={handleSubmit}>
-            {createQuoteMutation.isPending ? (
-              <ActivityIndicator color="#0d0d0d" size="small" />
-            ) : (
-              <Text style={styles.submitButtonText}>문장 저장하기</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-      {Platform.OS === 'ios' ? (
-        <>
-          {INPUT_ACCESSORIES.map((accessory) => (
-            <InputAccessoryView key={accessory.id} nativeID={accessory.id}>
-              <View style={styles.keyboardToolbar}>
-                <Text style={styles.keyboardToolbarLabel}>{accessory.label} 입력 중</Text>
-                <TouchableOpacity style={styles.keyboardDoneButton} onPress={finishInput}>
-                  <Text style={styles.keyboardDoneText}>완료</Text>
-                </TouchableOpacity>
-              </View>
-            </InputAccessoryView>
-          ))}
-        </>
-      ) : null}
-    </SafeAreaView>
+        {apiError ? <Text style={styles.errorText}>{apiError}</Text> : null}
+          </ScrollView>
+          <View style={styles.submitBar}>
+            <TouchableOpacity style={[styles.submitButton, isSubmitDisabled && styles.submitButtonDisabled]} disabled={isSubmitDisabled} onPress={handleSubmit}>
+              {createQuoteMutation.isPending ? (
+                <ActivityIndicator color="#0d0d0d" size="small" />
+              ) : (
+                <Text style={styles.submitButtonText}>문장 저장하기</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+        <View style={styles.edgeSwipeZone} {...edgeSwipeResponder.panHandlers} />
+      </SafeAreaView>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  formScreen: {
+    flex: 1,
+    backgroundColor: '#44c3f3',
+  },
   formSafeArea: { flex: 1, backgroundColor: '#44c3f3' },
   formHeader: {
     height: 62,
@@ -526,37 +635,6 @@ const styles = StyleSheet.create({
   backText: { fontSize: 21, color: '#0d0d0d', fontWeight: '700' },
   formHeaderTitle: { fontSize: 17, color: '#0d0d0d', fontWeight: '900' },
   formHeaderRight: { width: 21 },
-  keyboardToolbar: {
-    minHeight: 46,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#0d0d0d',
-    backgroundColor: '#b8e8f9',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  keyboardToolbarLabel: {
-    color: '#0d0d0d',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  keyboardDoneButton: {
-    minWidth: 58,
-    height: 32,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#0d0d0d',
-    backgroundColor: '#0d0d0d',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  keyboardDoneText: {
-    color: '#44c3f3',
-    fontSize: 12,
-    fontWeight: '900',
-  },
   keyboardAvoidingView: { flex: 1, backgroundColor: '#fff' },
   formScroll: { flex: 1, backgroundColor: '#fff' },
   formBody: {
@@ -575,6 +653,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     color: '#0d0d0d',
     fontSize: 14,
+  },
+  formInputError: {
+    borderColor: '#b14f4f',
+    backgroundColor: '#fff6f6',
   },
   searchResultsWrap: {
     marginTop: 8,
@@ -675,6 +757,10 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlignVertical: 'top',
   },
+  formTextAreaError: {
+    borderColor: '#b14f4f',
+    backgroundColor: '#fff6f6',
+  },
   quoteTextArea: {
     minHeight: 96,
     backgroundColor: '#44c3f3',
@@ -735,10 +821,24 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   submitButtonText: { color: '#0d0d0d', fontSize: 16, fontWeight: '900' },
+  edgeSwipeZone: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 28,
+    zIndex: 10,
+  },
   errorText: {
     marginTop: 10,
     color: '#b14f4f',
     fontSize: 12,
+  },
+  fieldErrorText: {
+    marginTop: 6,
+    color: '#b14f4f',
+    fontSize: 12,
+    fontWeight: '700',
   },
   helperText: {
     color: '#626262',

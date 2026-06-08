@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  InputAccessoryView,
+  Animated,
   Keyboard,
   NativeSyntheticEvent,
+  PanResponder,
   Platform,
   SafeAreaView,
   StatusBar,
@@ -15,8 +16,6 @@ import {
 } from 'react-native';
 import { OCR_SAMPLE_LINES } from '../model/mockData';
 import type { QuoteOcrBlock } from '../model/quoteOcr.types';
-
-const OCR_INPUT_ACCESSORY_ID = 'ocr-text-edit-accessory';
 
 type Props = {
   onBack: () => void;
@@ -97,6 +96,9 @@ export function OcrPreviewScreen({ onBack, onNext, blocks, text }: Props) {
   );
   const { fullText, blockRanges } = useMemo(() => buildOcrText(displayBlocks, text), [displayBlocks, text]);
   const textInputRef = useRef<TextInput | null>(null);
+  const edgeSwipeTranslateX = useRef(new Animated.Value(0)).current;
+  const edgeSwipeStartX = useRef(0);
+  const edgeSwipeAnimating = useRef(false);
   const [editableText, setEditableText] = useState(fullText);
   const [selection, setSelection] = useState<TextRange>({ start: 0, end: 0 });
   const [isEditing, setIsEditing] = useState(false);
@@ -144,80 +146,141 @@ export function OcrPreviewScreen({ onBack, onNext, blocks, text }: Props) {
     startEditing();
   };
 
+  const resetEdgeSwipe = () => {
+    Animated.spring(edgeSwipeTranslateX, {
+      toValue: 0,
+      friction: 9,
+      tension: 80,
+      useNativeDriver: true,
+    }).start(() => {
+      edgeSwipeAnimating.current = false;
+    });
+  };
+
+  const dismissEdgeSwipe = () => {
+    edgeSwipeAnimating.current = true;
+    Keyboard.dismiss();
+    Animated.timing(edgeSwipeTranslateX, {
+      toValue: 110,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      edgeSwipeAnimating.current = false;
+      edgeSwipeTranslateX.setValue(0);
+      onBack();
+    });
+  };
+
+  const edgeSwipeResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: (_, gestureState) => gestureState.x0 <= 28 && !edgeSwipeAnimating.current,
+        onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+          if (edgeSwipeAnimating.current) {
+            return false;
+          }
+          if (gestureState.x0 > 28) {
+            return false;
+          }
+
+          const absDx = Math.abs(gestureState.dx);
+          const absDy = Math.abs(gestureState.dy);
+          return gestureState.dx > 8 && absDx > absDy * 1.08;
+        },
+        onPanResponderGrant: () => {
+          edgeSwipeTranslateX.stopAnimation((value) => {
+            edgeSwipeStartX.current = value;
+          });
+        },
+        onPanResponderMove: (_, gestureState) => {
+          const next = Math.max(0, edgeSwipeStartX.current + gestureState.dx);
+          edgeSwipeTranslateX.setValue(Math.min(next, 110));
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          const threshold = 110 * 0.2;
+          if (gestureState.dx >= threshold) {
+            dismissEdgeSwipe();
+            return;
+          }
+          resetEdgeSwipe();
+        },
+        onPanResponderTerminate: () => {
+          resetEdgeSwipe();
+        },
+      }),
+    [edgeSwipeTranslateX],
+  );
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.brandTitle}>ReBook</Text>
-        <View style={styles.headerRight} />
-      </View>
+    <Animated.View style={[styles.screen, { transform: [{ translateX: edgeSwipeTranslateX }] }]}>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onBack}>
+            <Text style={styles.backText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.brandTitle}>ReBook</Text>
+          <View style={styles.headerRight} />
+        </View>
 
-      <View style={styles.content}>
-        <Text style={styles.title}>기록할 문장을 선택해주세요</Text>
-        <Text style={styles.description}>잘못 인식된 글자를 수정한 뒤, 원하는 부분을 길게 눌러 선택해주세요.</Text>
+        <View style={styles.content}>
+          <Text style={styles.title}>기록할 문장을 선택해주세요</Text>
+          <Text style={styles.description}>잘못 인식된 글자를 수정한 뒤, 원하는 부분을 길게 눌러 선택해주세요.</Text>
 
-        <View style={styles.selectionSummary}>
-          <View style={styles.selectionSummaryHeader}>
+          <View style={styles.selectionSummary}>
             <Text style={styles.selectionSummaryLabel}>선택한 문장</Text>
-            <TouchableOpacity style={styles.editToggleButton} onPress={handleEditToggle}>
-              <Text style={styles.editToggleText}>{isEditing ? '완료' : '수정하기'}</Text>
-            </TouchableOpacity>
+            <Text style={[styles.selectionSummaryText, !hasSelection && styles.selectionSummaryPlaceholder]} numberOfLines={3}>
+              {hasSelection ? selectedText.trim() : '텍스트에서 원하는 부분을 길게 눌러 선택하세요.'}
+            </Text>
           </View>
-          <Text style={[styles.selectionSummaryText, !hasSelection && styles.selectionSummaryPlaceholder]} numberOfLines={3}>
-            {hasSelection ? selectedText.trim() : '텍스트에서 원하는 부분을 길게 눌러 선택하세요.'}
-          </Text>
+
+          <View style={styles.textCard}>
+            <View style={styles.textCardHeader}>
+              <Text style={styles.textCardHeaderLabel}>인식된 텍스트</Text>
+              <TouchableOpacity style={styles.editToggleButton} onPress={handleEditToggle}>
+                <Text style={styles.editToggleText}>{isEditing ? '완료' : '수정하기'}</Text>
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              ref={textInputRef}
+              style={styles.ocrText}
+              value={editableText}
+              multiline
+              scrollEnabled
+              autoCorrect={false}
+              spellCheck={false}
+              showSoftInputOnFocus={isEditing}
+              onChangeText={handleTextChange}
+              selectionColor="#44c3f3"
+              selectionHandleColor="#0d0d0d"
+              onSelectionChange={handleSelectionChange}
+              textAlignVertical="top"
+              placeholder="인식된 문장을 입력하거나 수정해주세요."
+              placeholderTextColor="#8c8780"
+              accessibilityLabel="OCR 인식 텍스트 편집"
+            />
+          </View>
         </View>
 
-        <View style={styles.textCard}>
-          <TextInput
-            ref={textInputRef}
-            style={styles.ocrText}
-            value={editableText}
-            multiline
-            scrollEnabled
-            autoCorrect={false}
-            spellCheck={false}
-            readOnly={!isEditing}
-            showSoftInputOnFocus={isEditing}
-            onChangeText={handleTextChange}
-            selectionColor="#44c3f3"
-            selectionHandleColor="#0d0d0d"
-            onSelectionChange={handleSelectionChange}
-            textAlignVertical="top"
-            placeholder="인식된 문장을 입력하거나 수정해주세요."
-            placeholderTextColor="#8c8780"
-            accessibilityLabel="OCR 인식 텍스트 편집"
-            inputAccessoryViewID={Platform.OS === 'ios' ? OCR_INPUT_ACCESSORY_ID : undefined}
-          />
-        </View>
-      </View>
+        <TouchableOpacity
+          style={[styles.nextButton, !hasSelection && styles.nextButtonDisabled]}
+          onPress={() => onNext(selectedText.trim(), selectedBlockIds)}
+          disabled={!hasSelection}
+        >
+          <Text style={[styles.nextText, !hasSelection && styles.nextTextDisabled]}>이 문장 선택</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.nextButton, !hasSelection && styles.nextButtonDisabled]}
-        onPress={() => onNext(selectedText.trim(), selectedBlockIds)}
-        disabled={!hasSelection}
-      >
-        <Text style={[styles.nextText, !hasSelection && styles.nextTextDisabled]}>이 문장 선택</Text>
-      </TouchableOpacity>
-
-      {Platform.OS === 'ios' ? (
-        <InputAccessoryView nativeID={OCR_INPUT_ACCESSORY_ID}>
-          <View style={styles.keyboardAccessory}>
-            <Text style={styles.editToolbarLabel}>텍스트 수정 중</Text>
-            <TouchableOpacity style={styles.editToggleButton} onPress={finishEditing}>
-              <Text style={styles.editToggleText}>완료</Text>
-            </TouchableOpacity>
-          </View>
-        </InputAccessoryView>
-      ) : null}
-    </SafeAreaView>
+        <View style={styles.edgeSwipeZone} {...edgeSwipeResponder.panHandlers} />
+      </SafeAreaView>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#44c3f3',
+  },
   safeArea: { flex: 1, backgroundColor: '#44c3f3' },
   header: {
     height: 52,
@@ -240,7 +303,7 @@ const styles = StyleSheet.create({
   title: { color: '#0d0d0d', fontSize: 20, fontWeight: '900', marginBottom: 6 },
   description: { color: '#625c54', fontSize: 12, lineHeight: 18, marginBottom: 14 },
   selectionSummary: {
-    minHeight: 132,
+    minHeight: 104,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#0d0d0d',
@@ -248,12 +311,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  selectionSummaryHeader: {
+  textCard: {
+    flex: 1,
+    minHeight: 220,
+    borderWidth: 1,
+    borderColor: '#0d0d0d',
+    backgroundColor: '#fff',
+  },
+  textCardHeader: {
+    minHeight: 42,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#0d0d0d',
+    backgroundColor: '#b8e8f9',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
-    marginBottom: 8,
+  },
+  textCardHeaderLabel: {
+    color: '#0d0d0d',
+    fontSize: 12,
+    fontWeight: '900',
   },
   editToggleButton: {
     minWidth: 66,
@@ -269,29 +348,6 @@ const styles = StyleSheet.create({
     color: '#44c3f3',
     fontSize: 12,
     fontWeight: '900',
-  },
-  textCard: {
-    flex: 1,
-    minHeight: 220,
-    borderWidth: 1,
-    borderColor: '#0d0d0d',
-    backgroundColor: '#fff',
-  },
-  keyboardAccessory: {
-    minHeight: 46,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#0d0d0d',
-    backgroundColor: '#b8e8f9',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  editToolbarLabel: {
-    color: '#0d0d0d',
-    fontSize: 12,
-    fontWeight: '700',
   },
   ocrText: {
     flex: 1,
@@ -331,4 +387,12 @@ const styles = StyleSheet.create({
   nextButtonDisabled: { backgroundColor: '#7fd0ee' },
   nextText: { color: '#44c3f3', fontSize: 14, fontWeight: '900' },
   nextTextDisabled: { color: '#4c6974' },
+  edgeSwipeZone: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 28,
+    zIndex: 10,
+  },
 });
