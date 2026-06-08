@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { FreeReadingReportListResult } from '../model/freeReadingReportList.types';
+import { formatChatMessageAt } from '../../../shared/utils/formatChatMessageAt';
 
 type Props = {
   visible: boolean;
@@ -26,8 +27,8 @@ export function FreeReadingReportListModal({
           <Pressable style={styles.card} onPress={() => undefined}>
             <View style={styles.headerRow}>
               <View style={styles.headerTextWrap}>
-                <Text style={styles.eyebrow}>FREE READING REPORT</Text>
-                <Text style={styles.title}>이전 무료 독서 리포트</Text>
+                <Text style={styles.eyebrow}>READING REPORT</Text>
+                <Text style={styles.title}>이전 독서 리포트</Text>
               </View>
             </View>
             <Text style={styles.description}>
@@ -42,7 +43,7 @@ export function FreeReadingReportListModal({
             {!isLoading && !errorMessage && reportList && reportList.items.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyTitle}>아직 이전 리포트가 없어요.</Text>
-                <Text style={styles.emptyBody}>무료 독서 리포트를 만들면, 나의 흐름이 쌓인 기록을 여기서 다시 열어볼 수 있어요.</Text>
+                <Text style={styles.emptyBody}>독서 리포트를 만들면, 나의 흐름이 쌓인 기록을 여기서 다시 열어볼 수 있어요.</Text>
               </View>
             ) : null}
 
@@ -55,7 +56,7 @@ export function FreeReadingReportListModal({
                   </View>
                   <View style={styles.listMetaRow}>
                     <Text style={styles.listMeta}>정리 시각</Text>
-                    <Text style={styles.listMeta}>{item.generatedAt ?? '아직 정리 중'}</Text>
+                    <Text style={styles.listMeta}>{item.generatedAt ? formatChatMessageAt(item.generatedAt) : '아직 정리 중'}</Text>
                   </View>
                   <Text style={styles.listStatusMeta}>{item.lastRunStatus ?? '아직 완성 중'}</Text>
                 </TouchableOpacity>

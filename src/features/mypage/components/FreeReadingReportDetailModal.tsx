@@ -22,10 +22,10 @@ export function FreeReadingReportDetailModal({ visible, reportId, onClose }: Pro
         <Pressable style={styles.card} onPress={() => undefined}>
           <View style={styles.handle} />
           <View style={styles.headerRow}>
-            <View style={styles.headerTextWrap}>
-              <Text style={styles.eyebrow}>FREE READING REPORT</Text>
-              <Text style={styles.title}>무료 독서 리포트 상세보기</Text>
-            </View>
+              <View style={styles.headerTextWrap}>
+                <Text style={styles.eyebrow}>READING REPORT</Text>
+                <Text style={styles.title}>독서 리포트 결과 확인하기</Text>
+              </View>
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
               <Text style={styles.closeButtonText}>닫기</Text>
             </TouchableOpacity>
@@ -53,6 +53,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   card: {
+    width: '100%',
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#44c3f3',
