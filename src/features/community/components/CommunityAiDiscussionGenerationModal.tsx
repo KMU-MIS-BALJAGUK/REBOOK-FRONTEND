@@ -113,11 +113,26 @@ export function CommunityAiDiscussionGenerationModal({
         clearTimers();
         setProgress(0);
         setShowResult(false);
-        animateProgressTo(80, 5000, () => {
+        animateProgressTo(60, 7000, () => {
           if (previousStatusRef.current !== 'loading') {
             return;
           }
-          animateProgressTo(90, 5000);
+          animateProgressTo(70, 5000, () => {
+            if (previousStatusRef.current !== 'loading') {
+              return;
+            }
+            animateProgressTo(80, 4000, () => {
+              if (previousStatusRef.current !== 'loading') {
+                return;
+              }
+              animateProgressTo(90, 2000, () => {
+                if (previousStatusRef.current !== 'loading') {
+                  return;
+                }
+                animateProgressTo(98, 4000);
+              });
+            });
+          });
         });
       }
       return;
@@ -125,13 +140,10 @@ export function CommunityAiDiscussionGenerationModal({
 
     if (previousStatusRef.current === 'loading') {
       setShowResult(false);
-      const baseProgress = Math.max(progressRef.current, 90);
+      const baseProgress = Math.min(Math.max(progressRef.current, 0), 98);
       setProgress(baseProgress);
       animateProgressTo(100, 1000, () => {
-        settleTimeoutRef.current = setTimeout(() => {
-          settleTimeoutRef.current = null;
-          setShowResult(true);
-        }, 1000);
+        setShowResult(true);
       });
     } else if (status === 'success' || status === 'empty' || status === 'error') {
       if (status === 'success') {
