@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   searchResultTitle: {
-    color: '#2f2a24',
+    color: '#111',
     fontSize: 13,
     fontWeight: '700',
     marginBottom: 2,

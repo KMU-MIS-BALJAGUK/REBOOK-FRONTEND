@@ -44,6 +44,7 @@ export function QuoteQuestionCardsScreen({
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [resultReady, setResultReady] = useState(true);
   const previousStatusRef = useRef<QuoteQuestionCardStatus>(status);
+  const loadingProgressRef = useRef(0);
   const loadingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const settleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -58,60 +59,94 @@ export function QuoteQuestionCardsScreen({
     }
   };
 
+  const animateProgressTo = (
+    target: number,
+    duration: number,
+    onComplete?: () => void,
+  ) => {
+    clearProgressTimers();
+    const current = loadingProgressRef.current;
+
+    if (current === target) {
+      if (onComplete) {
+        settleTimeoutRef.current = setTimeout(() => {
+          settleTimeoutRef.current = null;
+          onComplete();
+        }, 0);
+      }
+      return;
+    }
+
+    const step = target > current ? 1 : -1;
+    const distance = Math.abs(target - current);
+    const intervalMs = Math.max(20, Math.round(duration / Math.max(distance, 1)));
+    let nextValue = current;
+
+    loadingIntervalRef.current = setInterval(() => {
+      nextValue += step;
+      const reachedTarget = step > 0 ? nextValue >= target : nextValue <= target;
+      const safeValue = reachedTarget ? target : nextValue;
+      setLoadingProgress(safeValue);
+
+      if (reachedTarget) {
+        clearProgressTimers();
+        if (onComplete) {
+          settleTimeoutRef.current = setTimeout(() => {
+            settleTimeoutRef.current = null;
+            onComplete();
+          }, 0);
+        }
+      }
+    }, intervalMs);
+  };
+
+  useEffect(() => {
+    loadingProgressRef.current = loadingProgress;
+  }, [loadingProgress]);
+
   useEffect(() => {
     setSelectedCardId(null);
   }, [quote.quoteId]);
 
   useEffect(() => {
-    if (status !== 'loading') {
-      return;
-    }
-
-    clearProgressTimers();
-    setLoadingProgress(0);
-    setResultReady(false);
-
-    loadingIntervalRef.current = setInterval(() => {
-      setLoadingProgress((current) => Math.min(current + 2, 80));
-    }, 125);
-
-    return clearProgressTimers;
-  }, [status]);
-
-  useEffect(() => {
-    if (previousStatusRef.current === 'loading' && status !== 'loading') {
-      setResultReady(false);
-      clearProgressTimers();
-
-      const advanceToFull = () => {
-        setLoadingProgress((current) => {
-          if (current >= 100) {
-            return 100;
-          }
-
-          const next = Math.min(current + 4, 100);
-          if (next < 100) {
-            settleTimeoutRef.current = setTimeout(advanceToFull, 70);
-          } else {
-            settleTimeoutRef.current = setTimeout(() => {
-              setResultReady(true);
-              settleTimeoutRef.current = null;
-            }, 120);
-          }
-          return next;
-        });
-      };
-
-      settleTimeoutRef.current = setTimeout(advanceToFull, 60);
+    if (status === 'loading') {
+      const wasLoading = previousStatusRef.current === 'loading';
       previousStatusRef.current = status;
+
+      if (!wasLoading) {
+        clearProgressTimers();
+        setLoadingProgress(0);
+        setResultReady(false);
+        animateProgressTo(80, 5000, () => {
+          if (previousStatusRef.current !== 'loading') {
+            return;
+          }
+
+          animateProgressTo(90, 5000);
+        });
+      }
+
       return clearProgressTimers;
     }
 
-    if (status !== 'loading') {
+    if (previousStatusRef.current === 'loading') {
+      setResultReady(false);
+      const baseProgress = Math.max(loadingProgressRef.current, 90);
+      setLoadingProgress(baseProgress);
+      animateProgressTo(100, 1000, () => {
+        settleTimeoutRef.current = setTimeout(() => {
+          settleTimeoutRef.current = null;
+          setResultReady(true);
+        }, 1000);
+      });
+    } else {
+      clearProgressTimers();
       setResultReady(true);
     }
 
     previousStatusRef.current = status;
+
+    return clearProgressTimers;
   }, [status]);
 
   const isLoadingView = status === 'loading' || !resultReady;
@@ -134,14 +169,20 @@ export function QuoteQuestionCardsScreen({
           <Text style={styles.headerAction}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>문장 질문 카드</Text>
-        <View style={styles.headerSpacer} />
+        {shouldShowSuccessView ? (
+          <TouchableOpacity onPress={onDone} hitSlop={10}>
+            <Text style={styles.headerDone}>나가기</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerSpacer} />
+        )}
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.lead}>
           한 문장을 오래 붙잡을수록 생각은 더 멀리 갑니다. AI가 이 문장에서 이어질 질문을 만들어드릴게요.
         </Text>
-        <Text style={styles.subLead}>마음에 드는 질문을 고르면 바로 딥리딩 대화로 이어갈 수 있어요.</Text>
+        <Text style={styles.subLead}>마음에 드는 질문을 고르면 바로 AI 채팅으로 이어갈 수 있어요.</Text>
 
         <View style={styles.quoteCard}>
           <Text style={styles.quoteMeta}>
@@ -152,8 +193,8 @@ export function QuoteQuestionCardsScreen({
 
         {status === 'idle' ? (
           <View style={styles.stateBlock}>
-            <Text style={styles.stateTitle}>아직 질문을 만들지 않았어요.</Text>
-            <Text style={styles.stateBody}>AI가 저장한 문장을 바탕으로 대화를 열기 좋은 질문을 생성합니다.</Text>
+            <Text style={styles.stateTitle}>질문을 생성해보세요.</Text>
+            <Text style={styles.stateBody}>문장을 바탕으로 대화를 시작하기 좋은 질문을 만들 수 있어요.</Text>
           </View>
         ) : null}
 
@@ -163,8 +204,8 @@ export function QuoteQuestionCardsScreen({
             <Text style={styles.loadingBody}>문장을 읽고 생각을 확장할 수 있는 질문을 정리하고 있습니다.</Text>
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: `${loadingProgress}%` }]} />
+              <Text style={styles.progressText}>{loadingProgress}%</Text>
             </View>
-            <Text style={styles.progressText}>{loadingProgress}%</Text>
           </View>
         ) : null}
 
@@ -211,22 +252,17 @@ export function QuoteQuestionCardsScreen({
 
       <View style={styles.bottomBar}>
         {shouldShowSuccessView ? (
-          <>
-            <TouchableOpacity style={styles.secondaryButton} onPress={onDone}>
-              <Text style={styles.secondaryButtonText}>완료</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.primaryButton, !canStartChat && styles.primaryButtonDisabled]}
-              disabled={!canStartChat}
-              onPress={() => {
-                if (selectedCard) {
-                  onStartChat(selectedCard);
-                }
-              }}
-            >
-              <Text style={styles.primaryButtonText}>선택한 질문으로 AI와 채팅 시작하기</Text>
-            </TouchableOpacity>
-          </>
+          <TouchableOpacity
+            style={[styles.primaryButton, !canStartChat && styles.primaryButtonDisabled]}
+            disabled={!canStartChat}
+            onPress={() => {
+              if (selectedCard) {
+                onStartChat(selectedCard);
+              }
+            }}
+          >
+            <Text style={styles.primaryButtonText}>선택한 질문으로 AI와 채팅 시작하기</Text>
+          </TouchableOpacity>
         ) : (
           <>
             <TouchableOpacity style={styles.secondaryButton} onPress={onSkip} disabled={isLoadingView}>
@@ -272,6 +308,13 @@ const styles = StyleSheet.create({
   headerSpacer: {
     width: 24,
   },
+  headerDone: {
+    minWidth: 24,
+    fontSize: 15,
+    color: '#44c3f3',
+    fontWeight: '700',
+    textAlign: 'right',
+  },
   scroll: {
     flex: 1,
     backgroundColor: '#fff',
@@ -292,17 +335,19 @@ const styles = StyleSheet.create({
     marginTop: -8,
     fontSize: 14,
     lineHeight: 21,
-    color: '#6b645d',
+    color: '#66707a',
   },
   quoteCard: {
     padding: 18,
     borderRadius: 18,
-    backgroundColor: '#f7f3ed',
+    backgroundColor: '#fff',
     gap: 10,
+    borderWidth: 1,
+    borderColor: '#dbe3ea',
   },
   quoteMeta: {
     fontSize: 12,
-    color: '#7a7269',
+    color: '#66707a',
     fontWeight: '600',
   },
   quoteText: {
@@ -324,7 +369,7 @@ const styles = StyleSheet.create({
   stateBody: {
     fontSize: 14,
     lineHeight: 21,
-    color: '#6b645d',
+    color: '#66707a',
   },
   loadingBlock: {
     paddingVertical: 8,
@@ -339,14 +384,15 @@ const styles = StyleSheet.create({
   loadingBody: {
     fontSize: 14,
     lineHeight: 21,
-    color: '#6b645d',
+    color: '#66707a',
   },
   progressTrack: {
     width: '100%',
     height: 10,
     borderRadius: 999,
-    backgroundColor: '#f1ece4',
+    backgroundColor: '#eef3f6',
     overflow: 'hidden',
+    justifyContent: 'center',
   },
   progressFill: {
     height: '100%',
@@ -355,8 +401,12 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 13,
-    color: '#8d8479',
+    color: '#111',
     fontWeight: '600',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
   },
   resultSection: {
     gap: 12,
@@ -364,7 +414,7 @@ const styles = StyleSheet.create({
   resultLead: {
     fontSize: 15,
     lineHeight: 22,
-    color: '#4c4640',
+    color: '#66707a',
   },
   cardList: {
     gap: 12,
@@ -373,13 +423,13 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#ece7df',
+    borderColor: '#dbe3ea',
     backgroundColor: '#fff',
     gap: 10,
   },
   questionCardActive: {
-    borderColor: '#181614',
-    backgroundColor: '#fbf7ef',
+    borderColor: '#111',
+    backgroundColor: '#eef8fd',
   },
   questionCardTop: {
     flexDirection: 'row',
@@ -389,59 +439,61 @@ const styles = StyleSheet.create({
   },
   questionType: {
     fontSize: 12,
-    color: '#7a7269',
+    color: '#66707a',
     fontWeight: '600',
   },
   questionTypeActive: {
-    color: '#181614',
+    color: '#111',
   },
   selectedLabel: {
     fontSize: 11,
-    color: '#181614',
+    color: '#111',
     fontWeight: '700',
   },
   questionText: {
     fontSize: 18,
     lineHeight: 27,
-    color: '#181614',
+    color: '#111',
     fontWeight: '600',
   },
   questionGuide: {
     fontSize: 13,
     lineHeight: 20,
-    color: '#6b645d',
+    color: '#66707a',
   },
   bottomBar: {
     paddingHorizontal: 20,
     paddingTop: 14,
     paddingBottom: 20,
     borderTopWidth: 1,
-    borderTopColor: '#ece7df',
+    borderTopColor: '#dbe3ea',
     backgroundColor: '#fff',
     gap: 10,
   },
   secondaryButton: {
     minHeight: 52,
-    borderRadius: 14,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f5f1eb',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#111',
   },
   secondaryButtonText: {
     fontSize: 15,
-    color: '#514b45',
+    color: '#111',
     fontWeight: '600',
   },
   primaryButton: {
     minHeight: 56,
-    borderRadius: 16,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#181614',
     paddingHorizontal: 16,
   },
   primaryButtonDisabled: {
-    backgroundColor: '#b8b0a6',
+    backgroundColor: '#8e9aa3',
   },
   primaryButtonText: {
     fontSize: 15,

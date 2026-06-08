@@ -57,6 +57,6 @@ const styles = StyleSheet.create({
   guide: {
     fontSize: 13,
     lineHeight: 20,
-    color: '#5b544b',
+    color: '#66707a',
   },
 });

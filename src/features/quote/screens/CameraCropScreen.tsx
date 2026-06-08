@@ -1,6 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
   Image,
   LayoutChangeEvent,
   PanResponder,
@@ -50,6 +51,17 @@ export function CameraCropScreen({ asset, onBack, onConfirm, isSubmitting, submi
   const rightStartRef = useRef(0);
   const topStartRef = useRef(0);
   const bottomStartRef = useRef(0);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      onBack();
+      return true;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [onBack]);
 
   const cropWidthPx = Math.max(0, imageWidth - leftPx - rightPx);
   const cropHeightPx = Math.max(0, bottomPx - topPx);
@@ -191,7 +203,7 @@ export function CameraCropScreen({ asset, onBack, onConfirm, isSubmitting, submi
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack}>
+        <TouchableOpacity onPress={onBack} hitSlop={10} style={styles.backButton}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>이미지 자르기</Text>
@@ -270,6 +282,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   backText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  backButton: {
+    minWidth: 40,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: { color: '#fff', fontSize: 15, fontWeight: '700' },
   headerSpacer: { width: 18 },
   guideText: {

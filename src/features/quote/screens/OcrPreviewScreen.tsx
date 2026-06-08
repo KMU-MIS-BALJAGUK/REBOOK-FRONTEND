@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingVertical: 16,
-    color: '#322d27',
+    color: '#111',
     fontSize: 15,
     lineHeight: 25,
     backgroundColor: '#fff',
