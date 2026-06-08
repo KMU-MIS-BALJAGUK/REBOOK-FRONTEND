@@ -1,7 +1,7 @@
-import React from 'react';
-import { useDeferredValue, useEffect, useState } from 'react';
+import React, { useDeferredValue, useEffect, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { File } from 'expo-file-system';
+import { View } from 'react-native';
 import { useAppFlow } from './useAppFlow';
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
 import { HomeScreen } from '../features/home/HomeScreen';
@@ -39,6 +39,7 @@ import {
   QuoteQuestionCardStatus,
 } from '../features/quote/model/quoteQuestionCard.types';
 import { DeepReadingChatLaunchContext } from '../features/ai-chat/model/deepReadingChat.types';
+import { BottomNav } from '../shared/ui/BottomNav';
 
 type OcrQuoteContext = QuoteImageAttachmentResult;
 
@@ -67,6 +68,27 @@ function createUserFacingError(message: string): UserFacingError {
   const error = new Error(message) as UserFacingError;
   error.userMessage = message;
   return error;
+}
+
+function MainTabShell({
+  active,
+  onPressCommunity,
+  onPressHome,
+  onPressAiChat,
+  children,
+}: {
+  active: 'community' | 'home' | 'ai-chat';
+  onPressCommunity: () => void;
+  onPressHome: () => void;
+  onPressAiChat: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={{ flex: 1 }}>
+      {children}
+      <BottomNav active={active} onPressCommunity={onPressCommunity} onPressHome={onPressHome} onPressAiChat={onPressAiChat} />
+    </View>
+  );
 }
 
 function resolveQuoteImageFileExtension(contentType: string, fileName?: string | null) {
@@ -254,7 +276,6 @@ export default function AppRoot() {
     quoteQuestionCardsQuery.data?.lastRunStatus === 'FAILED'
       ? 'error'
       : generateQuoteQuestionCardsMutation.isPending ||
-          (quoteQuestionCardsQuery.isLoading && !quoteQuestionCardsQuery.data) ||
           quoteQuestionCardsQuery.data?.status === 'GENERATING'
         ? 'loading'
         : quoteQuestionCardsQuery.data?.status === 'READY'
@@ -264,7 +285,11 @@ export default function AppRoot() {
           : 'idle';
 
   const openQuoteQuestionCards = (result: CreateQuoteResult) => {
-    setSavedQuoteForQuestions(toQuestionCardQuoteSummary(result));
+    openQuoteQuestionCardsFromSummary(toQuestionCardQuoteSummary(result));
+  };
+
+  const openQuoteQuestionCardsFromSummary = (quote: QuoteQuestionCardQuoteSummary) => {
+    setSavedQuoteForQuestions(quote);
     generateQuoteQuestionCardsMutation.reset();
     actions.setScreen('quote-question-cards');
   };
@@ -328,28 +353,45 @@ export default function AppRoot() {
 
   if (state.screen === 'home') {
     return (
-      <HomeScreen
-        nickname={state.nickname}
-        tab={state.homeTab}
-        onChangeTab={actions.setHomeTab}
-        onPressRegister={() => actions.setScreen('quote-method')}
+      <MainTabShell
+        active="home"
         onPressCommunity={() => actions.setScreen('community')}
+        onPressHome={() => {}}
         onPressAiChat={() => actions.setScreen('ai-chat')}
-        onPressMyPage={() => actions.setScreen('mypage')}
-      />
+      >
+        <HomeScreen
+          nickname={state.nickname}
+          tab={state.homeTab}
+          onChangeTab={actions.setHomeTab}
+          onPressRegister={() => actions.setScreen('quote-method')}
+          onPressCommunity={() => actions.setScreen('community')}
+          onPressAiChat={() => actions.setScreen('ai-chat')}
+          onPressMyPage={() => actions.setScreen('mypage')}
+          onPressGenerateQuestions={(quote) => openQuoteQuestionCardsFromSummary(quote)}
+          showBottomNav={false}
+        />
+      </MainTabShell>
     );
   }
 
   if (state.screen === 'ai-chat') {
     return (
-      <AiChatScreen
-        nickname={state.nickname}
-        onPressHome={() => actions.setScreen('home')}
+      <MainTabShell
+        active="ai-chat"
         onPressCommunity={() => actions.setScreen('community')}
-        onPressMyPage={() => actions.setScreen('mypage')}
-        launchContext={aiChatLaunchContext}
-        onConsumeLaunchContext={() => setAiChatLaunchContext(null)}
-      />
+        onPressHome={() => actions.setScreen('home')}
+        onPressAiChat={() => {}}
+      >
+        <AiChatScreen
+          nickname={state.nickname}
+          onPressHome={() => actions.setScreen('home')}
+          onPressCommunity={() => actions.setScreen('community')}
+          onPressMyPage={() => actions.setScreen('mypage')}
+          launchContext={aiChatLaunchContext}
+          onConsumeLaunchContext={() => setAiChatLaunchContext(null)}
+          showBottomNav={false}
+        />
+      </MainTabShell>
     );
   }
 
@@ -368,12 +410,20 @@ export default function AppRoot() {
 
   if (state.screen === 'community') {
     return (
-      <CommunityScreen
-        nickname={state.nickname}
+      <MainTabShell
+        active="community"
+        onPressCommunity={() => {}}
         onPressHome={() => actions.setScreen('home')}
         onPressAiChat={() => actions.setScreen('ai-chat')}
-        onPressMyPage={() => actions.setScreen('mypage')}
-      />
+      >
+        <CommunityScreen
+          nickname={state.nickname}
+          onPressHome={() => actions.setScreen('home')}
+          onPressAiChat={() => actions.setScreen('ai-chat')}
+          onPressMyPage={() => actions.setScreen('mypage')}
+          showBottomNav={false}
+        />
+      </MainTabShell>
     );
   }
 
