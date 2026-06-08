@@ -1,5 +1,22 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  Animated,
+  Dimensions,
+  Easing,
+  Keyboard,
+  Modal,
+  PanResponder,
+  Linking,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useMyProfile } from './hooks/useMyProfile';
 import { toUserMessage } from '../../shared/utils/apiError';
 import { useUpdateMyNickname } from './hooks/useUpdateMyNickname';
@@ -8,9 +25,12 @@ import { useMyInsights } from './hooks/useMyInsights';
 import { useLogout } from './hooks/useLogout';
 import { useDeleteAccount } from './hooks/useDeleteAccount';
 import { FreeReadingReportPanel } from './components/FreeReadingReportPanel';
-import { FreeReadingReportResult, FreeReadingReportStatus } from './model/freeReadingReport.types';
+import { FreeReadingReportListModal } from './components/FreeReadingReportListModal';
+import { FreeReadingReportDetailModal } from './components/FreeReadingReportDetailModal';
 import { useGenerateFreeReadingReport } from './hooks/useGenerateFreeReadingReport';
 import { useFreeReadingReport } from './hooks/useFreeReadingReport';
+import { useFreeReadingReports } from './hooks/useFreeReadingReports';
+import { FreeReadingReportGenerationModal } from './components/FreeReadingReportGenerationModal';
 
 type Props = {
   nickname: string;
@@ -25,6 +45,7 @@ type ViewMode = 'main' | 'settings';
 export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressAiChat, onLoggedOut }: Props) {
   void onPressCommunity;
   void onPressAiChat;
+  const windowWidth = Dimensions.get('window').width;
   const [mode, setMode] = useState<ViewMode>('main');
   const [isNicknameEditVisible, setIsNicknameEditVisible] = useState(false);
   const [isBioEditVisible, setIsBioEditVisible] = useState(false);
@@ -32,10 +53,12 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
   const [bioInput, setBioInput] = useState('');
   const [nicknameError, setNicknameError] = useState<string | null>(null);
   const [bioError, setBioError] = useState<string | null>(null);
-  const [freeReportStatus, setFreeReportStatus] = useState<FreeReadingReportStatus>('idle');
-  const [freeReportResult, setFreeReportResult] = useState<FreeReadingReportResult | null>(null);
-  const [freeReportError, setFreeReportError] = useState<string | null>(null);
   const [freeReportId, setFreeReportId] = useState<number | null>(null);
+  const [isFreeReadingReportGenerationVisible, setIsFreeReadingReportGenerationVisible] = useState(false);
+  const [freeReadingReportGenerationMode, setFreeReadingReportGenerationMode] = useState<'intro' | 'active'>('intro');
+  const [isFreeReadingReportListVisible, setIsFreeReadingReportListVisible] = useState(false);
+  const [selectedFreeReadingReportId, setSelectedFreeReadingReportId] = useState<number | null>(null);
+  const [isFreeReadingReportDetailVisible, setIsFreeReadingReportDetailVisible] = useState(false);
   const myProfileQuery = useMyProfile();
   const myInsightsQuery = useMyInsights();
   const updateNicknameMutation = useUpdateMyNickname();
@@ -47,11 +70,21 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
     reportId: freeReportId,
     enabled: freeReportId !== null,
   });
+  const freeReadingReportsQuery = useFreeReadingReports({
+    enabled: isFreeReadingReportListVisible,
+  });
+  const screenTranslateX = useRef(new Animated.Value(0)).current;
   const profile = myProfileQuery.data;
   const insights = myInsightsQuery.data;
   const displayName = profile?.nickname?.trim() || (nickname.trim() ? nickname : '독서가');
   const displayBio = profile?.bio?.trim() || '책과 함께 성장하는 중';
   const displayInitial = profile?.initial?.trim() || '나';
+  const isAnyOverlayVisible =
+    isNicknameEditVisible ||
+    isBioEditVisible ||
+    isFreeReadingReportGenerationVisible ||
+    isFreeReadingReportListVisible ||
+    isFreeReadingReportDetailVisible;
   const statCards = [
     { label: '저장한 문장', value: String(insights?.savedQuoteCount ?? 0) },
     { label: '등록한 책', value: String(insights?.registeredBookCount ?? 0) },
@@ -60,12 +93,95 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
   ];
 
   useEffect(() => {
-    if (!freeReadingReportQuery.data) {
-      return;
-    }
+    screenTranslateX.setValue(0);
+  }, [mode, screenTranslateX]);
 
-    setFreeReportResult(freeReadingReportQuery.data);
-  }, [freeReadingReportQuery.data]);
+  const handleSwipeBack = () => {
+    Animated.timing(screenTranslateX, {
+      toValue: windowWidth,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      screenTranslateX.setValue(0);
+
+      if (mode === 'settings') {
+        setMode('main');
+        return;
+      }
+
+      Keyboard.dismiss();
+      onPressHome();
+    });
+  };
+
+  const handleSwipeCancel = () => {
+    Animated.spring(screenTranslateX, {
+      toValue: 0,
+      damping: 22,
+      stiffness: 220,
+      mass: 0.8,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const screenPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: (_, gestureState) => {
+          if (isAnyOverlayVisible) {
+            return false;
+          }
+
+          return gestureState.x0 <= 32;
+        },
+        onStartShouldSetPanResponderCapture: (_, gestureState) => {
+          if (isAnyOverlayVisible) {
+            return false;
+          }
+
+          return gestureState.x0 <= 32;
+        },
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          if (isAnyOverlayVisible) {
+            return false;
+          }
+
+          const isHorizontalIntent = Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.1;
+          return gestureState.x0 <= 32 && gestureState.dx > 4 && isHorizontalIntent;
+        },
+        onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+          if (isAnyOverlayVisible) {
+            return false;
+          }
+
+          const isHorizontalIntent = Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.1;
+          return gestureState.x0 <= 32 && gestureState.dx > 4 && isHorizontalIntent;
+        },
+        onPanResponderMove: (_, gestureState) => {
+          if (gestureState.dx <= 0) {
+            screenTranslateX.setValue(0);
+            return;
+          }
+
+          const maxTranslateX = windowWidth * 0.42;
+          screenTranslateX.setValue(Math.min(gestureState.dx, maxTranslateX));
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          const shouldGoBack = gestureState.dx > windowWidth * 0.2;
+
+          if (shouldGoBack) {
+            handleSwipeBack();
+            return;
+          }
+
+          handleSwipeCancel();
+        },
+        onPanResponderTerminate: handleSwipeCancel,
+        onPanResponderTerminationRequest: () => false,
+      }),
+    [handleSwipeBack, handleSwipeCancel, isAnyOverlayVisible, screenTranslateX, windowWidth],
+  );
 
   const handleOpenNicknameEdit = () => {
     setNicknameInput(displayName);
@@ -184,18 +300,51 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
   };
 
   const handleGenerateFreeReport = () => {
-    setFreeReportError(null);
+    setFreeReadingReportGenerationMode('active');
     generateFreeReadingReportMutation.mutate(undefined, {
       onSuccess: async (result) => {
         setFreeReportId(result.reportId);
-        await freeReadingReportQuery.refetch();
-      },
-      onError: (error) => {
-        setFreeReportResult(null);
-        setFreeReportError(toUserMessage(error));
-        setFreeReportStatus('error');
       },
     });
+  };
+
+  const handleOpenFreeReportAnalysis = () => {
+    setIsFreeReadingReportGenerationVisible(true);
+    setFreeReadingReportGenerationMode('intro');
+  };
+
+  const handleStartFreeReportGeneration = () => {
+    setFreeReadingReportGenerationMode('active');
+    handleGenerateFreeReport();
+  };
+
+  const handleOpenFreeReportList = () => {
+    setIsFreeReadingReportListVisible(true);
+  };
+
+  const handleOpenExternalLink = async (url: string) => {
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) {
+      Alert.alert('링크를 열 수 없습니다.');
+      return;
+    }
+
+    await Linking.openURL(url);
+  };
+
+  const handleSelectFreeReport = (reportId: number) => {
+    setSelectedFreeReadingReportId(reportId);
+    setIsFreeReadingReportDetailVisible(true);
+    setIsFreeReadingReportListVisible(false);
+  };
+
+  const handleCloseFreeReportList = () => {
+    setIsFreeReadingReportListVisible(false);
+  };
+
+  const handleCloseFreeReportDetail = () => {
+    setIsFreeReadingReportDetailVisible(false);
+    setSelectedFreeReadingReportId(null);
   };
 
   const editModals = (
@@ -271,7 +420,7 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
       <>
         <SafeAreaView style={styles.safeArea}>
           <StatusBar barStyle="light-content" />
-          <View style={styles.screenShell}>
+          <Animated.View style={[styles.screenShell, { transform: [{ translateX: screenTranslateX }] }]} {...screenPanResponder.panHandlers}>
             <View style={styles.settingsHeader}>
               <TouchableOpacity style={styles.headerIconButton} onPress={() => setMode('main')}>
                 <Text style={styles.headerIcon}>←</Text>
@@ -291,8 +440,8 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
 
               <Text style={styles.groupLabel}>앱 정보</Text>
               <SettingRow title="버전 정보" icon="ⓘ" right="1.0.0" />
-              <SettingRow title="이용약관" />
-              <SettingRow title="개인정보처리방침" />
+              <SettingRow title="이용약관" onPress={() => handleOpenExternalLink('https://tidy-hide-620.notion.site/3786a5db448b8087a4c1df54a9d2f812?pvs=74')} />
+              <SettingRow title="개인정보처리방침" onPress={() => handleOpenExternalLink('https://tidy-hide-620.notion.site/3786a5db448b804aab13c8ff4a6c0a4d')} />
               <SettingRow title="오픈소스 라이선스" />
 
               {logoutMutation.isError ? <Text style={styles.errorText}>{toUserMessage(logoutMutation.error)}</Text> : null}
@@ -313,7 +462,7 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
                 disabled={deleteAccountMutation.isPending}
               />
             </ScrollView>
-          </View>
+          </Animated.View>
         </SafeAreaView>
         {editModals}
       </>
@@ -324,7 +473,7 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
     <>
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="light-content" />
-        <View style={styles.screenShell}>
+        <Animated.View style={[styles.screenShell, { transform: [{ translateX: screenTranslateX }] }]} {...screenPanResponder.panHandlers}>
           <View style={styles.topPanel}>
             <View style={styles.topHeader}>
               <TouchableOpacity style={styles.headerIconButton} onPress={onPressHome}>
@@ -345,15 +494,7 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
               {myProfileQuery.isError ? <Text style={styles.errorText}>{toUserMessage(myProfileQuery.error)}</Text> : null}
             </View>
 
-            <View style={styles.plusCard}>
-              <Text style={styles.plusTitle}>👑 ReBook Plus</Text>
-              <Text style={styles.plusBody}>월 9900원으로 나의 독서 취향을 더 깊게 확인해보세요.</Text>
-              <Text style={styles.plusList}>• 내 독서 성향 분석</Text>
-              <Text style={styles.plusList}>• 감정/키워드 리포트</Text>
-              <Text style={styles.plusList}>• AI 해석 확장</Text>
-              <Text style={styles.plusList}>• 내가 쓴 게시물 모아보기</Text>
-              <TouchableOpacity style={styles.plusBtn}><Text style={styles.plusBtnText}>자세히 보기</Text></TouchableOpacity>
-            </View>
+            <FreeReadingReportPanel onOpenAnalysis={handleOpenFreeReportAnalysis} onOpenList={handleOpenFreeReportList} />
 
             <View style={styles.statsGrid}>
               {statCards.map((item) => (
@@ -395,33 +536,54 @@ export function MyPageScreen({ nickname, onPressHome, onPressCommunity, onPressA
                 </View>
               </View>
             </View>
-
-            <FreeReadingReportPanel
-              status={
-                generateFreeReadingReportMutation.isPending
-                  ? 'loading'
-                  : freeReadingReportQuery.isLoading && !freeReadingReportQuery.data
-                    ? 'loading'
-                    : generateFreeReadingReportMutation.isError || freeReadingReportQuery.isError || freeReadingReportQuery.data?.fetchStatus === 'FAILED' || freeReadingReportQuery.data?.lastRunStatus === 'FAILED'
-                    ? 'error'
-                    : freeReadingReportQuery.data?.fetchStatus === 'GENERATING'
-                      ? 'loading'
-                      : freeReadingReportQuery.data?.fetchStatus === 'READY'
-                        ? 'success'
-                        : freeReportStatus
-              }
-              report={freeReportResult}
-              errorMessage={
-                freeReportError
-                ?? (generateFreeReadingReportMutation.isError ? toUserMessage(generateFreeReadingReportMutation.error) : null)
-                ?? (freeReadingReportQuery.isError ? toUserMessage(freeReadingReportQuery.error) : null)
-                ?? (freeReadingReportQuery.data?.lastRunStatus === 'FAILED' ? '무료 독서 리포트 생성에 실패했어요.' : null)
-              }
-              onGenerate={handleGenerateFreeReport}
-            />
           </ScrollView>
-        </View>
+        </Animated.View>
       </SafeAreaView>
+      <FreeReadingReportListModal
+        visible={isFreeReadingReportListVisible}
+        reportList={freeReadingReportsQuery.data ?? null}
+        isLoading={freeReadingReportsQuery.isLoading}
+        errorMessage={freeReadingReportsQuery.isError ? toUserMessage(freeReadingReportsQuery.error) : null}
+        onClose={handleCloseFreeReportList}
+        onSelectReport={handleSelectFreeReport}
+      />
+      <FreeReadingReportGenerationModal
+        visible={isFreeReadingReportGenerationVisible}
+        mode={freeReadingReportGenerationMode}
+        status={
+          generateFreeReadingReportMutation.isPending
+            ? 'loading'
+            : freeReadingReportQuery.isLoading && !freeReadingReportQuery.data
+              ? 'loading'
+              : generateFreeReadingReportMutation.isError || freeReadingReportQuery.isError || freeReadingReportQuery.data?.fetchStatus === 'FAILED' || freeReadingReportQuery.data?.lastRunStatus === 'FAILED'
+                ? 'error'
+                : freeReadingReportQuery.data?.fetchStatus === 'GENERATING'
+                  ? 'loading'
+                  : freeReadingReportQuery.data?.fetchStatus === 'READY'
+                    ? 'success'
+                    : 'idle'
+        }
+        report={freeReadingReportQuery.data ?? null}
+        errorMessage={
+          generateFreeReadingReportMutation.isError
+            ? toUserMessage(generateFreeReadingReportMutation.error)
+          : freeReadingReportQuery.isError
+              ? toUserMessage(freeReadingReportQuery.error)
+              : freeReadingReportQuery.data?.lastRunStatus === 'FAILED'
+                ? '무료 독서 리포트 생성에 실패했어요.'
+                : null
+        }
+        onClose={() => {
+          setIsFreeReadingReportGenerationVisible(false);
+          setFreeReadingReportGenerationMode('intro');
+        }}
+        onStartGenerate={handleStartFreeReportGeneration}
+      />
+      <FreeReadingReportDetailModal
+        visible={isFreeReadingReportDetailVisible}
+        reportId={selectedFreeReadingReportId}
+        onClose={handleCloseFreeReportDetail}
+      />
       {editModals}
     </>
   );
@@ -554,7 +716,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   plusBtnText: { color: '#44c3f3', fontWeight: '700', fontSize: 13 },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 8, marginBottom: 16 },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 8, marginBottom: 20, marginTop: 4 },
   statCard: {
     width: '48.8%',
     borderRadius: 0,
@@ -634,7 +796,7 @@ const styles = StyleSheet.create({
   tagText: { fontSize: 10, color: '#111', fontWeight: '700' },
   analysisMetaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
   analysisMetaCell: { flex: 1 },
-  analysisMetaStrong: { fontSize: 18, color: '#3f362d', fontWeight: '700' },
+  analysisMetaStrong: { fontSize: 18, color: '#111', fontWeight: '700' },
   groupLabel: { fontSize: 11, color: '#9a8f81', marginBottom: 6, marginTop: 4 },
   settingRow: {
     minHeight: 54,
@@ -659,14 +821,14 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f4efe7',
+    backgroundColor: '#fff',
   },
   settingRowIconWrapDanger: {
     backgroundColor: '#f8e7e3',
   },
   settingRowIcon: { fontSize: 13, color: '#8d7f6f' },
   settingRowIconDanger: { color: '#d16456' },
-  settingRowTitle: { fontSize: 13, color: '#3f362d', fontWeight: '600' },
+  settingRowTitle: { fontSize: 13, color: '#111', fontWeight: '600' },
   settingRowTitleDanger: { color: '#d16456' },
   settingRowSub: { fontSize: 10, color: '#978c7d', marginTop: 3 },
   settingRight: { fontSize: 12, color: '#9a8f81' },
